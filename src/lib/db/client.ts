@@ -34,11 +34,50 @@ function createClient() {
   });
 }
 
-export const sql = globalThis.__pockitSql ?? createClient();
-if (env.NODE_ENV !== 'production') globalThis.__pockitSql = sql;
+/**
+ * The connection is created on FIRST USE, not on import.
+ *
+ * `next build` imports every route module to collect page data. If the client
+ * connected at module scope, the build would require DATABASE_URL and AUTH_SECRET —
+ * values that are only needed to serve a request. That made the production build
+ * fail on a correctly-configured deployment.
+ */
+function getSql(): ReturnType<typeof postgres> {
+  if (globalThis.__pockitSql) return globalThis.__pockitSql;
+  const client = createClient();
+  // Reused across hot reloads in development and warm invocations in production.
+  globalThis.__pockitSql = client;
+  return client;
+}
 
-export const db = drizzle(sql, { schema, casing: 'snake_case' });
-export type Db = typeof db;
+type DrizzleDb = ReturnType<typeof drizzle<typeof schema>>;
+
+let cachedDb: DrizzleDb | undefined;
+
+function getDb(): DrizzleDb {
+  cachedDb ??= drizzle(getSql(), { schema, casing: 'snake_case' });
+  return cachedDb;
+}
+
+export type Db = DrizzleDb;
+
+/** Lazily-resolved handle. Touching a property is what opens the connection. */
+export const db: Db = new Proxy({} as Db, {
+  get(_target, prop, receiver) {
+    const real = getDb() as unknown as Record<string | symbol, unknown>;
+    const value = Reflect.get(real, prop, receiver);
+    return typeof value === 'function' ? (value as (...args: unknown[]) => unknown).bind(real) : value;
+  },
+});
+
+/** Closes the pool. Used by the migration script so the process can exit. */
+export async function closeDb(): Promise<void> {
+  if (globalThis.__pockitSql) {
+    await globalThis.__pockitSql.end({ timeout: 5 });
+    globalThis.__pockitSql = undefined;
+    cachedDb = undefined;
+  }
+}
 
 /**
  * Run `fn` with the Postgres session bound to `userId`, so the RLS policies in
@@ -70,6 +109,3 @@ function assertUuid(v: string): string {
   }
   return v;
 }
-
-// Re-exported so callers do not import drizzle's `sql` under a confusing name.
-export { sql as rawSql };
