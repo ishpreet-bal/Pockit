@@ -59,6 +59,12 @@ const W = {
   differentSource: 3,
 } as const;
 
+/**
+ * Beyond this many days apart, two transactions are never the same one. Five days
+ * covers weekend batching and the gap between a purchase and its statement posting.
+ */
+const MAX_DAY_GAP = 5;
+
 const THRESHOLD_CERTAIN = 90;
 const THRESHOLD_LIKELY = 72;
 const THRESHOLD_POSSIBLE = 50;
@@ -94,6 +100,20 @@ export function scorePair(a: DuplicateSubject, b: DuplicateSubject): DuplicateMa
 
   /* Date — statements post a day or two after the purchase. */
   const dayGap = Math.abs(diffDays(a.postedDate, b.postedDate));
+
+  // The date is a GATE, not merely a contributor. The same purchase arriving from
+  // two sources always posts within a few days; beyond that it is a different
+  // purchase that happens to match. Without this, two identical $5.25 coffees three
+  // weeks apart score as a likely duplicate on amount + merchant + account alone.
+  if (dayGap > MAX_DAY_GAP) {
+    return {
+      candidateId: b.id ?? '',
+      score: 0,
+      reasons: [{ factor: 'date', detail: `${dayGap} days apart — too far to be the same transaction`, points: 0 }],
+      confidence: 'unlikely',
+    };
+  }
+
   if (dayGap === 0) {
     score += W.dateExact;
     reasons.push({ factor: 'date', detail: 'Same date', points: W.dateExact });
@@ -103,11 +123,9 @@ export function scorePair(a: DuplicateSubject, b: DuplicateSubject): DuplicateMa
   } else if (dayGap <= 3) {
     score += W.dateWithin3;
     reasons.push({ factor: 'date', detail: `${dayGap} days apart`, points: W.dateWithin3 });
-  } else if (dayGap <= 5) {
+  } else {
     score += W.dateWithin5;
     reasons.push({ factor: 'date', detail: `${dayGap} days apart`, points: W.dateWithin5 });
-  } else {
-    reasons.push({ factor: 'date', detail: `${dayGap} days apart`, points: 0 });
   }
 
   /* Merchant — normalised, then fuzzy. */
