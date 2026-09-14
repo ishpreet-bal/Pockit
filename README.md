@@ -65,6 +65,16 @@ cases the ledger must never get wrong: transfers excluded, card payments not
 double-counted, refunds offsetting, splits totalling exactly, currency conversion
 preserving originals, and category rollups not double counting.
 
+It also pins two bugs that reached working code and were caught by tests:
+
+- Two identical $5.25 coffees 19 days apart once scored 75 — "likely duplicate" —
+  because a distant date contributed no points but never *penalised*. The date is now
+  a gate, as the amount already was.
+- The production build once required `DATABASE_URL`, because the database client
+  connected at module scope and `next build` imports every route to collect page
+  data. The client is now lazy, and blank environment variables fall back to their
+  defaults rather than failing validation.
+
 ## Deployment
 
 The app targets Vercel with any Postgres. See **Environment** below, then after the
@@ -103,7 +113,7 @@ plus your own rules — images and video frames are what need a vision model.
 
 ## Status
 
-**Built, tested and verified** (lint + typecheck + 90 tests + production build green):
+**Built, tested and verified** (lint + typecheck + 100 tests + production build green):
 
 | Area | State |
 |---|---|
@@ -111,7 +121,8 @@ plus your own rules — images and video frames are what need a vision model.
 | Finance engine | Ledger, budgets (6 methods), goals + feasibility, forecast, safe-to-spend, recurring detection, duplicate scoring, debt payoff, net worth, patterns, insights, scenarios |
 | Schema | 47 tables, integrity triggers, RLS |
 | Auth | scrypt, signed httpOnly sessions, rate limiting, audit log, workspace isolation |
-| Screens | Overview, Transactions, Accounts, Budget, Goals, Recurring, Forecast, Debts, Analytics, Imports, Assistant, Onboarding |
+| Screens | Overview, Transactions, Accounts, Budget, Goals, Recurring, Forecast, Debts, Analytics, Imports, Assistant, Settings, Onboarding |
+| Privacy & export | File-retention choice, AI on/off, AI disclosure, learned-rule management, CSV export of transactions, summaries, goals and categories |
 | Import pipeline | CSV, Excel, text PDF and image, staged for review with duplicate scoring, commit and rollback |
 | AI | Provider abstraction; the heuristic driver works with no API key; the Anthropic driver adds vision and the grounded assistant |
 
@@ -121,8 +132,7 @@ plus your own rules — images and video frames are what need a vision model.
   transactions already carry personal/business/split classification, and the ledger
   splits those totals correctly.
 - Calendar view and notification delivery. Rules are seeded at sign-up.
-- Settings editing UI. Preferences are stored and honoured, but not editable in-app.
-- Data export to CSV, Excel and PDF.
+- Excel and PDF export. CSV export is built for all four datasets.
 - Screen-recording import. The client-side keyframe architecture is specified in
   [docs/02-architecture.md §2.6](docs/02-architecture.md) but not implemented.
 - Scenario planning and paycheck allocation screens. Both engines are built and tested.
