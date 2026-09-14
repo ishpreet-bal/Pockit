@@ -103,13 +103,42 @@ plus your own rules — images and video frames are what need a vision model.
 
 ## Status
 
-Built and tested: the money layer, the full finance engine (ledger, budgets across
-six methods, goals with feasibility analysis, forecasting, safe-to-spend, recurring
-detection, duplicate scoring, debt payoff simulation, net worth, patterns, insights,
-scenarios), the schema, auth, workspaces, and the Overview, Transactions, Accounts,
-Budget and Goals screens.
+**Built, tested and verified** (lint + typecheck + 90 tests + production build green):
 
-Not yet built: the import pipeline UI, the AI assistant, and the business, calendar,
-recurring, debts, analytics and settings screens. Those routes say so plainly and
-name the engine that already backs them, rather than showing placeholder
-functionality. See [docs/05-roadmap.md](docs/05-roadmap.md).
+| Area | State |
+|---|---|
+| Money layer | Integer minor units, FX preserving originals, exact split allocation |
+| Finance engine | Ledger, budgets (6 methods), goals + feasibility, forecast, safe-to-spend, recurring detection, duplicate scoring, debt payoff, net worth, patterns, insights, scenarios |
+| Schema | 47 tables, integrity triggers, RLS |
+| Auth | scrypt, signed httpOnly sessions, rate limiting, audit log, workspace isolation |
+| Screens | Overview, Transactions, Accounts, Budget, Goals, Recurring, Forecast, Debts, Analytics, Imports, Assistant, Onboarding |
+| Import pipeline | CSV, Excel, text PDF and image, staged for review with duplicate scoring, commit and rollback |
+| AI | Provider abstraction; the heuristic driver works with no API key; the Anthropic driver adds vision and the grounded assistant |
+
+**Not built yet:**
+
+- Business workspace screens (invoices, customers, vendors). The schema exists,
+  transactions already carry personal/business/split classification, and the ledger
+  splits those totals correctly.
+- Calendar view and notification delivery. Rules are seeded at sign-up.
+- Settings editing UI. Preferences are stored and honoured, but not editable in-app.
+- Data export to CSV, Excel and PDF.
+- Screen-recording import. The client-side keyframe architecture is specified in
+  [docs/02-architecture.md §2.6](docs/02-architecture.md) but not implemented.
+- Scenario planning and paycheck allocation screens. Both engines are built and tested.
+
+See [docs/05-roadmap.md](docs/05-roadmap.md).
+
+## Known limitations
+
+- **Bank connections are deliberately absent.** Manual entry and file import are the
+  intended path; `accounts.external_provider` is the seam for adding a provider later
+  without touching the transaction system. No bank site is scraped, and no bank
+  password is ever requested.
+- **Images need an AI key.** CSV, Excel and text PDFs are parsed on the server with no
+  provider involved. Screenshots and scanned PDFs require `ANTHROPIC_API_KEY`.
+- **Investment values are manual.** There is no price feed;
+  `holdings.current_value_minor` is a stored figure, with a `PriceProvider` seam for
+  adding one later.
+- **Serverless upload limit.** Vercel caps request bodies at around 4.5 MB, so
+  `MAX_UPLOAD_MB` should be kept under the platform limit in production.
