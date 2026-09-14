@@ -10,7 +10,6 @@ import { env } from '@/lib/env';
  * warm serverless invocations in production.
  */
 declare global {
-  // eslint-disable-next-line no-var
   var __pockitSql: ReturnType<typeof postgres> | undefined;
 }
 

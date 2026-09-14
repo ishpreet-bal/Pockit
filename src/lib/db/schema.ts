@@ -9,7 +9,7 @@
  */
 import {
   pgSchema, uuid, text, integer, bigint, boolean, timestamp, date, jsonb,
-  numeric, index, uniqueIndex, primaryKey, pgEnum, smallint, check,
+  numeric, index, uniqueIndex, primaryKey, smallint, check,
 } from 'drizzle-orm/pg-core';
 import { sql, relations } from 'drizzle-orm';
 
