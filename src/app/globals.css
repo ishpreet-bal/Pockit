@@ -1,0 +1,180 @@
+@import 'tailwindcss';
+
+/* ============================================================
+   Pockit design tokens — see docs/06-design-system.md
+   Components reference tokens only, never raw colour values.
+   ============================================================ */
+
+@theme {
+  --font-sans: ui-sans-serif, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
+    'Helvetica Neue', Arial, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace;
+
+  --text-2xs: 0.6875rem;  /* 11 */
+  --text-xs: 0.75rem;     /* 12 */
+  --text-sm: 0.8125rem;   /* 13 */
+  --text-base: 0.875rem;  /* 14 */
+  --text-md: 1rem;        /* 16 */
+  --text-lg: 1.25rem;     /* 20 */
+  --text-xl: 1.5rem;      /* 24 */
+  --text-2xl: 2rem;       /* 32 */
+  --text-3xl: 2.5rem;     /* 40 */
+
+  --radius-control: 0.5rem;
+  --radius-card: 0.75rem;
+}
+
+:root {
+  color-scheme: light;
+  --bg: #fbfbfa;
+  --surface: #ffffff;
+  --surface-2: #f5f5f4;
+  --surface-3: #ebeae8;
+  --border: #e7e5e4;
+  --border-strong: #d6d3d1;
+  --text: #1c1917;
+  --text-muted: #6b6560;
+  --text-subtle: #8f8a85;
+  --accent: #2f6f5e;
+  --accent-hover: #275d4f;
+  --accent-fg: #ffffff;
+  --accent-soft: #e7f0ec;
+  --positive: #177245;
+  --positive-soft: #e6f4ec;
+  --negative: #a4303f;
+  --negative-soft: #fbeaec;
+  --warning: #9a6700;
+  --warning-soft: #fdf3e2;
+  --info: #1f5f8b;
+  --info-soft: #e8f1f8;
+  --shadow-sm: 0 1px 2px rgb(0 0 0 / 0.04), 0 4px 12px rgb(0 0 0 / 0.06);
+  --shadow-md: 0 8px 32px rgb(0 0 0 / 0.12);
+
+  --chart-1: #2f6f5e;
+  --chart-2: #4a6fa5;
+  --chart-3: #b8763e;
+  --chart-4: #7d5ba6;
+  --chart-5: #3f8f8a;
+  --chart-6: #a4554b;
+  --chart-7: #6b8e3d;
+  --chart-8: #8a6d3b;
+}
+
+:root[data-theme='dark'] {
+  color-scheme: dark;
+  --bg: #0b0c0e;
+  --surface: #141619;
+  --surface-2: #1b1e22;
+  --surface-3: #23272c;
+  --border: #282c32;
+  --border-strong: #3a3f47;
+  --text: #f2f3f5;
+  --text-muted: #9aa0a8;
+  --text-subtle: #6d747c;
+  --accent: #4fbf9a;
+  --accent-hover: #63cfab;
+  --accent-fg: #06251c;
+  --accent-soft: #12332b;
+  --positive: #4ade80;
+  --positive-soft: #10281a;
+  --negative: #f87171;
+  --negative-soft: #2e1618;
+  --warning: #fbbf24;
+  --warning-soft: #2e2413;
+  --info: #60a5fa;
+  --info-soft: #14212f;
+  --shadow-sm: 0 1px 2px rgb(0 0 0 / 0.4), 0 4px 12px rgb(0 0 0 / 0.3);
+  --shadow-md: 0 8px 32px rgb(0 0 0 / 0.5);
+
+  --chart-1: #4fbf9a;
+  --chart-2: #7aa5e0;
+  --chart-3: #e0a065;
+  --chart-4: #b294d6;
+  --chart-5: #5fc4be;
+  --chart-6: #e08b82;
+  --chart-7: #9dc56a;
+  --chart-8: #c9a86a;
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-surface-3: var(--surface-3);
+  --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
+  --color-text: var(--text);
+  --color-text-muted: var(--text-muted);
+  --color-text-subtle: var(--text-subtle);
+  --color-accent: var(--accent);
+  --color-accent-hover: var(--accent-hover);
+  --color-accent-fg: var(--accent-fg);
+  --color-accent-soft: var(--accent-soft);
+  --color-positive: var(--positive);
+  --color-positive-soft: var(--positive-soft);
+  --color-negative: var(--negative);
+  --color-negative-soft: var(--negative-soft);
+  --color-warning: var(--warning);
+  --color-warning-soft: var(--warning-soft);
+  --color-info: var(--info);
+  --color-info-soft: var(--info-soft);
+}
+
+* { border-color: var(--border); }
+
+html { -webkit-text-size-adjust: 100%; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-sans);
+  font-size: var(--text-base);
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* Monetary figures must always align in columns and never jitter. */
+.tabular { font-variant-numeric: tabular-nums; font-feature-settings: 'tnum' 1; }
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 3px;
+}
+
+::selection { background: var(--accent-soft); color: var(--text); }
+
+/* Scrollbars that do not fight the theme */
+* { scrollbar-width: thin; scrollbar-color: var(--border-strong) transparent; }
+*::-webkit-scrollbar { width: 10px; height: 10px; }
+*::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 999px; border: 3px solid transparent; background-clip: content-box; }
+*::-webkit-scrollbar-track { background: transparent; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+@keyframes pk-spin { to { transform: rotate(360deg); } }
+@keyframes pk-fade-in { from { opacity: 0; } to { opacity: 1; } }
+@keyframes pk-slide-up { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+@keyframes pk-sheet-up { from { transform: translateY(100%); } to { transform: none; } }
+@keyframes pk-shimmer { 0% { background-position: -400px 0; } 100% { background-position: 400px 0; } }
+
+.pk-skeleton {
+  background: linear-gradient(90deg, var(--surface-2) 0px, var(--surface-3) 200px, var(--surface-2) 400px);
+  background-size: 800px 100%;
+  animation: pk-shimmer 1.4s infinite linear;
+  border-radius: 6px;
+}
+
+/* Recharts overrides so charts inherit the theme rather than defaults */
+.recharts-cartesian-axis-tick text { fill: var(--text-subtle); font-size: 11px; }
+.recharts-cartesian-grid line { stroke: var(--border); }
+.recharts-tooltip-cursor { fill: var(--surface-2); opacity: 0.6; }
+.recharts-surface:focus { outline: none; }
