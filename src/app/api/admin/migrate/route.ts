@@ -28,7 +28,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  const result = await runMigrations();
+  const result = await runMigrations(env.DATABASE_URL);
   if (result.failed) {
     return NextResponse.json({ ok: false, ...result }, { status: 500 });
   }

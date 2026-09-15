@@ -97,6 +97,11 @@ It also pins the bugs that reached working code:
   "Transfer from chequing" as two upcoming bills and double-counting investment
   contributions in the forecast. `isExternalCashMovement` now answers that question
   in one place for the forecast, the calendar and the overview.
+- The migration runner filtered comment-only chunks with a regex whose nested
+  quantifier backtracked catastrophically on a chunk starting with comments — exactly
+  how the triggers-and-RLS migration begins. It never errored; it hung, so a migrated
+  database ended up with tables but **no row-level security and no triggers**. The
+  filter is now a linear line scan.
 
 ## Deployment
 
@@ -136,7 +141,7 @@ plus your own rules — images and video frames are what need a vision model.
 
 ## Status
 
-**Built, tested and verified** (lint + typecheck + 111 unit tests + 29 end-to-end checks + production build green):
+**Built, tested and verified** (lint + typecheck + 115 unit tests + 29 end-to-end checks + production build green):
 
 | Area | State |
 |---|---|
