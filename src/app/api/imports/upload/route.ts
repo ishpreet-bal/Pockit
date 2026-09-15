@@ -54,7 +54,23 @@ export async function POST(request: Request) {
   }
 
   const repo = new WorkspaceRepo(ctx.user.id, ctx.workspace.id, ctx.workspace.baseCurrency);
+
+  // An import without a destination account is a dead end: extraction succeeds, then
+  // every row fails at commit with "no account selected". Reject it here instead.
   const accountId = (form?.get('accountId') as string | null) || null;
+  const accounts = await repo.listAccounts();
+  if (accounts.length === 0) {
+    return NextResponse.json(
+      { error: 'Add an account first — imported transactions need somewhere to live.' },
+      { status: 400 },
+    );
+  }
+  if (!accountId || !accounts.some((a) => a.id === accountId)) {
+    return NextResponse.json(
+      { error: 'Choose which account these transactions belong to.' },
+      { status: 400 },
+    );
+  }
   const dateFormatHint = (form?.get('dateFormatHint') as string | null) ?? 'unknown';
   const businessClassification = (form?.get('businessClassification') as string | null) ?? 'personal';
   const retention = (form?.get('retention') as string | null) ?? ctx.user.fileRetention;

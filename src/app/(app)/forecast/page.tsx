@@ -52,7 +52,9 @@ export default async function ForecastPage({
 
   const balances = allAccountBalances(accounts, txns, today);
   const position = cashPosition(accounts, balances);
-  const series = detectRecurring(txns, today);
+  const series = detectRecurring(
+    txns, today, undefined, new Map(accounts.map((a) => [a.id, a.normalBalance])),
+  );
   const historyRange = { start: startOfMonth(addMonths(today, -2)), end: today };
 
   const result = forecast({

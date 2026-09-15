@@ -144,7 +144,7 @@ export function UploadForm({
           <CardBody className="space-y-3.5">
             <Field label="Account" htmlFor="accountId" hint="Which account these transactions belong to.">
               <Select id="accountId" name="accountId" value={accountId} onChange={(e) => setAccountId(e.target.value)} required>
-                {accounts.length === 0 ? <option value="">No accounts yet</option> : null}
+                {accounts.length === 0 ? <option value="">No accounts yet — add one first</option> : null}
                 {accounts.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
               </Select>
             </Field>
@@ -177,9 +177,14 @@ export function UploadForm({
               </Select>
             </Field>
 
-            <Button type="submit" variant="primary" className="w-full" disabled={busy || accounts.length === 0}>
+            <Button type="submit" variant="primary" className="w-full" disabled={busy || accounts.length === 0 || !accountId}>
               {busy ? 'Reading…' : 'Read this file'}
             </Button>
+            {accounts.length === 0 ? (
+              <p className="text-xs text-[var(--negative)]">
+                Imported transactions need an account. Add one before importing.
+              </p>
+            ) : null}
           </CardBody>
         </Card>
 

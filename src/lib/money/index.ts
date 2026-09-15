@@ -249,13 +249,24 @@ export function formatMoney(
   else digits = abs % pow10(info.exponent) === 0n ? 0 : info.exponent;
 
   const value = toMajorNumber(abs, currency);
+
+  // Intl throws a RangeError when minimumFractionDigits exceeds maximumFractionDigits.
+  // Compact notation wants at most one decimal on large values, so the minimum has to
+  // come down with it — computing both together makes that impossible to get wrong.
+  let minFractionDigits = digits;
+  let maxFractionDigits = digits;
+  if (compact) {
+    maxFractionDigits = value >= 1000 ? 1 : digits;
+    minFractionDigits = 0;
+  }
+
   const formatter = new Intl.NumberFormat(locale, {
     style: 'currency',
     currency: info.code,
     currencyDisplay: showCode ? 'code' : 'narrowSymbol',
-    minimumFractionDigits: digits,
-    maximumFractionDigits: digits,
-    ...(compact ? { notation: 'compact' as const, maximumFractionDigits: value >= 1000 ? 1 : digits } : {}),
+    minimumFractionDigits: minFractionDigits,
+    maximumFractionDigits: maxFractionDigits,
+    ...(compact ? { notation: 'compact' as const } : {}),
   });
 
   let out: string;

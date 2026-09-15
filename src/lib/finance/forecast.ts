@@ -18,7 +18,7 @@ import type { DateRange, IsoDate, LedgerTxn, LedgerCategory, TxnType } from './t
 import { addDays, diffDays, daysInRange, monthsInRange } from './period';
 import { periodTotals, spendingByCategory } from './ledger';
 import type { DetectedSeries } from './recurring';
-import { upcomingOccurrences } from './recurring';
+import { upcomingOccurrences, isExternalCashMovement } from './recurring';
 
 export interface ScheduledItem {
   date: IsoDate;
@@ -29,6 +29,8 @@ export interface ScheduledItem {
   /** 'known' items are scheduled and dated; 'estimated' are modelled. */
   certainty: 'known' | 'estimated';
   sourceKey: string;
+  /** Money out or in. Both legs of a paired movement share an amount but not this. */
+  direction?: 'outflow' | 'inflow';
 }
 
 export interface ForecastDay {
@@ -89,6 +91,8 @@ export function forecast(input: ForecastInput): ForecastResult {
   const scheduled: ScheduledItem[] = [];
 
   for (const occ of upcomingOccurrences(series, today, end)) {
+    // Internal movements net to zero against the tracked cash position.
+    if (!isExternalCashMovement(occ)) continue;
     scheduled.push({
       date: occ.date,
       name: occ.name,
@@ -97,6 +101,7 @@ export function forecast(input: ForecastInput): ForecastResult {
       categoryId: occ.categoryId,
       certainty: 'known',
       sourceKey: occ.seriesKey,
+      direction: occ.direction,
     });
   }
   for (const item of input.plannedItems ?? []) {
@@ -125,9 +130,13 @@ export function forecast(input: ForecastInput): ForecastResult {
     let knownExpense = 0n;
 
     for (const item of byDate.get(date) ?? []) {
-      if (item.type === 'income') knownIncome += item.amountMinor;
-      else if (item.type === 'transfer' || item.type === 'debt_payment') continue;
-      else knownExpense += item.amountMinor;
+      if (item.type === 'transfer' || item.type === 'debt_payment') continue;
+      // Direction decides, not type: an investment contribution is detected on BOTH
+      // the account it leaves and the one it arrives in, and only the leaving leg
+      // reduces spendable cash.
+      const outflow = item.direction ? item.direction === 'outflow' : item.type !== 'income';
+      if (outflow) knownExpense += item.amountMinor;
+      else knownIncome += item.amountMinor;
     }
 
     // Today itself is already reflected in the starting balance, so no estimate for it.
@@ -242,8 +251,8 @@ export function safeToSpend(input: SafeToSpendInput): SafeToSpendResult {
   let bills = 0n;
   let incoming = 0n;
   for (const occ of upcoming) {
-    if (occ.type === 'income') incoming += absMinor(occ.amountMinor);
-    else if (occ.type === 'transfer' || occ.type === 'debt_payment') continue;
+    if (!isExternalCashMovement(occ)) continue;
+    if (occ.direction === 'inflow') incoming += absMinor(occ.amountMinor);
     else bills += absMinor(occ.amountMinor);
   }
   for (const item of input.plannedItems ?? []) {

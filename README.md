@@ -57,15 +57,30 @@ refunds, transfers, card payments, investments and business expenses.
 ## Quality gate
 
 ```bash
-npm run verify   # lint + typecheck + tests + production build
+npm run verify   # lint + typecheck + unit tests + production build
 ```
+
+Unit tests alone were not enough — they missed every bug that actually broke the
+running app. So there is also an end-to-end smoke test that drives a real browser
+against a real Postgres:
+
+```bash
+npm run db:start                    # local Postgres on :5433
+npm run db:migrate
+npm run build && npm start
+BASE=http://localhost:3000 npm run e2e
+```
+
+It registers a new account, loads demo data, opens all fifteen pages, runs a CSV
+import through extraction, duplicate detection, commit and rollback, and checks the
+export — 29 assertions.
 
 Financial logic carries the test coverage, not the cosmetics. The suite asserts the
 cases the ledger must never get wrong: transfers excluded, card payments not
 double-counted, refunds offsetting, splits totalling exactly, currency conversion
 preserving originals, and category rollups not double counting.
 
-It also pins two bugs that reached working code and were caught by tests:
+It also pins the bugs that reached working code:
 
 - Two identical $5.25 coffees 19 days apart once scored 75 — "likely duplicate" —
   because a distant date contributed no points but never *penalised*. The date is now
@@ -74,6 +89,14 @@ It also pins two bugs that reached working code and were caught by tests:
   connected at module scope and `next build` imports every route to collect page
   data. The client is now lazy, and blank environment variables fall back to their
   defaults rather than failing validation.
+- `formatMoney` crashed on any compact figure over $1,000 with cents, because
+  `minimumFractionDigits` exceeded `maximumFractionDigits` and `Intl` throws on that.
+  Empty accounts never reached it, so the dashboard only 500'd once there was real
+  data in it.
+- Both legs of a transfer were counted separately, listing "Transfer to savings" and
+  "Transfer from chequing" as two upcoming bills and double-counting investment
+  contributions in the forecast. `isExternalCashMovement` now answers that question
+  in one place for the forecast, the calendar and the overview.
 
 ## Deployment
 
@@ -113,7 +136,7 @@ plus your own rules — images and video frames are what need a vision model.
 
 ## Status
 
-**Built, tested and verified** (lint + typecheck + 100 tests + production build green):
+**Built, tested and verified** (lint + typecheck + 111 unit tests + 29 end-to-end checks + production build green):
 
 | Area | State |
 |---|---|
@@ -121,17 +144,17 @@ plus your own rules — images and video frames are what need a vision model.
 | Finance engine | Ledger, budgets (6 methods), goals + feasibility, forecast, safe-to-spend, recurring detection, duplicate scoring, debt payoff, net worth, patterns, insights, scenarios |
 | Schema | 47 tables, integrity triggers, RLS |
 | Auth | scrypt, signed httpOnly sessions, rate limiting, audit log, workspace isolation |
-| Screens | Overview, Transactions, Accounts, Budget, Goals, Recurring, Forecast, Debts, Analytics, Imports, Assistant, Settings, Onboarding |
+| Screens | Overview, Transactions, Accounts, Budget, Goals, Recurring, Forecast, Debts, Analytics, Calendar, Business, Imports, Assistant, Settings, Onboarding |
 | Privacy & export | File-retention choice, AI on/off, AI disclosure, learned-rule management, CSV export of transactions, summaries, goals and categories |
 | Import pipeline | CSV, Excel, text PDF and image, staged for review with duplicate scoring, commit and rollback |
 | AI | Provider abstraction; the heuristic driver works with no API key; the Anthropic driver adds vision and the grounded assistant |
 
 **Not built yet:**
 
-- Business workspace screens (invoices, customers, vendors). The schema exists,
-  transactions already carry personal/business/split classification, and the ledger
-  splits those totals correctly.
-- Calendar view and notification delivery. Rules are seeded at sign-up.
+- Invoices, customers and vendors. The schema exists and the Business screen reports
+  revenue, expenses, profit and margin from classified transactions, but there is no
+  invoicing UI yet.
+- Notification delivery. Rules are seeded at sign-up but nothing sends them.
 - Excel and PDF export. CSV export is built for all four datasets.
 - Screen-recording import. The client-side keyframe architecture is specified in
   [docs/02-architecture.md §2.6](docs/02-architecture.md) but not implemented.

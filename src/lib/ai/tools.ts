@@ -196,8 +196,10 @@ export function buildAssistantTools(
         'Detected recurring payments and subscriptions with monthly and annual totals, next expected date and any price increases.',
       inputSchema: { type: 'object', properties: {}, required: [] },
       async run() {
-        const txns = await load();
-        const detected = detectRecurring(txns, today);
+        const [txns, accounts] = await Promise.all([load(), repo.listAccounts()]);
+        const detected = detectRecurring(
+          txns, today, undefined, new Map(accounts.map((a) => [a.id, a.normalBalance])),
+        );
         const summary = summarizeSubscriptions(detected);
         return {
           monthlyTotal: formatMoney(summary.monthlyMinor, currency),

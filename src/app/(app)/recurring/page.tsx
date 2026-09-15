@@ -18,8 +18,12 @@ export default async function RecurringPage() {
   const today = todayIn(user.timezone);
   const cur = workspace.baseCurrency;
 
-  const [txns, categories] = await Promise.all([repo.listTransactions(), repo.listCategories()]);
-  const detected = detectRecurring(txns, today);
+  const [txns, categories, accounts] = await Promise.all([
+    repo.listTransactions(), repo.listCategories(), repo.listAccounts(),
+  ]);
+  const detected = detectRecurring(
+    txns, today, undefined, new Map(accounts.map((a) => [a.id, a.normalBalance])),
+  );
   const summary = summarizeSubscriptions(detected);
   const categoryById = new Map(categories.map((c) => [c.id, c]));
 

@@ -5,7 +5,7 @@ import {
   periodTotals, allAccountBalances, cashPosition, spendingByCategory, monthlySeries, rollUpCategories,
 } from '@/lib/finance/ledger';
 import { resolvePeriod, previousPeriod, todayIn, startOfMonth, endOfMonth, addMonths, type PeriodPreset } from '@/lib/finance/period';
-import { detectRecurring, summarizeSubscriptions, upcomingOccurrences } from '@/lib/finance/recurring';
+import { detectRecurring, summarizeSubscriptions, upcomingOccurrences, isExternalCashMovement } from '@/lib/finance/recurring';
 import { computeGoalMath, computeCashFlowBasis, type GoalInput } from '@/lib/finance/goals';
 import { safeToSpend } from '@/lib/finance/forecast';
 import { computeInsights } from '@/lib/finance/patterns';
@@ -74,10 +74,14 @@ export async function buildOverview(
 
   const series = monthlySeries(allTxns, { start: historyStart, end: today });
 
-  const detected = detectRecurring(allTxns, today);
+  const normalBalanceByAccount = new Map(accounts.map((a) => [a.id, a.normalBalance]));
+  const detected = detectRecurring(allTxns, today, undefined, normalBalanceByAccount);
   const subscriptions = summarizeSubscriptions(detected);
+  // Only money actually leaving. Both legs of a transfer are detected separately, so
+  // filtering by type alone listed "Transfer to savings" and "Transfer from chequing"
+  // as two upcoming bills for what is one movement.
   const upcoming = upcomingOccurrences(detected, today, endOfMonth(today))
-    .filter((u) => u.type !== 'income')
+    .filter((u) => isExternalCashMovement(u) && u.direction === 'outflow')
     .slice(0, 6);
 
   const basis = computeCashFlowBasis(allTxns, { start: startOfMonth(addMonths(today, -2)), end: today }, 3);

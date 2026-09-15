@@ -18,7 +18,9 @@
     "db:push": "drizzle-kit push",
     "db:migrate": "tsx scripts/migrate.ts",
     "db:seed-demo": "tsx scripts/seed-demo.ts",
-    "verify": "npm run lint && npm run typecheck && npm run test && npm run build"
+    "verify": "npm run lint && npm run typecheck && npm run test && npm run build",
+    "e2e": "node e2e/smoke.mjs",
+    "db:start": "bash scripts/dev-db.sh"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "0.125.0",
@@ -49,6 +51,7 @@
     "drizzle-kit": "0.31.10",
     "eslint": "9.39.5",
     "eslint-config-next": "15.5.25",
+    "playwright": "^1.63.0",
     "postcss": "8.5.28",
     "tailwindcss": "4.3.3",
     "tsx": "4.23.13",

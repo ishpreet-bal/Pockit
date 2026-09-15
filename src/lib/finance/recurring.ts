@@ -44,6 +44,14 @@ export interface DetectedSeries {
   priceChanges: { date: IsoDate; fromMinor: bigint; toMinor: bigint }[];
   transactionIds: string[];
   kind: 'subscription' | 'bill' | 'income' | 'transfer' | 'other';
+  /**
+   * Whether this series takes money OUT of the account it posts to, or puts money in.
+   *
+   * Both legs of a transfer are detected as separate series with the same amount, so
+   * without this a savings transfer appears twice in "coming up" and an investment
+   * contribution is counted as an expense on both sides of the forecast.
+   */
+  direction: 'outflow' | 'inflow';
 }
 
 const MIN_OCCURRENCES = 3;
@@ -57,6 +65,8 @@ export function detectRecurring(
   txns: readonly LedgerTxn[],
   today: IsoDate,
   minOccurrences: number = MIN_OCCURRENCES,
+  /** Account normal balances, so the stored sign can be read as in or out. */
+  accountNormalBalance: ReadonlyMap<string, 'debit' | 'credit'> = new Map(),
 ): DetectedSeries[] {
   const groups = new Map<string, LedgerTxn[]>();
 
@@ -93,6 +103,8 @@ export function detectRecurring(
     const amounts = sorted.map((t) => absMinor(t.baseAmountMinor));
     const medianAmount = medianBig(amounts);
     if (medianAmount === 0n) continue;
+
+    const direction = resolveDirection(sorted, accountNormalBalance);
 
     // Amount stability: a subscription's amount barely moves; groceries vary wildly.
     const deviations = amounts.map((a) => {
@@ -136,6 +148,7 @@ export function detectRecurring(
       priceChanges: findPriceChanges(sorted),
       transactionIds: sorted.map((t) => t.id),
       kind: classifyKind(last, meanDeviationBps),
+      direction,
     });
   }
 
@@ -173,6 +186,27 @@ function scoreConfidence(input: {
   const amountScore = Math.max(0, 1 - input.meanDeviationBps / 2000) * 25;
   const namedCadenceBonus = input.cadence === 'custom' ? 0 : 5;
   return Math.round(Math.max(0, Math.min(100, occurrenceScore + cadenceScore + amountScore + namedCadenceBonus)));
+}
+
+/**
+ * Money out or money in, from the stored sign in the account's own direction.
+ *
+ * On an asset account a negative amount means money left. On a liability account the
+ * convention inverts: a positive amount is a purchase (money spent) and a negative one
+ * is a payment reducing the balance.
+ */
+function resolveDirection(
+  sorted: readonly LedgerTxn[],
+  accountNormalBalance: ReadonlyMap<string, 'debit' | 'credit'>,
+): 'outflow' | 'inflow' {
+  const first = sorted[0]!;
+  if (first.type === 'income' || first.type === 'refund') return 'inflow';
+  if (first.type === 'expense') return 'outflow';
+
+  const signed = medianBig(sorted.map((t) => t.amountMinor));
+  const normal = accountNormalBalance.get(first.accountId) ?? 'debit';
+  if (normal === 'credit') return signed > 0n ? 'outflow' : 'inflow';
+  return signed < 0n ? 'outflow' : 'inflow';
 }
 
 function classifyKind(t: LedgerTxn, deviationBps: number): DetectedSeries['kind'] {
@@ -289,7 +323,10 @@ export function upcomingOccurrences(
   series: readonly DetectedSeries[],
   from: IsoDate,
   toDate: IsoDate,
-): { seriesKey: string; name: string; date: IsoDate; amountMinor: bigint; type: TxnType; categoryId: string | null }[] {
+): {
+  seriesKey: string; name: string; date: IsoDate; amountMinor: bigint;
+  type: TxnType; categoryId: string | null; direction: 'outflow' | 'inflow'; accountId: string | null;
+}[] {
   const out: ReturnType<typeof upcomingOccurrences> = [];
   for (const s of series) {
     let cursor = s.nextExpectedDate;
@@ -303,6 +340,8 @@ export function upcomingOccurrences(
           amountMinor: s.amountMinor,
           type: s.type,
           categoryId: s.categoryId,
+          direction: s.direction,
+          accountId: s.accountId,
         });
       }
       cursor = advance(cursor, s.cadence, s.intervalDays);
@@ -310,6 +349,31 @@ export function upcomingOccurrences(
   }
   return out.sort((a, b) => a.date.localeCompare(b.date));
 }
+
+/**
+ * Does this occurrence move money into or out of the user's finances as a whole?
+ *
+ * Paired movements are detected as TWO series — one on the account the money leaves,
+ * one on the account it arrives in — with identical names and amounts. Counting both
+ * double-counts the movement: "Transfer to savings" and "Transfer from chequing"
+ * appeared as two separate upcoming bills, and one $500 investment contribution
+ * appeared twice on the calendar.
+ *
+ * The rule: a transfer or debt payment is internal on both legs. Anything else
+ * ARRIVING is internal too, unless it is genuinely new money — income or a refund.
+ *
+ * This lives here, once, because the forecast, the calendar and the overview all need
+ * the same answer and must not each invent their own.
+ */
+export function isExternalCashMovement(occ: {
+  type: TxnType;
+  direction: 'outflow' | 'inflow';
+}): boolean {
+  if (occ.type === 'transfer' || occ.type === 'debt_payment') return false;
+  if (occ.direction === 'outflow') return true;
+  return occ.type === 'income' || occ.type === 'refund';
+}
+
 
 /* ------------------------------------------------------------------ */
 /* Statistics helpers                                                  */

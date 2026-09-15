@@ -126,6 +126,33 @@ describe('formatMoney', () => {
     expect(formatMoney(1_240_000n, 'CAD', { compact: true })).toMatch(/12\.4K/);
   });
 
+  // Regression: compact notation set maximumFractionDigits below minimumFractionDigits,
+  // and Intl throws a RangeError for that. Every compact figure over $1,000 with cents
+  // crashed the page — which is any real net-worth number, so the dashboard 500'd as
+  // soon as an account had data in it.
+  it('never throws for any value and option combination', () => {
+    const values = [0n, 1n, 99n, 100n, 999n, 100_000n, 123_456n, 99_999_999n, -123_456n, -1n];
+    const currencies = ['CAD', 'USD', 'EUR', 'JPY'];
+    for (const minor of values) {
+      for (const currency of currencies) {
+        for (const compact of [true, false]) {
+          for (const cents of ['auto', 'always', 'never'] as const) {
+            for (const signed of [true, false]) {
+              expect(() => formatMoney(minor, currency, { compact, cents, signed })).not.toThrow();
+              expect(() => formatMoneyParts(minor, currency, { compact, cents, signed })).not.toThrow();
+            }
+          }
+        }
+      }
+    }
+  });
+
+  it('formats compact values over a thousand with cents', () => {
+    // The exact case that crashed: >= 1000 with a non-zero fractional part.
+    expect(formatMoney(128_450n, 'CAD', { compact: true })).toMatch(/1\.3K/);
+    expect(formatMoney(1_234_567n, 'CAD', { compact: true })).toMatch(/12\.3K/);
+  });
+
   it('splits into parts for de-emphasised rendering', () => {
     const p = formatMoneyParts(128450n);
     expect(p.symbol).toBe('$');
