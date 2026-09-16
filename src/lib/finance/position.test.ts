@@ -165,3 +165,47 @@ describe('figures explain themselves', () => {
     expect(figure.action?.href).toBe('/budget');
   });
 });
+
+/**
+ * Regression: "what is coming" is not a calendar-month question. Adding rent due on
+ * the 1st while standing in the middle of the month showed no effect anywhere,
+ * because the next occurrence fell outside the current period.
+ */
+describe('coming up looks past the end of the month', () => {
+  it('surfaces a bill due early next month', () => {
+    const position = computePosition({
+      ...base,
+      today: '2026-09-16',
+      txns: [txn({ type: 'expense', amountMinor: -180_000n, postedDate: '2026-10-01', description: 'Rent' })],
+    });
+
+    // Not part of September's maths...
+    expect(position.committedMinor).toBe(0n);
+    expect(position.commitments).toHaveLength(0);
+
+    // ...but the user still sees it coming.
+    expect(position.soonCommitments).toHaveLength(1);
+    expect(position.soonCommitments[0]!.name).toBe('Rent');
+  });
+
+  it('still counts a bill inside the period toward the period maths', () => {
+    const position = computePosition({
+      ...base,
+      today: '2026-09-16',
+      txns: [txn({ type: 'expense', amountMinor: -50_000n, postedDate: '2026-09-28', description: 'Insurance' })],
+    });
+    expect(position.committedMinor).toBe(50_000n);
+    expect(position.commitments).toHaveLength(1);
+    expect(position.soonCommitments).toHaveLength(1);
+  });
+
+  it('does not count next month income as this month income', () => {
+    const position = computePosition({
+      ...base,
+      today: '2026-09-16',
+      txns: [txn({ type: 'income', amountMinor: 250_000n, postedDate: '2026-10-05', description: 'Payday' })],
+    });
+    expect(position.incomeExpectedMinor).toBe(0n);
+    expect(position.soonCommitments.some((c) => c.kind === 'income')).toBe(true);
+  });
+});

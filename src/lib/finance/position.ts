@@ -23,7 +23,7 @@
 import { sumMinor, absMinor } from '@/lib/money';
 import type { DateRange, IsoDate, LedgerTxn, LedgerAccount, LedgerCategory } from './types';
 import { spendingAmount, incomeAmount, isInternalTransfer, cashPosition, allAccountBalances } from './ledger';
-import { endOfMonth, startOfMonth, diffDays } from './period';
+import { endOfMonth, startOfMonth, diffDays, addDays } from './period';
 import { upcomingOccurrences, isExternalCashMovement, type DetectedSeries } from './recurring';
 
 /** Has this transaction actually happened, or is it a plan? */
@@ -69,8 +69,17 @@ export interface MoneyPosition {
   /** Income minus everything spent and committed, across the whole period. */
   leftThisPeriodMinor: bigint;
 
-  /** The individual commitments, so any figure can be drilled into. */
+  /** Commitments falling inside the period, used for the period maths. */
   commitments: CommittedItem[];
+  /**
+   * Commitments over the next `lookaheadDays`, regardless of month boundary.
+   *
+   * "What is coming" is not a calendar-month question. Adding rent due on the 1st on
+   * the 16th used to show no effect anywhere, because the next occurrence fell outside
+   * the current month — the user did the right thing and saw nothing happen.
+   */
+  soonCommitments: CommittedItem[];
+  lookaheadDays: number;
 
   /** True when nothing has been committed — used to avoid alarming empty states. */
   hasCommitments: boolean;
@@ -86,11 +95,15 @@ export interface PositionInput {
   currency: string;
   /** Defaults to the current calendar month. */
   period?: DateRange;
+  /** How far ahead "coming up" looks. Defaults to 30 days. */
+  lookaheadDays?: number;
 }
 
 export function computePosition(input: PositionInput): MoneyPosition {
   const { txns, accounts, series, today, currency } = input;
   const period = input.period ?? { start: startOfMonth(today), end: endOfMonth(today) };
+  const lookaheadDays = input.lookaheadDays ?? 30;
+  const lookaheadEnd = addDays(today, lookaheadDays);
 
   let incomeReceived = 0n;
   let incomeExpected = 0n;
@@ -99,8 +112,10 @@ export function computePosition(input: PositionInput): MoneyPosition {
 
   const categoryById = new Map(input.categories.map((c) => [c.id, c]));
 
+  const windowEnd = lookaheadEnd > period.end ? lookaheadEnd : period.end;
+
   for (const t of txns) {
-    if (t.postedDate < period.start || t.postedDate > period.end) continue;
+    if (t.postedDate < period.start || t.postedDate > windowEnd) continue;
     if (isInternalTransfer(t)) continue;
 
     if (isScheduled(t, today)) {
@@ -108,7 +123,7 @@ export function computePosition(input: PositionInput): MoneyPosition {
       // completed payment. Counting it as spent was the original bug.
       const income = incomeAmount(t);
       if (income > 0n) {
-        incomeExpected += income;
+        if (t.postedDate <= period.end) incomeExpected += income;
         commitments.push({
           date: t.postedDate,
           name: t.merchantName ?? t.description,
@@ -141,7 +156,7 @@ export function computePosition(input: PositionInput): MoneyPosition {
 
   // Recurring items due before the period ends that have not already been entered.
   const entered = new Set(commitments.map((c) => `${c.date}|${c.amountMinor}`));
-  const horizonEnd = period.end < today ? today : period.end;
+  const horizonEnd = windowEnd < today ? today : windowEnd;
 
   for (const occ of upcomingOccurrences(series, today, horizonEnd)) {
     if (!isExternalCashMovement(occ)) continue;
@@ -150,7 +165,7 @@ export function computePosition(input: PositionInput): MoneyPosition {
 
     const amount = absMinor(occ.amountMinor);
     if (occ.direction === 'inflow') {
-      incomeExpected += amount;
+      if (occ.date <= period.end) incomeExpected += amount;
       commitments.push({
         date: occ.date, name: occ.name, amountMinor: amount,
         origin: 'recurring', kind: 'income', categoryId: occ.categoryId, seriesKey: occ.seriesKey,
@@ -167,8 +182,13 @@ export function computePosition(input: PositionInput): MoneyPosition {
 
   commitments.sort((a, b) => a.date.localeCompare(b.date));
 
+  // Period maths uses only what falls inside the period; "coming up" uses the wider
+  // window so a bill added today always visibly changes something.
+  const inPeriod = commitments.filter((c) => c.date >= period.start && c.date <= period.end);
+  const soon = commitments.filter((c) => c.date >= today && c.date <= lookaheadEnd);
+
   const committed = sumMinor(
-    commitments.filter((c) => c.kind !== 'income').map((c) => c.amountMinor),
+    inPeriod.filter((c) => c.kind !== 'income').map((c) => c.amountMinor),
   );
 
   // Balances count only transactions that have actually posted.
@@ -189,7 +209,9 @@ export function computePosition(input: PositionInput): MoneyPosition {
     cashNowMinor: cash.cashMinor,
     availableNowMinor: cash.cashMinor - committed,
     leftThisPeriodMinor: incomeReceived + incomeExpected - spent - committed,
-    commitments,
+    commitments: inPeriod,
+    soonCommitments: soon,
+    lookaheadDays,
     hasCommitments: commitments.length > 0,
     daysLeftInPeriod: Math.max(0, diffDays(today, period.end)),
   };

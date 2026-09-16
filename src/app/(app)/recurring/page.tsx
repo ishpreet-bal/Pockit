@@ -2,12 +2,13 @@ import type { Metadata } from 'next';
 import { requireAuth } from '@/lib/auth/guard';
 import { WorkspaceRepo } from '@/lib/data/repository';
 import { PageHeader } from '../page-header';
-import { Card, CardHeader, CardBody, EmptyState, Table, Th, Td, Badge, LinkButton } from '@/components/ui/primitives';
+import { Card, CardHeader, CardBody, EmptyState, Badge } from '@/components/ui/primitives';
 import { Money } from '@/components/finance/money';
-import { Stat } from '@/components/finance/stat';
-import { detectRecurring, summarizeSubscriptions, monthlyEquivalent } from '@/lib/finance/recurring';
+import { AddSchedule, DeleteSchedule } from './add-schedule';
+import { detectRecurring, monthlyEquivalent } from '@/lib/finance/recurring';
+import { monthlyCostMinor, CADENCE_LABELS } from '@/lib/finance/schedule';
 import { todayIn } from '@/lib/finance/period';
-import { formatMoney } from '@/lib/money';
+import { formatMoney, sumMinor } from '@/lib/money';
 
 export const metadata: Metadata = { title: 'Recurring' };
 export const dynamic = 'force-dynamic';
@@ -18,116 +19,163 @@ export default async function RecurringPage() {
   const today = todayIn(user.timezone);
   const cur = workspace.baseCurrency;
 
-  const [txns, categories, accounts] = await Promise.all([
-    repo.listTransactions(), repo.listCategories(), repo.listAccounts(),
+  const [txns, categories, accounts, manual] = await Promise.all([
+    repo.listTransactions(), repo.listCategories(), repo.listAccounts(), repo.listManualSchedules(),
   ]);
+
+  const categoryById = new Map(categories.map((c) => [c.id, c]));
+  const choices = categories.map((c) => ({
+    id: c.id, name: c.name, icon: c.icon, isPrimary: c.parentId === null,
+  }));
+  const accountChoices = accounts.map((a) => ({ id: a.id, name: a.name }));
+
+  // Two separate systems, shown separately: what the user told us, and what we noticed.
   const detected = detectRecurring(
     txns, today, undefined, new Map(accounts.map((a) => [a.id, a.normalBalance])),
-  );
-  const summary = summarizeSubscriptions(detected);
-  const categoryById = new Map(categories.map((c) => [c.id, c]));
+  ).filter((s) => s.kind === 'subscription' || s.kind === 'bill');
 
-  const subscriptions = detected.filter((s) => s.kind === 'subscription' || s.kind === 'bill');
-  const income = detected.filter((s) => s.kind === 'income');
-  const priceRises = detected.filter((s) => s.priceChanges.length > 0);
+  const manualBills = manual.filter((m) => m.direction === 'outflow');
+  const manualIncome = manual.filter((m) => m.direction === 'inflow');
+
+  const manualMonthly = sumMinor(manualBills.map(monthlyCostMinor));
+  const detectedMonthly = sumMinor(detected.map((s) => monthlyEquivalent(s.amountMinor, s.cadence, s.intervalDays)));
+  const totalMonthly = manualMonthly + detectedMonthly;
+
+  const addButton = <AddSchedule categories={choices} accounts={accountChoices} today={today} />;
+  const nothingAtAll = manual.length === 0 && detected.length === 0;
 
   return (
     <>
       <PageHeader
         title="Recurring"
-        description="Detected automatically from repeated payments. A pattern needs three occurrences before it counts."
+        description="Bills and income that repeat. These feed your calendar, budget and projections."
+        action={addButton}
       />
 
-      <div className="space-y-4 px-4 py-4 sm:px-6">
-        {subscriptions.length === 0 ? (
+      <div className="space-y-5 px-4 py-4 sm:px-6">
+        {nothingAtAll ? (
           <Card>
             <EmptyState
               icon="↻"
-              title="No recurring payments detected yet"
-              description="Once the same merchant charges you three times on a regular cadence, it appears here with its monthly and annual cost and the date of the next payment."
-              action={<LinkButton href="/imports/new" variant="primary">Import more history</LinkButton>}
+              title="No recurring payments yet"
+              description="Add the bills you already know about — rent, phone, subscriptions — and Pockit will work them into your calendar and your available-to-spend figure. You don't need any transaction history for this."
+              action={addButton}
             />
           </Card>
         ) : (
           <>
-            <section className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-              <Stat label="Monthly recurring" minor={summary.monthlyMinor} currency={cur} hint={`${summary.count} detected`} />
-              <Stat label="Annual cost" minor={summary.annualMinor} currency={cur} hint="Monthly total × 12" />
-              <Stat label="Expected income" minor={income.reduce((s, i) => s + monthlyEquivalent(i.amountMinor, i.cadence, i.intervalDays), 0n)} currency={cur} hint="Recurring, per month" />
-              <Stat
-                label="Marked unwanted"
-                minor={summary.unwantedMonthlyMinor}
-                currency={cur}
-                hint={summary.unwantedCount > 0 ? `${summary.unwantedCount} subscriptions` : 'None marked yet'}
-              />
-            </section>
+            <div className="flex flex-wrap items-baseline gap-x-8 gap-y-2">
+              <div>
+                <p className="text-sm text-[var(--text-muted)]">Recurring bills</p>
+                <p className="mt-0.5"><Money minor={totalMonthly} currency={cur} size="xl" tone="plain" /></p>
+                <p className="text-xs text-[var(--text-subtle)]">
+                  per month · {formatMoney(totalMonthly * 12n, cur, { compact: true })} a year
+                </p>
+              </div>
+              {manualIncome.length > 0 ? (
+                <div>
+                  <p className="text-sm text-[var(--text-muted)]">Expected income</p>
+                  <p className="mt-0.5">
+                    <Money minor={sumMinor(manualIncome.map(monthlyCostMinor))} currency={cur} size="xl" tone="plain" />
+                  </p>
+                  <p className="text-xs text-[var(--text-subtle)]">per month</p>
+                </div>
+              ) : null}
+            </div>
 
-            {priceRises.length > 0 ? (
+            {manual.length > 0 ? (
               <Card>
-                <CardHeader title="Price changes" description="Amounts that moved by more than 3%" />
-                <CardBody>
-                  <ul className="space-y-1.5">
-                    {priceRises.map((s) => {
-                      const last = s.priceChanges[s.priceChanges.length - 1]!;
-                      return (
-                        <li key={s.key} className="flex flex-wrap items-center justify-between gap-2 text-sm">
-                          <span className="font-medium">{s.name}</span>
-                          <span className="text-[var(--text-muted)]">
-                            {formatMoney(last.fromMinor, cur)} → <strong className="text-[var(--text)]">{formatMoney(last.toMinor, cur)}</strong>
-                            <span className="ml-1.5 text-xs text-[var(--text-subtle)]">on {last.date}</span>
-                          </span>
-                        </li>
-                      );
-                    })}
+                <CardHeader title="Your schedule" description="Added by you — always exact" />
+                <CardBody className="px-0 pb-0">
+                  <ul>
+                    {manual.map((m) => (
+                      <li key={m.id} className="flex items-center gap-3 border-b border-[var(--border)] px-5 py-3 last:border-0">
+                        <div className="min-w-0 flex-1">
+                          <p className="flex items-center gap-2 truncate text-sm font-medium">
+                            {m.name}
+                            {m.direction === 'inflow' ? <Badge tone="positive">income</Badge> : null}
+                          </p>
+                          <p className="truncate text-xs text-[var(--text-subtle)]">
+                            {CADENCE_LABELS[m.cadence]}
+                            {m.dayOfMonth && (m.cadence === 'monthly' || m.cadence === 'quarterly' || m.cadence === 'annual')
+                              ? ` on the ${ordinal(m.dayOfMonth)}` : ''}
+                            {m.categoryId ? ` · ${categoryById.get(m.categoryId)?.name ?? ''}` : ''}
+                          </p>
+                        </div>
+                        <div className="shrink-0 text-right">
+                          <Money minor={m.amountMinor} currency={cur} size="sm" tone="plain" />
+                          <p className="text-xs text-[var(--text-subtle)]">
+                            {formatMoney(monthlyCostMinor(m), cur)}/mo
+                          </p>
+                        </div>
+                        <div className="w-20 shrink-0 text-right">
+                          <DeleteSchedule id={m.id} name={m.name} />
+                        </div>
+                      </li>
+                    ))}
                   </ul>
                 </CardBody>
               </Card>
             ) : null}
 
-            <Card>
-              <CardHeader
-                title="Subscriptions and bills"
-                description="Confidence reflects how regular the cadence and amount have been"
-              />
-              <CardBody className="px-0 pb-0">
-                <Table>
-                  <thead>
-                    <tr>
-                      <Th>Name</Th><Th>Category</Th><Th>Cadence</Th><Th>Next</Th>
-                      <Th numeric>Amount</Th><Th numeric>Per month</Th><Th numeric>Per year</Th><Th>Confidence</Th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {subscriptions.map((s) => {
-                      const monthly = monthlyEquivalent(s.amountMinor, s.cadence, s.intervalDays);
-                      const cat = s.categoryId ? categoryById.get(s.categoryId) : null;
-                      return (
-                        <tr key={s.key} className="hover:bg-[var(--surface-2)]">
-                          <Td>
-                            <span className="block max-w-[24ch] truncate font-medium">{s.name}</span>
-                            <span className="text-xs text-[var(--text-subtle)]">{s.occurrenceCount} payments since {s.firstSeenDate}</span>
-                          </Td>
-                          <Td className="text-[var(--text-muted)]">{cat ? `${cat.icon} ${cat.name}` : '—'}</Td>
-                          <Td><Badge tone={s.kind === 'subscription' ? 'accent' : 'neutral'}>{s.cadence}</Badge></Td>
-                          <Td className="whitespace-nowrap text-[var(--text-muted)]">{s.nextExpectedDate}</Td>
-                          <Td numeric><Money minor={s.amountMinor} currency={cur} size="sm" tone="plain" /></Td>
-                          <Td numeric><Money minor={monthly} currency={cur} size="sm" tone="plain" /></Td>
-                          <Td numeric className="text-[var(--text-muted)]">{formatMoney(monthly * 12n, cur, { compact: true })}</Td>
-                          <Td>
-                            <Badge tone={s.confidence >= 80 ? 'positive' : s.confidence >= 60 ? 'neutral' : 'warning'}>
-                              {s.confidence}%
-                            </Badge>
-                          </Td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </Table>
-              </CardBody>
-            </Card>
+            {detected.length > 0 ? (
+              <Card>
+                <CardHeader
+                  title="Spotted in your transactions"
+                  description="Patterns Pockit noticed. Add one to your schedule to make it exact."
+                />
+                <CardBody className="px-0 pb-0">
+                  <ul>
+                    {detected.map((s) => (
+                      <li key={s.key} className="flex items-center gap-3 border-b border-[var(--border)] px-5 py-3 last:border-0">
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate text-sm font-medium">{s.name}</p>
+                          <p className="truncate text-xs text-[var(--text-subtle)]">
+                            {CADENCE_LABELS[s.cadence]} · next around {s.nextExpectedDate}
+                            {s.priceChanges.length > 0
+                              ? ` · went up to ${formatMoney(s.priceChanges[s.priceChanges.length - 1]!.toMinor, cur)}`
+                              : ''}
+                          </p>
+                        </div>
+                        <div className="shrink-0 text-right">
+                          <Money minor={s.amountMinor} currency={cur} size="sm" tone="plain" />
+                        </div>
+                        <div className="w-20 shrink-0 text-right">
+                          <Badge tone={s.confidence >= 80 ? 'positive' : 'neutral'}>{s.confidence}%</Badge>
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                </CardBody>
+              </Card>
+            ) : (
+              <Card>
+                <CardBody className="pt-4">
+                  <p className="text-sm text-[var(--text-muted)]">
+                    Pockit also spots repeating payments automatically once it has seen the same charge three times.
+                    Nothing found yet — your own schedule above is used in the meantime.
+                  </p>
+                </CardBody>
+              </Card>
+            )}
           </>
         )}
       </div>
     </>
   );
 }
+
+function ordinal(n: number): string {
+  // 29th-31st are described as "or the last day", because that is what actually
+  // happens in February — the schedule clamps rather than skipping the month.
+  if (n >= 29) return `${n}th (or the last day)`;
+  const v = n % 100;
+  if (v >= 11 && v <= 13) return `${n}th`;
+  switch (n % 10) {
+    case 1: return `${n}st`;
+    case 2: return `${n}nd`;
+    case 3: return `${n}rd`;
+    default: return `${n}th`;
+  }
+}
+

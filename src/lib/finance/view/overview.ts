@@ -1,91 +1,90 @@
 import 'server-only';
 import { sumMinor, absMinor } from '@/lib/money';
 import { WorkspaceRepo } from '@/lib/data/repository';
-import {
-  periodTotals, allAccountBalances, cashPosition, spendingByCategory, monthlySeries, rollUpCategories,
-} from '@/lib/finance/ledger';
-import { resolvePeriod, previousPeriod, todayIn, startOfMonth, endOfMonth, addMonths, type PeriodPreset } from '@/lib/finance/period';
-import { detectRecurring, summarizeSubscriptions, upcomingOccurrences, isExternalCashMovement } from '@/lib/finance/recurring';
-import { computeGoalMath, computeCashFlowBasis, type GoalInput } from '@/lib/finance/goals';
-import { safeToSpend } from '@/lib/finance/forecast';
-import { computeInsights } from '@/lib/finance/patterns';
-import { computeNetWorth } from '@/lib/finance/networth';
+import { spendingByCategory, rollUpCategories, monthlySeries, periodTotals } from '@/lib/finance/ledger';
+import { todayIn, startOfMonth, endOfMonth, addMonths, previousPeriod } from '@/lib/finance/period';
+import { detectRecurring } from '@/lib/finance/recurring';
+import { manualScheduleToSeries } from '@/lib/finance/schedule';
+import { computePosition, explainAvailable, explainLeftThisPeriod, isScheduled } from '@/lib/finance/position';
+import { computeGoalMath, type GoalInput } from '@/lib/finance/goals';
 import { evaluateBudget, type BudgetInput } from '@/lib/finance/budget';
+import { computeInsights } from '@/lib/finance/patterns';
 import type { DateRange } from '@/lib/finance/types';
 
 /**
- * Assembles everything the Overview needs in ONE pass over the ledger.
+ * Everything the Overview needs, in one pass.
  *
- * The page component does no arithmetic at all — it only renders what this returns.
- * That is what keeps the dashboard's numbers identical to every other screen's.
+ * The dashboard answers four questions and nothing else:
+ *   1. How much do I have available?
+ *   2. Where has my money gone?
+ *   3. What is coming?
+ *   4. Am I on track?
+ *
+ * An earlier version showed fifteen cards at once. Depth still exists, but it lives on
+ * the pages that specialise in it rather than competing for attention here.
  */
-export async function buildOverview(
-  repo: WorkspaceRepo,
-  preset: PeriodPreset,
-  timezone: string,
-  custom?: Partial<DateRange>,
-) {
+export async function buildOverview(repo: WorkspaceRepo, timezone: string, locale: string) {
   const today = todayIn(timezone);
-  const range = resolvePeriod(preset, today, custom);
-  const prevRange = previousPeriod(range);
+  const period: DateRange = { start: startOfMonth(today), end: endOfMonth(today) };
+  const historyStart = startOfMonth(addMonths(today, -5));
 
-  // A wide window so trailing averages, recurring detection and the chart all work.
-  const historyStart = startOfMonth(addMonths(today, -11));
-  const fullRange: DateRange = {
-    start: range.start < historyStart ? range.start : historyStart,
-    end: range.end > today ? range.end : today,
-  };
-
-  const [accounts, categories, allTxns, goalRows, budgetBundle, assets, liabilities] = await Promise.all([
+  const [accounts, categories, allTxns, goalRows, budgetBundle, manual] = await Promise.all([
     repo.listAccounts(),
     repo.listCategories(),
-    repo.listTransactions({ range: fullRange }),
+    repo.listTransactions(),
     repo.listGoals(),
     repo.getActiveBudget(),
-    repo.listAssets(),
-    repo.listLiabilities(),
+    repo.listManualSchedules(),
   ]);
 
-  const inPeriod = allTxns.filter((t) => t.postedDate >= range.start && t.postedDate <= range.end);
-  const inPrev = allTxns.filter((t) => t.postedDate >= prevRange.start && t.postedDate <= prevRange.end);
-
-  const totals = periodTotals(inPeriod);
-  const prevTotals = periodTotals(inPrev);
-
-  const balances = allAccountBalances(accounts, allTxns, today);
-  const cash = cashPosition(accounts, balances);
-
-  const netWorth = computeNetWorth(
-    accounts, balances,
-    assets.map((a) => ({ id: a.id, name: a.name, category: a.category, valueMinor: BigInt(a.valueMinor as unknown as string), asOf: a.asOf, accountId: a.accountId })),
-    liabilities.map((l) => ({ id: l.id, name: l.name, category: l.category, valueMinor: BigInt(l.balanceMinor as unknown as string), asOf: l.asOf, accountId: l.accountId })),
+  // Manual schedules and detected ones are merged into a single list, so no downstream
+  // calculation can treat "what the user told us" differently from "what we noticed".
+  const detected = detectRecurring(
+    allTxns, today, undefined, new Map(accounts.map((a) => [a.id, a.normalBalance])),
   );
+  const series = [
+    ...manual.filter((m) => m.isActive).map((m) => manualScheduleToSeries(m, today)),
+    ...detected,
+  ];
 
-  const leafSpend = spendingByCategory(inPeriod);
+  const position = computePosition({
+    txns: allTxns, accounts, categories, series, today,
+    currency: repo.baseCurrency, period,
+  });
+
+  const available = explainAvailable(position);
+  const leftThisPeriod = explainLeftThisPeriod(position);
+
+  /* ---- where the money went ---- */
+  const postedThisPeriod = allTxns.filter(
+    (t) => t.postedDate >= period.start && t.postedDate <= period.end && !isScheduled(t, today),
+  );
+  const leafSpend = spendingByCategory(postedThisPeriod);
   const rolled = rollUpCategories(leafSpend, categories);
   const categoryById = new Map(categories.map((c) => [c.id, c]));
 
-  // Top-level categories only, so the chart reads as "where did it go" not a list of leaves.
   const topCategories = categories
     .filter((c) => c.parentId === null && c.kind === 'expense')
     .map((c) => ({ category: c, amountMinor: rolled.get(c.id) ?? 0n }))
     .filter((c) => c.amountMinor > 0n)
-    .sort((a, b) => (b.amountMinor > a.amountMinor ? 1 : -1));
-
-  const series = monthlySeries(allTxns, { start: historyStart, end: today });
-
-  const normalBalanceByAccount = new Map(accounts.map((a) => [a.id, a.normalBalance]));
-  const detected = detectRecurring(allTxns, today, undefined, normalBalanceByAccount);
-  const subscriptions = summarizeSubscriptions(detected);
-  // Only money actually leaving. Both legs of a transfer are detected separately, so
-  // filtering by type alone listed "Transfer to savings" and "Transfer from chequing"
-  // as two upcoming bills for what is one movement.
-  const upcoming = upcomingOccurrences(detected, today, endOfMonth(today))
-    .filter((u) => isExternalCashMovement(u) && u.direction === 'outflow')
+    .sort((a, b) => (b.amountMinor > a.amountMinor ? 1 : -1))
     .slice(0, 6);
 
-  const basis = computeCashFlowBasis(allTxns, { start: startOfMonth(addMonths(today, -2)), end: today }, 3);
+  const spendTotal = sumMinor(topCategories.map((c) => c.amountMinor));
 
+  /* ---- comparison with last month, only when there is one ---- */
+  const prev = previousPeriod(period);
+  const prevTxns = allTxns.filter(
+    (t) => t.postedDate >= prev.start && t.postedDate <= prev.end && !isScheduled(t, today),
+  );
+  const prevTotals = periodTotals(prevTxns);
+  const hasPriorMonth = prevTxns.length > 0;
+
+  /* ---- what is coming ---- */
+  const upcoming = position.soonCommitments.filter((c) => c.kind !== 'income').slice(0, 5);
+  const nextIncome = position.soonCommitments.find((c) => c.kind === 'income');
+
+  /* ---- goals ---- */
   const goals: GoalInput[] = goalRows.map((g) => ({
     id: g.id,
     name: g.name,
@@ -97,28 +96,14 @@ export async function buildOverview(
   }));
   const goalStatus = goals
     .filter((g) => g.currentMinor < g.targetMinor)
-    .map((g) => ({ goal: g, math: computeGoalMath(g, today) }))
-    .sort((a, b) => a.goal.priority - b.goal.priority)
-    .slice(0, 3);
+    .sort((a, b) => a.priority - b.priority)
+    .slice(0, 2)
+    .map((g) => ({ goal: g, math: computeGoalMath(g, today) }));
 
-  const monthlyGoalCommitment = sumMinor(goals.map((g) => g.monthlyContributionMinor ?? 0n));
-
-  const sts = safeToSpend({
-    availableCashMinor: cash.cashMinor,
-    today,
-    throughDate: endOfMonth(today),
-    horizon: 'this_month',
-    series: detected,
-    monthlySavingsCommitmentMinor: monthlyGoalCommitment,
-    monthlyInvestmentCommitmentMinor: 0n,
-    historyTxns: allTxns,
-    historyRange: { start: startOfMonth(addMonths(today, -2)), end: today },
-    categories,
-  });
-
+  /* ---- budget ---- */
   let budgetStatus = null;
   if (budgetBundle) {
-    const budgetInput: BudgetInput = {
+    const budget: BudgetInput = {
       id: budgetBundle.budget.id,
       name: budgetBundle.budget.name,
       method: budgetBundle.budget.method,
@@ -128,60 +113,66 @@ export async function buildOverview(
       expectedIncomeMinor: budgetBundle.budget.expectedIncomeMinor === null ? null : BigInt(budgetBundle.budget.expectedIncomeMinor as unknown as string),
       rollover: budgetBundle.budget.rollover,
       allocations: budgetBundle.allocations.map((a) => ({
-        id: a.id,
-        categoryId: a.categoryId,
-        bucket: a.bucket,
-        label: a.label,
+        id: a.id, categoryId: a.categoryId, bucket: a.bucket, label: a.label,
         amountMinor: a.amountMinor === null ? null : BigInt(a.amountMinor as unknown as string),
         percentBps: a.percentBps,
       })),
     };
-    budgetStatus = evaluateBudget(budgetInput, allTxns, categories, today);
+    budgetStatus = evaluateBudget(budget, postedThisPeriod, categories, today, period);
   }
 
-  const insights = computeInsights({
-    currency: repo.baseCurrency,
-    current: range,
-    txns: allTxns,
-    historyTxns: allTxns.filter((t) => t.postedDate < range.start),
-    historyRange: { start: historyStart, end: range.start },
-    categories,
-  }).slice(0, 4);
+  /* ---- insights: only when they are actionable, never filler ---- */
+  const insights = hasPriorMonth
+    ? computeInsights({
+        currency: repo.baseCurrency,
+        current: period,
+        txns: allTxns.filter((t) => !isScheduled(t, today)),
+        historyTxns: allTxns.filter((t) => t.postedDate < period.start && !isScheduled(t, today)),
+        historyRange: { start: historyStart, end: period.start },
+        categories,
+      }).slice(0, 3)
+    : [];
+
+  const series6 = monthlySeries(allTxns.filter((t) => !isScheduled(t, today)), { start: historyStart, end: today });
 
   return {
-    today,
-    range,
-    prevRange,
-    preset,
+    today, period, locale,
     currency: repo.baseCurrency,
-    totals,
-    prevTotals,
-    deltas: {
-      income: totals.income - prevTotals.income,
-      expenses: totals.expenses - prevTotals.expenses,
-      net: totals.netCashFlow - prevTotals.netCashFlow,
-    },
-    cash,
-    netWorth,
-    accounts,
-    balances,
+    position, available, leftThisPeriod,
+
+    spent: position.spentMinor,
+    spentDeltaMinor: hasPriorMonth ? position.spentMinor - prevTotals.expenses : null,
+    incomeReceived: position.incomeReceivedMinor,
+    incomeExpected: position.incomeExpectedMinor,
+
     topCategories: topCategories.map((c) => ({
       id: c.category.id,
       name: c.category.name,
-      color: c.category.color,
       icon: c.category.icon,
       amountMinor: c.amountMinor,
+      shareOfSpend: spendTotal > 0n ? Number((c.amountMinor * 100n) / spendTotal) : 0,
     })),
-    series,
-    subscriptions,
+    spendTotal,
+
     upcoming,
+    upcomingTotal: sumMinor(upcoming.map((u) => u.amountMinor)),
+    commitmentCount: position.soonCommitments.filter((c) => c.kind !== 'income').length,
+    nextIncome,
+
     goalStatus,
-    safeToSpend: sts,
     budgetStatus,
     insights,
-    basis,
-    transactionCount: inPeriod.length,
-    recentTransactions: inPeriod.slice(0, 8).map((t) => ({
+    series6,
+
+    /* ---- how much the app actually knows, so it can behave accordingly ---- */
+    hasTransactions: allTxns.length > 0,
+    hasAccounts: accounts.length > 0,
+    hasRecurring: series.length > 0,
+    hasBudget: Boolean(budgetBundle),
+    hasGoals: goals.length > 0,
+    hasPriorMonth,
+
+    recent: postedThisPeriod.slice(0, 5).map((t) => ({
       id: t.id,
       date: t.postedDate,
       description: t.merchantName ?? t.description,
@@ -190,7 +181,6 @@ export async function buildOverview(
       categoryName: t.categoryId ? categoryById.get(t.categoryId)?.name ?? null : null,
       categoryIcon: t.categoryId ? categoryById.get(t.categoryId)?.icon ?? null : null,
     })),
-    hasData: allTxns.length > 0,
     absMinor,
   };
 }

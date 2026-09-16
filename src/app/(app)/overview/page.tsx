@@ -3,301 +3,327 @@ import Link from 'next/link';
 import { requireAuth } from '@/lib/auth/guard';
 import { WorkspaceRepo } from '@/lib/data/repository';
 import { buildOverview } from '@/lib/finance/view/overview';
-import { PageHeader, PeriodFilter } from '../page-header';
-import { Card, CardHeader, CardBody, EmptyState, LinkButton, Badge, ProgressBar, Table, Th, Td } from '@/components/ui/primitives';
-import { Money, Percent } from '@/components/finance/money';
-import { Stat } from '@/components/finance/stat';
-import { IncomeExpenseChart, CategoryPie } from '@/components/charts/charts';
-import { formatRange, type PeriodPreset } from '@/lib/finance/period';
-import { toMajorNumber, formatMoney } from '@/lib/money';
+import { PageHeader } from '../page-header';
+import { Card, CardBody, EmptyState, LinkButton, ProgressBar } from '@/components/ui/primitives';
+import { Money } from '@/components/finance/money';
 import { SeedDemoButton } from './seed-demo';
+import { formatMoney } from '@/lib/money';
+import { cn } from '@/lib/ui/cn';
 
 export const metadata: Metadata = { title: 'Overview' };
 export const dynamic = 'force-dynamic';
 
-export default async function OverviewPage({
-  searchParams,
-}: { searchParams: Promise<{ period?: string }> }) {
+export default async function OverviewPage() {
   const { user, workspace } = await requireAuth();
-  const params = await searchParams;
-  const preset = (params.period ?? 'this_month') as PeriodPreset;
-
   const repo = new WorkspaceRepo(user.id, workspace.id, workspace.baseCurrency);
-  const d = await buildOverview(repo, preset, user.timezone);
+  const d = await buildOverview(repo, user.timezone, user.locale);
   const cur = d.currency;
+  const firstName = user.displayName?.split(' ')[0];
 
-  if (!d.hasData) {
+  if (!d.hasTransactions && !d.hasRecurring) {
     return (
       <>
-        <PageHeader title="Overview" description="Your financial command centre." />
-        <div className="px-4 py-8 sm:px-6">
+        <PageHeader title={firstName ? `Welcome, ${firstName}` : 'Welcome to Pockit'} />
+        <div className="mx-auto max-w-2xl px-4 py-6 sm:px-6">
           <Card>
-            <EmptyState
-              icon="◎"
-              title="Nothing here yet"
-              description="Add your first transaction, import a statement or screenshot, or load realistic demo data to see how Pockit works."
-              action={
-                <div className="flex flex-wrap justify-center gap-2">
-                  <LinkButton href="/imports/new" variant="primary" className="px-4">Import a file</LinkButton>
-                  <SeedDemoButton />
-                </div>
-              }
-            />
+            <CardBody className="pt-6">
+              <h2 className="text-lg font-semibold">Let&rsquo;s get you a picture of your money</h2>
+              <p className="mt-1 text-sm text-[var(--text-muted)]">
+                You don&rsquo;t need months of history. Start with whichever of these is easiest — the
+                dashboard fills in as you go.
+              </p>
+              <ul className="mt-4 space-y-2.5">
+                {[
+                  { title: 'Add the bills you already know about', body: 'Rent, phone, subscriptions. Takes a minute and immediately shows what is coming.', href: '/recurring', cta: 'Add a recurring bill', primary: true },
+                  { title: 'Add a transaction', body: 'Anything you spent recently.', href: '/transactions', cta: 'Go to transactions' },
+                  { title: 'Import a statement', body: 'CSV, Excel or PDF from your bank.', href: '/imports/new', cta: 'Import a file' },
+                ].map((step) => (
+                  <li key={step.href} className="flex flex-wrap items-center justify-between gap-3 rounded-[var(--radius-control)] border border-[var(--border)] p-3.5">
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium">{step.title}</p>
+                      <p className="mt-0.5 text-xs text-[var(--text-muted)]">{step.body}</p>
+                    </div>
+                    <LinkButton href={step.href} variant={step.primary ? 'primary' : 'secondary'} size="sm">
+                      {step.cta}
+                    </LinkButton>
+                  </li>
+                ))}
+              </ul>
+              <div className="mt-5 flex items-center gap-3 border-t border-[var(--border)] pt-4">
+                <p className="text-xs text-[var(--text-muted)]">Just want to look around first?</p>
+                <SeedDemoButton />
+              </div>
+            </CardBody>
           </Card>
         </div>
       </>
     );
   }
 
-  const chartData = d.series.slice(-6).map((s) => ({
-    label: new Date(`${s.month}-02`).toLocaleDateString('en-CA', { month: 'short' }),
-    income: toMajorNumber(s.income, cur),
-    expenses: toMajorNumber(s.expenses, cur),
-  }));
-
-  const pieData = d.topCategories.slice(0, 7).map((c) => ({
-    name: c.name,
-    value: toMajorNumber(c.amountMinor, cur),
-  }));
+  const monthLabel = new Date(`${d.period.start}T12:00:00Z`)
+    .toLocaleDateString(user.locale, { month: 'long', timeZone: 'UTC' });
 
   return (
     <>
       <PageHeader
-        title={`Where you stand${user.displayName ? `, ${user.displayName.split(' ')[0]}` : ''}`}
-        description={formatRange(d.range, user.locale)}
-        action={<LinkButton href="/imports/new" variant="primary">Import</LinkButton>}
-      >
-        <PeriodFilter active={preset} />
-      </PageHeader>
+        title={firstName ? `Hello, ${firstName}` : 'Your money'}
+        description={`${monthLabel} · ${d.position.daysLeftInPeriod} days left`}
+      />
 
-      <div className="space-y-4 px-4 py-4 sm:px-6">
+      <div className="mx-auto max-w-4xl space-y-8 px-4 py-6 sm:px-6">
 
-        {/* 1. Where do I stand today? */}
-        <section aria-label="Current position" className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-          <Stat label="Cash available" minor={d.cash.cashMinor} currency={cur} href="/accounts"
-            hint={`Across ${d.accounts.filter((a) => a.normalBalance === 'debit').length} accounts`} />
-          <Stat label="Net worth" minor={d.netWorth.netMinor} currency={cur} href="/analytics/networth"
-            hint={`${formatMoney(d.netWorth.assetsMinor, cur, { compact: true })} assets − ${formatMoney(d.netWorth.liabilitiesMinor, cur, { compact: true })} debt`} />
-          <Stat label="Income this period" minor={d.totals.income} currency={cur} tone="plain"
-            href={`/transactions?type=income&period=${preset}`}
-            delta={d.deltas.income} deltaBasis="vs previous" />
-          <Stat label="Spending this period" minor={d.totals.expenses} currency={cur} tone="plain"
-            href={`/transactions?type=expense&period=${preset}`}
-            delta={d.deltas.expenses} deltaBasis="vs previous" invertDelta />
+        {/* 1. How much do I have available? One number, explained. */}
+        <section aria-label="Available to spend">
+          <p className="text-sm text-[var(--text-muted)]">{d.available.label}</p>
+          <p className="mt-1">
+            <Money
+              minor={d.available.amountMinor}
+              currency={cur}
+              size="xl"
+              tone={d.available.tone === 'attention' ? 'expense' : 'plain'}
+              className="text-3xl"
+            />
+          </p>
+          <p className="mt-1.5 max-w-lg text-sm text-[var(--text-muted)]">{d.available.explanation}</p>
+          {d.available.action ? (
+            <Link href={d.available.action.href}
+              className="mt-2 inline-block text-sm font-medium text-[var(--accent)] hover:underline">
+              {d.available.action.label} →
+            </Link>
+          ) : null}
+
+          <dl className="mt-5 grid grid-cols-2 gap-x-6 gap-y-3 border-t border-[var(--border)] pt-4 sm:grid-cols-4">
+            <Figure label="Came in" minor={d.incomeReceived} currency={cur}
+              note={d.incomeExpected > 0n ? `${formatMoney(d.incomeExpected, cur)} still expected` : undefined} />
+            <Figure label="Spent" minor={d.spent} currency={cur}
+              note={d.spentDeltaMinor !== null
+                ? `${d.spentDeltaMinor > 0n ? 'up' : 'down'} ${formatMoney(d.spentDeltaMinor < 0n ? -d.spentDeltaMinor : d.spentDeltaMinor, cur)} on last month`
+                : undefined}
+              href="/transactions" />
+            <Figure label="Still to pay" minor={d.upcomingTotal} currency={cur}
+              note={d.commitmentCount > 0 ? `${d.commitmentCount} bill${d.commitmentCount === 1 ? '' : 's'}` : 'nothing scheduled'}
+              href="/transactions?view=upcoming" />
+            <Figure label={d.leftThisPeriod.label} minor={d.leftThisPeriod.amountMinor} currency={cur}
+              note="income less spending and bills" />
+          </dl>
         </section>
 
-        {/* Safe to spend — the single most actionable figure. */}
-        <section className="grid gap-4 lg:grid-cols-3">
-          <Card className="lg:col-span-1">
-            <CardHeader title="Safe to spend" description={`Through ${d.safeToSpend.throughDate}`} />
-            <CardBody>
-              <Money minor={d.safeToSpend.safeToSpendMinor} currency={cur} size="xl"
-                tone={d.safeToSpend.safeToSpendMinor < 0n ? 'expense' : 'plain'} />
-              <ul className="mt-3 space-y-1.5 border-t border-[var(--border)] pt-3">
-                {d.safeToSpend.lines.map((line) => (
-                  <li key={line.label} className="flex items-center justify-between gap-2 text-sm">
-                    <span className="flex min-w-0 items-center gap-1.5 text-[var(--text-muted)]">
-                      <span className="truncate">{line.label}</span>
-                      {line.certainty === 'estimated' ? <Badge tone="neutral">est.</Badge> : null}
-                    </span>
-                    <Money minor={line.amountMinor} currency={cur} size="sm" tone="auto" />
+        {/* 2. What is coming? Placed second because it is the most actionable. */}
+        <section aria-label="Coming up">
+          <div className="mb-2 flex items-baseline justify-between gap-2">
+            <h2 className="text-base font-semibold">Coming up</h2>
+            <Link href="/calendar" className="text-xs text-[var(--accent)] hover:underline">Calendar →</Link>
+          </div>
+          {d.upcoming.length > 0 ? (
+            <Card className="overflow-hidden">
+              <ul>
+                {d.upcoming.map((item, i) => (
+                  <li key={`${item.name}-${item.date}-${i}`}
+                    className="flex items-center gap-3 border-b border-[var(--border)] px-4 py-2.5 last:border-0">
+                    <div className="w-11 shrink-0 text-center">
+                      <div className="text-2xs uppercase text-[var(--text-subtle)]">
+                        {new Date(`${item.date}T12:00:00Z`).toLocaleDateString(user.locale, { month: 'short', timeZone: 'UTC' })}
+                      </div>
+                      <div className="text-sm tabular font-medium">{Number(item.date.slice(8, 10))}</div>
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-medium">{item.name}</p>
+                      <p className="text-xs text-[var(--text-subtle)]">
+                        {item.origin === 'recurring' ? 'repeats' : 'scheduled by you'}
+                      </p>
+                    </div>
+                    <Money minor={-item.amountMinor} currency={cur} size="sm" />
                   </li>
                 ))}
               </ul>
-              <p className="mt-3 text-xs leading-relaxed text-[var(--text-subtle)]">
-                {d.safeToSpend.assumptions[1]}
-              </p>
-            </CardBody>
-          </Card>
-
-          {/* 2. Where did my money go? */}
-          <Card className="lg:col-span-2">
-            <CardHeader
-              title="Income vs expenses"
-              description="Last 6 months"
-              action={<Link href="/analytics" className="text-xs text-[var(--accent)] hover:underline">Analytics →</Link>}
-            />
-            <CardBody className="pb-3">
-              <IncomeExpenseChart data={chartData} currency={cur} />
-              <dl className="mt-2 grid grid-cols-3 gap-2 border-t border-[var(--border)] pt-3 text-center">
-                <div>
-                  <dt className="text-xs text-[var(--text-muted)]">Net cash flow</dt>
-                  <dd className="mt-0.5"><Money minor={d.totals.netCashFlow} currency={cur} /></dd>
-                </div>
-                <div>
-                  <dt className="text-xs text-[var(--text-muted)]">Savings rate</dt>
-                  <dd className="mt-0.5 text-base font-medium"><Percent bps={d.totals.savingsRateBps} /></dd>
-                </div>
-                <div>
-                  <dt className="text-xs text-[var(--text-muted)]">Invested</dt>
-                  <dd className="mt-0.5"><Money minor={d.totals.investments} currency={cur} /></dd>
-                </div>
-              </dl>
-            </CardBody>
-          </Card>
+            </Card>
+          ) : (
+            <Card>
+              <EmptyState
+                title="Nothing scheduled"
+                description="Add the bills you already know about and Pockit will subtract them from what you have available."
+                action={<LinkButton href="/recurring" variant="primary">Add a recurring bill</LinkButton>}
+              />
+            </Card>
+          )}
+          {d.nextIncome ? (
+            <p className="mt-2 text-xs text-[var(--text-subtle)]">
+              Next money in: {d.nextIncome.name}, {formatMoney(d.nextIncome.amountMinor, cur)} on{' '}
+              {new Date(`${d.nextIncome.date}T12:00:00Z`).toLocaleDateString(user.locale, { month: 'short', day: 'numeric', timeZone: 'UTC' })}.
+            </p>
+          ) : null}
         </section>
 
-        <section className="grid gap-4 lg:grid-cols-3">
-          <Card>
-            <CardHeader title="Where it went" description={`${d.transactionCount} transactions`} />
-            <CardBody>
-              {pieData.length > 0 ? (
-                <>
-                  <CategoryPie data={pieData} currency={cur} />
-                  <ul className="mt-2 space-y-1.5">
-                    {d.topCategories.slice(0, 5).map((c, i) => (
-                      <li key={c.id}>
-                        <Link
-                          href={`/transactions?category=${c.id}&period=${preset}`}
-                          className="flex items-center justify-between gap-2 rounded px-1 py-0.5 text-sm hover:bg-[var(--surface-2)]"
-                        >
-                          <span className="flex min-w-0 items-center gap-2">
-                            <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: `var(--chart-${(i % 8) + 1})` }} />
-                            <span className="truncate">{c.icon} {c.name}</span>
-                          </span>
-                          <Money minor={c.amountMinor} currency={cur} size="sm" tone="plain" />
-                        </Link>
-                      </li>
-                    ))}
-                  </ul>
-                </>
-              ) : (
-                <EmptyState title="No spending this period" description="Transactions in this range will appear here grouped by category." />
-              )}
-            </CardBody>
-          </Card>
+        {/* 3. Where has my money gone? */}
+        <section aria-label="Where your money went">
+          <div className="mb-2 flex items-baseline justify-between gap-2">
+            <h2 className="text-base font-semibold">Where it went</h2>
+            <Link href="/analytics" className="text-xs text-[var(--accent)] hover:underline">Details →</Link>
+          </div>
+          {d.topCategories.length > 0 ? (
+            <Card>
+              <CardBody className="space-y-2.5 pt-4">
+                {d.topCategories.map((c, i) => (
+                  <Link key={c.id} href={`/transactions?category=${c.id}`}
+                    className="block rounded px-1 py-1 hover:bg-[var(--surface-2)]">
+                    <div className="flex items-baseline justify-between gap-2 text-sm">
+                      <span className="truncate">{c.icon} {c.name}</span>
+                      <Money minor={c.amountMinor} currency={cur} size="sm" tone="plain" />
+                    </div>
+                    <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-[var(--surface-3)]">
+                      <div className="h-full rounded-full"
+                        style={{ width: `${c.shareOfSpend}%`, background: `var(--chart-${(i % 8) + 1})` }} />
+                    </div>
+                  </Link>
+                ))}
+              </CardBody>
+            </Card>
+          ) : (
+            <Card>
+              <EmptyState
+                title="Nothing spent yet this month"
+                description="Your spending will break down by category here as transactions come in."
+                action={<LinkButton href="/transactions">Add a transaction</LinkButton>}
+              />
+            </Card>
+          )}
+        </section>
 
-          {/* 3. What payments are coming? */}
-          <Card>
-            <CardHeader
-              title="Coming up"
-              description={`${formatMoney(d.subscriptions.monthlyMinor, cur)}/mo recurring`}
-              action={<Link href="/recurring" className="text-xs text-[var(--accent)] hover:underline">All →</Link>}
-            />
-            <CardBody>
-              {d.upcoming.length > 0 ? (
-                <ul className="space-y-2">
-                  {d.upcoming.map((u) => (
-                    <li key={`${u.seriesKey}-${u.date}`} className="flex items-center justify-between gap-2">
-                      <div className="min-w-0">
-                        <p className="truncate text-sm">{u.name}</p>
-                        <p className="text-xs text-[var(--text-subtle)]">
-                          {new Date(`${u.date}T12:00:00Z`).toLocaleDateString(user.locale, { month: 'short', day: 'numeric', timeZone: 'UTC' })}
-                        </p>
-                      </div>
-                      <Money minor={u.amountMinor} currency={cur} size="sm" tone="plain" />
-                    </li>
-                  ))}
-                </ul>
+        {/* 4. Am I on track? Budget and goals share one section. */}
+        {(d.budgetStatus || d.goalStatus.length > 0) ? (
+          <section aria-label="On track">
+            <h2 className="mb-2 text-base font-semibold">On track?</h2>
+            <div className="grid gap-3 sm:grid-cols-2">
+              {d.budgetStatus ? (
+                <Link href="/budget" className="block rounded-[var(--radius-card)] border border-[var(--border)] bg-[var(--surface)] p-4 transition-colors hover:border-[var(--border-strong)]">
+                  <p className="text-sm text-[var(--text-muted)]">Budget</p>
+                  <p className="mt-1">
+                    <Money minor={d.budgetStatus.totalSpentMinor} currency={cur} size="lg" tone="plain" />
+                    <span className="text-sm text-[var(--text-muted)]">
+                      {' '}of {formatMoney(d.budgetStatus.totalTargetMinor, cur)}
+                    </span>
+                  </p>
+                  <ProgressBar
+                    className="mt-2"
+                    fraction={d.budgetStatus.totalTargetMinor > 0n
+                      ? Number(d.budgetStatus.totalSpentMinor) / Number(d.budgetStatus.totalTargetMinor) : 0}
+                    markerFraction={d.budgetStatus.elapsedFraction}
+                    tone={d.budgetStatus.totalRemainingMinor < 0n ? 'negative' : 'accent'}
+                  />
+                  <p className="mt-1.5 text-xs text-[var(--text-subtle)]">
+                    {d.budgetStatus.warnings[0]?.message
+                      ?? `${formatMoney(d.budgetStatus.totalRemainingMinor, cur)} left with ${d.budgetStatus.daysRemaining} days to go.`}
+                  </p>
+                </Link>
               ) : (
-                <EmptyState title="Nothing scheduled" description="Recurring payments are detected automatically once a pattern repeats three times." />
+                <div className="rounded-[var(--radius-card)] border border-dashed border-[var(--border-strong)] p-4">
+                  <p className="text-sm font-medium">No budget yet</p>
+                  <p className="mt-1 text-xs text-[var(--text-muted)]">
+                    Pockit can suggest one from your income and bills — you don&rsquo;t have to fill in blanks.
+                  </p>
+                  <LinkButton href="/budget" size="sm" variant="primary" className="mt-2.5">Set up a budget</LinkButton>
+                </div>
               )}
-            </CardBody>
-          </Card>
 
-          {/* 4. Am I on track for my goals? */}
-          <Card>
-            <CardHeader
-              title="Goal progress"
-              action={<Link href="/goals" className="text-xs text-[var(--accent)] hover:underline">All →</Link>}
-            />
-            <CardBody>
               {d.goalStatus.length > 0 ? (
-                <ul className="space-y-3.5">
-                  {d.goalStatus.map(({ goal, math }) => (
-                    <li key={goal.id}>
-                      <Link href={`/goals/${goal.id}`} className="block rounded px-1 py-0.5 hover:bg-[var(--surface-2)]">
-                        <div className="flex items-baseline justify-between gap-2">
-                          <span className="truncate text-sm font-medium">{goal.name}</span>
-                          <span className="tabular shrink-0 text-xs text-[var(--text-muted)]">
+                <Link href="/goals" className="block rounded-[var(--radius-card)] border border-[var(--border)] bg-[var(--surface)] p-4 transition-colors hover:border-[var(--border-strong)]">
+                  <p className="text-sm text-[var(--text-muted)]">Goals</p>
+                  <div className="mt-1.5 space-y-2.5">
+                    {d.goalStatus.map(({ goal, math }) => (
+                      <div key={goal.id}>
+                        <div className="flex items-baseline justify-between gap-2 text-sm">
+                          <span className="truncate font-medium">{goal.name}</span>
+                          <span className="tabular text-xs text-[var(--text-muted)]">
                             {Math.round(math.progressFraction * 100)}%
                           </span>
                         </div>
-                        <ProgressBar fraction={math.progressFraction} className="mt-1.5" tone="accent" />
+                        <ProgressBar fraction={math.progressFraction} className="mt-1" />
                         <p className="mt-1 text-xs text-[var(--text-subtle)]">
-                          {formatMoney(goal.currentMinor, cur, { compact: true })} of {formatMoney(goal.targetMinor, cur, { compact: true })}
-                          {math.requiredMonthlyMinor !== null
-                            ? ` · ${formatMoney(math.requiredMonthlyMinor, cur)}/mo needed`
-                            : ''}
+                          {formatMoney(goal.currentMinor, cur, { compact: true })} of{' '}
+                          {formatMoney(goal.targetMinor, cur, { compact: true })}
+                          {math.requiredMonthlyMinor !== null ? ` · ${formatMoney(math.requiredMonthlyMinor, cur)}/mo to stay on track` : ''}
                         </p>
-                      </Link>
-                    </li>
-                  ))}
-                </ul>
-              ) : (
-                <EmptyState
-                  title="No active goals"
-                  description="Set a target and Pockit works out what you need to save each month, and whether your cash flow supports it."
-                  action={<LinkButton href="/goals">Create a goal</LinkButton>}
-                />
-              )}
-            </CardBody>
-          </Card>
-        </section>
-
-        {/* 5. What should I pay attention to? */}
-        <section className="grid gap-4 lg:grid-cols-2">
-          <Card>
-            <CardHeader title="Worth your attention" description="Computed from your transactions, not generated guesses" />
-            <CardBody>
-              {d.insights.length > 0 || (d.budgetStatus?.warnings.length ?? 0) > 0 ? (
-                <ul className="space-y-2.5">
-                  {d.budgetStatus?.warnings.slice(0, 2).map((w) => (
-                    <li key={w.key} className="flex gap-2.5">
-                      <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: w.severity === 'attention' ? 'var(--negative)' : 'var(--warning)' }} />
-                      <p className="text-sm text-[var(--text)]">{w.message}</p>
-                    </li>
-                  ))}
-                  {d.insights.map((i) => (
-                    <li key={i.dedupeKey} className="flex gap-2.5">
-                      <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: i.severity === 'attention' ? 'var(--negative)' : i.severity === 'notice' ? 'var(--warning)' : 'var(--info)' }} />
-                      <div>
-                        <p className="text-sm text-[var(--text)]">{i.headline}</p>
-                        {i.detail ? <p className="mt-0.5 text-xs text-[var(--text-subtle)]">{i.detail}</p> : null}
                       </div>
-                    </li>
-                  ))}
-                </ul>
+                    ))}
+                  </div>
+                </Link>
               ) : (
-                <EmptyState title="Nothing unusual" description="Pockit compares each period against your own history and surfaces only what actually changed." />
+                <div className="rounded-[var(--radius-card)] border border-dashed border-[var(--border-strong)] p-4">
+                  <p className="text-sm font-medium">No savings goal yet</p>
+                  <p className="mt-1 text-xs text-[var(--text-muted)]">
+                    Set a target and Pockit works out what to put aside each month.
+                  </p>
+                  <LinkButton href="/goals" size="sm" className="mt-2.5">Add a goal</LinkButton>
+                </div>
               )}
-            </CardBody>
-          </Card>
+            </div>
+          </section>
+        ) : null}
 
-          <Card>
-            <CardHeader
-              title="Recent activity"
-              action={<Link href="/transactions" className="text-xs text-[var(--accent)] hover:underline">All →</Link>}
-            />
-            <CardBody className="px-0 pb-0">
-              <Table>
-                <thead>
-                  <tr><Th>Date</Th><Th>Description</Th><Th numeric>Amount</Th></tr>
-                </thead>
-                <tbody>
-                  {d.recentTransactions.map((t) => (
-                    <tr key={t.id} className="hover:bg-[var(--surface-2)]">
-                      <Td className="whitespace-nowrap text-[var(--text-muted)]">
+        {/* Insights, only when they say something actionable. */}
+        {d.insights.length > 0 ? (
+          <section aria-label="Worth knowing">
+            <h2 className="mb-2 text-base font-semibold">Worth knowing</h2>
+            <ul className="space-y-2">
+              {d.insights.map((i) => (
+                <li key={i.dedupeKey} className="flex gap-2.5 rounded-[var(--radius-control)] bg-[var(--surface-2)] px-3.5 py-2.5">
+                  <span className={cn('mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full')}
+                    style={{ background: i.severity === 'attention' ? 'var(--negative)' : i.severity === 'notice' ? 'var(--warning)' : 'var(--info)' }} />
+                  <div>
+                    <p className="text-sm">{i.headline}</p>
+                    {i.detail ? <p className="mt-0.5 text-xs text-[var(--text-subtle)]">{i.detail}</p> : null}
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </section>
+        ) : null}
+
+        {/* Recent activity, last and quiet. */}
+        {d.recent.length > 0 ? (
+          <section aria-label="Recent activity">
+            <div className="mb-2 flex items-baseline justify-between gap-2">
+              <h2 className="text-base font-semibold">Recent</h2>
+              <Link href="/transactions" className="text-xs text-[var(--accent)] hover:underline">All →</Link>
+            </div>
+            <Card className="overflow-hidden">
+              <ul>
+                {d.recent.map((t) => (
+                  <li key={t.id} className="flex items-center gap-3 border-b border-[var(--border)] px-4 py-2.5 last:border-0">
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm">{t.description}</p>
+                      <p className="text-xs text-[var(--text-subtle)]">
                         {new Date(`${t.date}T12:00:00Z`).toLocaleDateString(user.locale, { month: 'short', day: 'numeric', timeZone: 'UTC' })}
-                      </Td>
-                      <Td>
-                        <span className="block truncate">{t.description}</span>
-                        {t.categoryName ? <span className="text-xs text-[var(--text-subtle)]">{t.categoryIcon} {t.categoryName}</span> : null}
-                      </Td>
-                      <Td numeric>
-                        <Money
-                          minor={t.type === 'income' || t.type === 'refund' ? (t.amountMinor < 0n ? -t.amountMinor : t.amountMinor) : -(t.amountMinor < 0n ? -t.amountMinor : t.amountMinor)}
-                          currency={cur} size="sm"
-                        />
-                      </Td>
-                    </tr>
-                  ))}
-                </tbody>
-              </Table>
-            </CardBody>
-          </Card>
-        </section>
+                        {t.categoryName ? ` · ${t.categoryIcon ?? ''} ${t.categoryName}` : ''}
+                      </p>
+                    </div>
+                    <Money
+                      minor={t.type === 'income' || t.type === 'refund' ? d.absMinor(t.amountMinor) : -d.absMinor(t.amountMinor)}
+                      currency={cur} size="sm"
+                    />
+                  </li>
+                ))}
+              </ul>
+            </Card>
+          </section>
+        ) : null}
       </div>
     </>
   );
 }
+
+function Figure({
+  label, minor, currency, note, href,
+}: { label: string; minor: bigint; currency: string; note?: string; href?: string }) {
+  const body = (
+    <>
+      <dt className="text-xs text-[var(--text-muted)]">{label}</dt>
+      <dd className="mt-0.5"><Money minor={minor} currency={currency} tone="plain" /></dd>
+      {note ? <dd className="mt-0.5 text-2xs text-[var(--text-subtle)]">{note}</dd> : null}
+    </>
+  );
+  return href
+    ? <Link href={href} className="block rounded px-1 py-0.5 -mx-1 hover:bg-[var(--surface-2)]">{body}</Link>
+    : <div>{body}</div>;
+}
+
