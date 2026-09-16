@@ -86,7 +86,20 @@ BASE=http://localhost:3000 npm run e2e
 
 It registers a new account, loads demo data, opens all fifteen pages, runs a CSV
 import through extraction, duplicate detection, commit and rollback, and checks the
-export — 29 assertions.
+export — 30 assertions.
+
+A second suite covers the *first-run* path, which needs a database with no Pockit
+tables in it, so it cannot share the one above:
+
+```bash
+createdb pockit_setup
+DATABASE_URL=postgres://.../pockit_setup ADMIN_SECRET=... npm start
+BASE=http://localhost:3000 ADMIN_SECRET=... npm run e2e:setup
+```
+
+It asserts that an un-migrated deployment explains itself and offers the fix rather
+than answering with a digest hash, that a wrong setup key is refused in words, and
+that the app works once setup has run — 11 assertions.
 
 Financial logic carries the test coverage, not the cosmetics. The suite asserts the
 cases the ledger must never get wrong: transfers excluded, card payments not
@@ -120,11 +133,18 @@ It also pins the bugs that reached working code:
   how the triggers-and-RLS migration begins. It never errored; it hung, so a migrated
   database ended up with tables but **no row-level security and no triggers**. The
   filter is now a linear line scan.
+- A deployment whose database had never been migrated answered every page with
+  "Application error: a server-side exception has occurred" and a digest hash. There
+  was no error boundary and no path from that screen to the fix. `/setup` now
+  diagnoses the deployment and can run the migration itself, and the sign-up action
+  no longer turns an infrastructure failure into a stack trace.
 
 ## Deployment
 
 The app targets Vercel with any Postgres. See **Environment** below, then after the
-first deploy apply the schema once:
+first deploy apply the schema once. The simplest way is to open `/setup` on the
+deployed app and enter the `ADMIN_SECRET`; it reports what is missing and runs the
+migration in place. The same thing over the wire:
 
 ```bash
 curl -X POST https://<your-app>.vercel.app/api/admin/migrate \
@@ -159,7 +179,7 @@ plus your own rules — images and video frames are what need a vision model.
 
 ## Status
 
-**Built, tested and verified** (lint + typecheck + 156 unit tests + 30 end-to-end checks + production build green):
+**Built, tested and verified** (lint + typecheck + 156 unit tests + 41 end-to-end checks + production build green):
 
 | Area | State |
 |---|---|

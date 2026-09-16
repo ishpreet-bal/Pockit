@@ -15,12 +15,46 @@ const credentials = z.object({
   password: z.string().min(10, 'Use at least 10 characters').max(200),
 });
 
-export interface AuthFormState { error?: string; fieldErrors?: Record<string, string> }
+export interface AuthFormState {
+  error?: string;
+  fieldErrors?: Record<string, string>;
+  /** Set when the failure is the deployment's, not the person's — offers a link to /setup. */
+  setupRequired?: boolean;
+}
+
+/**
+ * Turns an infrastructure failure into a sentence instead of a stack trace.
+ *
+ * Signing up is the first thing that writes to the database, so on a fresh deployment
+ * it is also the first thing that fails when the schema was never migrated. Without
+ * this the person sees "Application error" with a digest hash and no way forward.
+ *
+ * `redirect()` signals success by throwing, so that throw is re-raised untouched.
+ */
+async function guarded(run: () => Promise<AuthFormState>): Promise<AuthFormState> {
+  try {
+    return await run();
+  } catch (error) {
+    const digest = (error as { digest?: unknown } | null)?.digest;
+    if (typeof digest === 'string' && (digest.startsWith('NEXT_REDIRECT') || digest === 'NEXT_NOT_FOUND')) {
+      throw error;
+    }
+    console.error('auth action failed', error);
+    return {
+      error: 'This app is not finished setting up yet, so accounts cannot be created or used.',
+      setupRequired: true,
+    };
+  }
+}
 
 const MAX_FAILED = 8;
 const LOCK_MINUTES = 15;
 
-export async function signUpAction(_prev: AuthFormState, formData: FormData): Promise<AuthFormState> {
+export async function signUpAction(prev: AuthFormState, formData: FormData): Promise<AuthFormState> {
+  return guarded(() => signUp(prev, formData));
+}
+
+async function signUp(_prev: AuthFormState, formData: FormData): Promise<AuthFormState> {
   const parsed = credentials.safeParse({
     email: formData.get('email'),
     password: formData.get('password'),
@@ -62,7 +96,11 @@ export async function signUpAction(_prev: AuthFormState, formData: FormData): Pr
   redirect('/onboarding');
 }
 
-export async function signInAction(_prev: AuthFormState, formData: FormData): Promise<AuthFormState> {
+export async function signInAction(prev: AuthFormState, formData: FormData): Promise<AuthFormState> {
+  return guarded(() => signIn(prev, formData));
+}
+
+async function signIn(_prev: AuthFormState, formData: FormData): Promise<AuthFormState> {
   const email = String(formData.get('email') ?? '').trim();
   const password = String(formData.get('password') ?? '');
   if (!email || !password) return { error: 'Enter your email and password.' };

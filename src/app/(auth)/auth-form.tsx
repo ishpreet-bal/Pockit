@@ -79,9 +79,14 @@ export function AuthForm({
           ) : null}
 
           {state.error ? (
-            <p role="alert" className="rounded-[var(--radius-control)] bg-[var(--negative-soft)] px-3 py-2 text-sm text-[var(--negative)]">
-              {state.error}
-            </p>
+            <div role="alert" className="rounded-[var(--radius-control)] bg-[var(--negative-soft)] px-3 py-2 text-sm text-[var(--negative)]">
+              <p>{state.error}</p>
+              {state.setupRequired ? (
+                <Link href="/setup" className="mt-1 inline-block font-medium underline">
+                  See what is missing
+                </Link>
+              ) : null}
+            </div>
           ) : null}
 
           <SubmitButton label={isSignUp ? 'Create account' : 'Sign in'} />
