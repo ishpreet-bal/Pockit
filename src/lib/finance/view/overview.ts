@@ -172,7 +172,11 @@ export async function buildOverview(repo: WorkspaceRepo, timezone: string, local
     hasGoals: goals.length > 0,
     hasPriorMonth,
 
-    recent: postedThisPeriod.slice(0, 5).map((t) => ({
+    // Transfers are excluded: moving money between your own accounts is neither
+    // income nor spending, and both legs appearing makes it look like activity twice.
+    recent: postedThisPeriod
+      .filter((t) => t.type !== 'transfer' && t.type !== 'debt_payment')
+      .slice(0, 5).map((t) => ({
       id: t.id,
       date: t.postedDate,
       description: t.merchantName ?? t.description,

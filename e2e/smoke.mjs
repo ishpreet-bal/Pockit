@@ -74,10 +74,12 @@ try {
   console.log('\nOverview shows real figures, not an empty state');
   await page.goto(`${BASE}/overview`, { waitUntil: 'domcontentloaded' });
   const overview = (await page.textContent('body')) ?? '';
-  check('dashboard has content', /Cash available/i.test(overview) && !/Nothing here yet/i.test(overview));
-  // Regression: a transfer is detected on both legs; only the leaving side is a bill.
-  const comingUp = (await page.textContent('body')) ?? '';
-  check('transfers are not listed as upcoming bills', !/Transfer from chequing/i.test(comingUp));
+  check('dashboard has content', /Available|Left this month|Coming up/i.test(overview) && !/Let.s get you a picture/i.test(overview));
+  // Every headline figure must carry its own explanation, never a bare number.
+  check('the headline figure is explained', /in cash|still to pay|minus|less/i.test(overview));
+  // Regression: a transfer is detected on both legs, and is neither income nor
+  // spending — it must not appear as an upcoming bill or as recent activity.
+  check('transfers are not shown as money in or out', !/Transfer from chequing/i.test(overview));
 
   console.log('\nImport round trip');
   await page.goto(`${BASE}/imports/new`, { waitUntil: 'domcontentloaded' });

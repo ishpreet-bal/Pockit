@@ -16,14 +16,27 @@ statements and spreadsheets into structured transactions.
 | [docs/05-roadmap.md](docs/05-roadmap.md) | Milestones, each leaving the repo deployable |
 | [docs/06-design-system.md](docs/06-design-system.md) | Tokens, typography, components, mobile and dark mode |
 
-## The two rules that matter most
+## The three rules that matter most
 
 **1. Money is never a float.** Every monetary value is a `bigint` count of minor
 units. `parseFloat` is banned by lint rule. `lib/money` owns all parsing, formatting,
 allocation and currency conversion, and conversion never destroys the original
 amount, currency or rate.
 
-**2. There is one finance engine.** `lib/finance` is pure — no I/O, no database
+**2. There is one "where do I stand" calculation.** `lib/finance/position.ts` owns it:
+
+```
+posted      money that has actually moved (date <= today)
+scheduled   money committed but not yet moved
+
+availableNow = cash in hand − committed but not yet paid
+```
+
+Before it existed, a transaction dated next month counted as already spent, so a
+planned bill vanished from the balance and inflated the spending total. Every screen
+now derives its available figure from this one function.
+
+**3. There is one finance engine.** `lib/finance` is pure — no I/O, no database
 imports — and every page, chart, budget and export calls into it. This is what
 prevents the failure mode where the dashboard and the transactions page disagree
 about how much you spent.
@@ -81,6 +94,11 @@ double-counted, refunds offsetting, splits totalling exactly, currency conversio
 preserving originals, and category rollups not double counting.
 
 It also pins the bugs that reached working code:
+
+- A transaction dated next month was counted as already spent, so planned bills
+  disappeared from the balance and could not be found again.
+- Both legs of a transfer were shown as separate upcoming bills and as duplicated
+  recent activity.
 
 - Two identical $5.25 coffees 19 days apart once scored 75 — "likely duplicate" —
   because a distant date contributed no points but never *penalised*. The date is now
@@ -141,7 +159,7 @@ plus your own rules — images and video frames are what need a vision model.
 
 ## Status
 
-**Built, tested and verified** (lint + typecheck + 115 unit tests + 29 end-to-end checks + production build green):
+**Built, tested and verified** (lint + typecheck + 156 unit tests + 30 end-to-end checks + production build green):
 
 | Area | State |
 |---|---|
@@ -149,7 +167,8 @@ plus your own rules — images and video frames are what need a vision model.
 | Finance engine | Ledger, budgets (6 methods), goals + feasibility, forecast, safe-to-spend, recurring detection, duplicate scoring, debt payoff, net worth, patterns, insights, scenarios |
 | Schema | 47 tables, integrity triggers, RLS |
 | Auth | scrypt, signed httpOnly sessions, rate limiting, audit log, workspace isolation |
-| Screens | Overview, Transactions, Accounts, Budget, Goals, Recurring, Forecast, Debts, Analytics, Calendar, Business, Imports, Assistant, Settings, Onboarding |
+| Screens | Overview, Transactions, Budget, Goals, Calendar at the top level; Recurring, Accounts, Import, Analytics, Forecast, Debts, Business, Assistant, Settings behind "More" |
+| Guidance | Guided budget setup, plain-language figures with explanations and actions, goal pace analysis, empty states that offer a next step |
 | Privacy & export | File-retention choice, AI on/off, AI disclosure, learned-rule management, CSV export of transactions, summaries, goals and categories |
 | Import pipeline | CSV, Excel, text PDF and image, staged for review with duplicate scoring, commit and rollback |
 | AI | Provider abstraction; the heuristic driver works with no API key; the Anthropic driver adds vision and the grounded assistant |

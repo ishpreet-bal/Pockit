@@ -319,3 +319,123 @@ export function summarizeGoals(
 }
 
 export { todayIn };
+
+
+/* ------------------------------------------------------------------ */
+/* Pace: is this goal actually moving?                                 */
+/* ------------------------------------------------------------------ */
+
+export interface GoalPace {
+  /** What the user has actually been putting in, from real contributions. */
+  observedMonthlyMinor: bigint;
+  /** When the goal completes at that observed pace. */
+  projectedDate: IsoDate | null;
+  projectedMonths: number | null;
+  /** Positive = ahead of the target date, negative = behind. */
+  monthsAheadOfTarget: number | null;
+  status: 'ahead' | 'on_track' | 'behind' | 'stalled' | 'achieved' | 'no_target';
+  /** One sentence the user can act on, or null when there is nothing worth saying. */
+  headline: string;
+  /** An optional, concrete suggestion. Never presented as advice. */
+  suggestion: { text: string; extraMonthlyMinor: bigint; monthsSaved: number } | null;
+}
+
+/**
+ * Compare a goal against what is really happening.
+ *
+ * A goal that only shows a target and a percentage is inert. What makes it useful is
+ * the gap between the pace it needs and the pace it is actually getting — and, when
+ * there is a gap, what closing it would take.
+ */
+export function computeGoalPace(
+  goal: GoalInput,
+  math: GoalMath,
+  observedMonthlyMinor: bigint,
+  today: IsoDate,
+  currency: string,
+): GoalPace {
+  if (math.isAchieved) {
+    return {
+      observedMonthlyMinor, projectedDate: today, projectedMonths: 0,
+      monthsAheadOfTarget: null, status: 'achieved',
+      headline: 'Reached. Nice work.', suggestion: null,
+    };
+  }
+
+  const pace = observedMonthlyMinor > 0n ? observedMonthlyMinor : (goal.monthlyContributionMinor ?? 0n);
+  const projection = pace > 0n ? projectCompletion(math.remainingMinor, pace, today) : null;
+
+  if (!projection) {
+    return {
+      observedMonthlyMinor, projectedDate: null, projectedMonths: null,
+      monthsAheadOfTarget: null, status: 'stalled',
+      headline: `Nothing has gone in yet. ${
+        math.requiredMonthlyMinor !== null
+          ? `Putting ${money(math.requiredMonthlyMinor, currency)} aside each month would reach it by ${goal.targetDate}.`
+          : 'Set a monthly amount and Pockit can project when you will get there.'
+      }`,
+      suggestion: null,
+    };
+  }
+
+  if (math.monthsRemaining === null) {
+    return {
+      observedMonthlyMinor, projectedDate: projection.date, projectedMonths: projection.months,
+      monthsAheadOfTarget: null, status: 'no_target',
+      headline: `At ${money(pace, currency)} a month you will get there around ${projection.date}.`,
+      suggestion: null,
+    };
+  }
+
+  const monthsAhead = math.monthsRemaining - projection.months;
+  const status: GoalPace['status'] =
+    monthsAhead >= 1 ? 'ahead' : monthsAhead <= -1 ? 'behind' : 'on_track';
+
+  let headline: string;
+  if (status === 'ahead') {
+    headline = `Ahead of schedule — about ${monthsAhead} month${monthsAhead === 1 ? '' : 's'} early at your current pace.`;
+  } else if (status === 'behind') {
+    const short = Math.abs(monthsAhead);
+    headline = `Running about ${short} month${short === 1 ? '' : 's'} late at ${money(pace, currency)} a month.`;
+  } else {
+    headline = `On track at ${money(pace, currency)} a month.`;
+  }
+
+  // A concrete, optional suggestion — only when it would actually change something.
+  let suggestion: GoalPace['suggestion'] = null;
+  if (status !== 'ahead' && math.requiredMonthlyMinor !== null && math.requiredMonthlyMinor > pace) {
+    const extra = math.requiredMonthlyMinor - pace;
+    const faster = projectCompletion(math.remainingMinor, math.requiredMonthlyMinor, today);
+    const saved = faster ? projection.months - faster.months : 0;
+    if (saved > 0) {
+      suggestion = {
+        text: `Adding ${money(extra, currency)} a month would bring this forward by about ${saved} month${saved === 1 ? '' : 's'}.`,
+        extraMonthlyMinor: extra,
+        monthsSaved: saved,
+      };
+    }
+  }
+
+  return {
+    observedMonthlyMinor, projectedDate: projection.date, projectedMonths: projection.months,
+    monthsAheadOfTarget: monthsAhead, status, headline, suggestion,
+  };
+}
+
+function money(minor: bigint, currency: string): string {
+  const symbol = currency === 'EUR' ? '\u20ac' : currency === 'GBP' ? '\u00a3' : '$';
+  const abs = minor < 0n ? -minor : minor;
+  const dollars = (abs / 100n).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+  const cents = abs % 100n;
+  return `${minor < 0n ? '\u2212' : ''}${symbol}${dollars}${cents === 0n ? '' : `.${cents.toString().padStart(2, '0')}`}`;
+}
+
+/** Average monthly contribution actually observed, from recorded contributions. */
+export function observedMonthlyContribution(
+  contributions: readonly { occurredOn: IsoDate; amountMinor: bigint }[],
+  months: number,
+): bigint {
+  if (contributions.length === 0 || months <= 0) return 0n;
+  const total = contributions.reduce((s, c) => s + c.amountMinor, 0n);
+  return total / BigInt(Math.max(1, months));
+}

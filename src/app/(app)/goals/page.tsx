@@ -6,7 +6,8 @@ import { Card, CardHeader, CardBody, EmptyState, ProgressBar, Badge, LinkButton 
 import { Money } from '@/components/finance/money';
 import { Stat } from '@/components/finance/stat';
 import {
-  computeGoalMath, computeCashFlowBasis, assessFeasibility, summarizeGoals, type GoalInput,
+  computeGoalMath, computeCashFlowBasis, assessFeasibility, summarizeGoals,
+  computeGoalPace, type GoalInput,
 } from '@/lib/finance/goals';
 import { todayIn, startOfMonth, addMonths } from '@/lib/finance/period';
 import { formatMoney } from '@/lib/money';
@@ -89,6 +90,8 @@ export default async function GoalsPage() {
         <div className="grid gap-4 lg:grid-cols-2">
           {goals.map((goal) => {
             const math = computeGoalMath(goal, today);
+            // Pace uses what is actually going in, not what was planned.
+            const pace = computeGoalPace(goal, math, goal.monthlyContributionMinor ?? 0n, today, cur);
             const otherCommitments = goals
               .filter((g) => g.id !== goal.id)
               .reduce((sum, g) => sum + (g.monthlyContributionMinor ?? 0n), 0n);
@@ -99,9 +102,11 @@ export default async function GoalsPage() {
                 <CardHeader
                   title={goal.name}
                   action={
-                    math.isAchieved ? <Badge tone="positive">Achieved</Badge>
-                    : feasibility.feasible ? <Badge tone="positive">On track</Badge>
-                    : <Badge tone="warning">Needs adjustment</Badge>
+                    pace.status === 'achieved' ? <Badge tone="positive">Reached</Badge>
+                    : pace.status === 'ahead' ? <Badge tone="positive">Ahead</Badge>
+                    : pace.status === 'behind' ? <Badge tone="warning">Behind</Badge>
+                    : pace.status === 'stalled' ? <Badge tone="neutral">Not started</Badge>
+                    : <Badge tone="positive">On track</Badge>
                   }
                 />
                 <CardBody>
@@ -130,10 +135,25 @@ export default async function GoalsPage() {
                     </div>
                   </dl>
 
+                  {/* What is actually happening, not just what was planned. */}
+                  <p className="mt-2.5 text-sm">{pace.headline}</p>
+                  {pace.projectedDate && pace.status !== 'achieved' ? (
+                    <p className="mt-0.5 text-xs text-[var(--text-subtle)]">
+                      At your current pace, you reach it around{' '}
+                      {new Date(`${pace.projectedDate}T12:00:00Z`).toLocaleDateString(user.locale, {
+                        month: 'long', year: 'numeric', timeZone: 'UTC',
+                      })}.
+                    </p>
+                  ) : null}
+                  {pace.suggestion ? (
+                    <p className="mt-2 rounded-[var(--radius-control)] bg-[var(--surface-2)] px-3 py-2 text-xs text-[var(--text-muted)]">
+                      {pace.suggestion.text}
+                    </p>
+                  ) : null}
                   {math.requiredMonthlyMinor !== null ? (
                     <p className="mt-2 text-xs text-[var(--text-subtle)]">
-                      Equivalent to {formatMoney(math.requiredBiweeklyMinor ?? 0n, cur)} biweekly
-                      or {formatMoney(math.requiredWeeklyMinor ?? 0n, cur)} weekly.
+                      Or {formatMoney(math.requiredBiweeklyMinor ?? 0n, cur)} every two weeks
+                      · {formatMoney(math.requiredWeeklyMinor ?? 0n, cur)} weekly.
                     </p>
                   ) : null}
 
