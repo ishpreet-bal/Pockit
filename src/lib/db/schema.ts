@@ -131,6 +131,9 @@ export const userProfiles = pockit.table('user_profiles', {
   fileRetention: fileRetention('file_retention').notNull().default('ask'),
   aiEnabled: boolean('ai_enabled').notNull().default(true),
   dashboardWidgets: jsonb('dashboard_widgets').$type<string[] | null>(),
+  primaryIntent: text('primary_intent'),
+  /** 'simple' hides advanced surfaces until the user asks for them. */
+  experienceLevel: text('experience_level').notNull().default('simple'),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 });
@@ -229,6 +232,8 @@ export const categories = pockit.table('categories', {
   color: text('color'),
   isSystem: boolean('is_system').notNull().default(false),
   isArchived: boolean('is_archived').notNull().default(false),
+  /** Shown in the first-choice picker; everything else lives behind "more". */
+  isPrimary: boolean('is_primary').notNull().default(false),
   sortOrder: integer('sort_order').notNull().default(0),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
@@ -387,6 +392,12 @@ export const recurringSeries = pockit.table('recurring_series', {
   // Spec §12: "allow me to identify subscriptions I no longer care about"
   isWanted: boolean('is_wanted'),
   priceHistory: jsonb('price_history').$type<{ date: string; amountMinor: string }[] | null>(),
+  /** True when the user created this by hand rather than it being detected. */
+  isManual: boolean('is_manual').notNull().default(false),
+  startDate: date('start_date'),
+  endDate: date('end_date'),
+  intervalCount: integer('interval_count').notNull().default(1),
+  direction: text('direction').notNull().default('outflow'),
   notes: text('notes'),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
@@ -579,6 +590,9 @@ export const budgets = pockit.table('budgets', {
   rollover: boolean('rollover').notNull().default(false),
   /** Method-specific payload, validated by a Zod discriminated union at the boundary. */
   rules: jsonb('rules'),
+  /** What the user said they were trying to achieve, so advice can be explained. */
+  intent: text('intent'),
+  setupAnswers: jsonb('setup_answers'),
   isActive: boolean('is_active').notNull().default(true),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),

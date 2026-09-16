@@ -86,6 +86,8 @@ export async function seedCategories(tx: Tx, workspaceId: string): Promise<Map<s
       icon: seed.icon,
       color: seed.color,
       isSystem: true,
+      // Top-level categories are the first-choice picker; children stay behind "more".
+      isPrimary: parentId === null,
       sortOrder,
     }).returning({ id: categories.id });
     idBySlug.set(seed.slug, rows[0]!.id);

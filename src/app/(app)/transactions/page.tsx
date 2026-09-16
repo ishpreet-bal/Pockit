@@ -2,145 +2,302 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { requireAuth } from '@/lib/auth/guard';
 import { WorkspaceRepo } from '@/lib/data/repository';
-import { PageHeader, PeriodFilter } from '../page-header';
-import { Card, EmptyState, Table, Th, Td, Badge, LinkButton } from '@/components/ui/primitives';
+import { PageHeader } from '../page-header';
+import { Card, EmptyState, Badge, LinkButton } from '@/components/ui/primitives';
 import { Money } from '@/components/finance/money';
-import { resolvePeriod, todayIn, formatRange, type PeriodPreset } from '@/lib/finance/period';
-import { periodTotals, spendingAmount, incomeAmount } from '@/lib/finance/ledger';
 import { AddTransaction } from './add-transaction';
+import { TransactionActions } from './transaction-actions';
+import { todayIn, startOfMonth, endOfMonth } from '@/lib/finance/period';
+import { isScheduled } from '@/lib/finance/position';
+import { periodTotals } from '@/lib/finance/ledger';
+import { toDecimalString, absMinor } from '@/lib/money';
+import { cn } from '@/lib/ui/cn';
+import type { LedgerTxn } from '@/lib/finance/types';
 
 export const metadata: Metadata = { title: 'Transactions' };
 export const dynamic = 'force-dynamic';
 
-const TYPE_TONE = {
-  income: 'positive', expense: 'neutral', transfer: 'info',
-  refund: 'accent', investment: 'info', debt_payment: 'warning',
-} as const;
+type View = 'this_month' | 'upcoming' | 'past' | 'all';
+
+const VIEWS: { id: View; label: string }[] = [
+  { id: 'this_month', label: 'This month' },
+  { id: 'upcoming', label: 'Upcoming' },
+  { id: 'past', label: 'Earlier' },
+  { id: 'all', label: 'All' },
+];
 
 export default async function TransactionsPage({
   searchParams,
-}: { searchParams: Promise<{ period?: string; q?: string; type?: string; category?: string; account?: string }> }) {
+}: { searchParams: Promise<{ view?: string; q?: string; category?: string; account?: string }> }) {
   const { user, workspace } = await requireAuth();
   const params = await searchParams;
-  const preset = (params.period ?? 'this_month') as PeriodPreset;
+  const view = (VIEWS.some((v) => v.id === params.view) ? params.view : 'this_month') as View;
 
   const repo = new WorkspaceRepo(user.id, workspace.id, workspace.baseCurrency);
   const today = todayIn(user.timezone);
-  const range = resolvePeriod(preset, today);
+  const cur = workspace.baseCurrency;
 
   const [all, categories, accounts] = await Promise.all([
-    repo.listTransactions({ range }),
-    repo.listCategories(),
-    repo.listAccounts(),
+    repo.listTransactions(), repo.listCategories(), repo.listAccounts(),
   ]);
 
   const categoryById = new Map(categories.map((c) => [c.id, c]));
   const accountById = new Map(accounts.map((a) => [a.id, a]));
+  const monthStart = startOfMonth(today);
+  const monthEnd = endOfMonth(today);
 
   const query = params.q?.trim().toLowerCase() ?? '';
-  const filtered = all.filter((t) => {
-    if (params.type && t.type !== params.type) return false;
+  const matches = (t: LedgerTxn) => {
     if (params.category && t.categoryId !== params.category) return false;
     if (params.account && t.accountId !== params.account) return false;
-    if (query) {
-      const haystack = `${t.description} ${t.merchantName ?? ''} ${categoryById.get(t.categoryId ?? '')?.name ?? ''}`.toLowerCase();
-      if (!haystack.includes(query)) return false;
+    if (!query) return true;
+    const hay = `${t.description} ${t.merchantName ?? ''} ${categoryById.get(t.categoryId ?? '')?.name ?? ''}`.toLowerCase();
+    return hay.includes(query);
+  };
+
+  const filtered = all.filter(matches);
+  const upcomingAll = filtered.filter((t) => isScheduled(t, today));
+
+  const visible = filtered.filter((t) => {
+    switch (view) {
+      case 'upcoming': return isScheduled(t, today);
+      case 'this_month': return t.postedDate >= monthStart && t.postedDate <= monthEnd;
+      case 'past': return t.postedDate < monthStart;
+      default: return true;
     }
-    return true;
   });
 
-  const totals = periodTotals(filtered);
-  const cur = workspace.baseCurrency;
+  // In the month view, keep what is still to come visually separate from what has
+  // already happened — the original problem was a planned bill being indistinguishable
+  // from a paid one, and then impossible to find at all.
+  const scheduled = visible.filter((t) => isScheduled(t, today))
+    .sort((a, b) => a.postedDate.localeCompare(b.postedDate));
+  const posted = visible.filter((t) => !isScheduled(t, today));
+
+  const postedTotals = periodTotals(posted);
+  const scheduledOut = scheduled.filter((t) => t.type !== 'income');
+
+  const choices = categories.map((c) => ({
+    id: c.id, name: c.name, icon: c.icon,
+    parent: c.parentId ? categoryById.get(c.parentId)?.name ?? null : null,
+    isPrimary: c.parentId === null,
+  }));
+  const accountChoices = accounts.map((a) => ({ id: a.id, name: a.name }));
+
+  const empty = all.length === 0;
 
   return (
     <>
       <PageHeader
         title="Transactions"
-        description={`${filtered.length} in ${formatRange(range, user.locale)}`}
-        action={<AddTransaction accounts={accounts.map((a) => ({ id: a.id, name: a.name, currency: a.currency }))}
-          categories={categories.filter((c) => !categories.some((x) => x.parentId === c.id)).map((c) => ({ id: c.id, name: c.name, icon: c.icon }))} />}
+        action={<AddTransaction accounts={accounts.map((a) => ({ id: a.id, name: a.name, currency: a.currency }))} categories={choices} today={today} />}
       >
-        <PeriodFilter active={preset} />
+        <nav className="-mx-1 flex gap-1 overflow-x-auto pb-0.5" aria-label="Transaction view">
+          {VIEWS.map((v) => {
+            const count = v.id === 'upcoming' ? upcomingAll.length : null;
+            const qs = new URLSearchParams({ ...(params.q ? { q: params.q } : {}), view: v.id });
+            return (
+              <Link
+                key={v.id}
+                href={`/transactions?${qs}`}
+                aria-current={view === v.id ? 'page' : undefined}
+                className={cn(
+                  'shrink-0 rounded-full border px-3 py-1 text-xs transition-colors',
+                  view === v.id
+                    ? 'border-transparent bg-[var(--accent-soft)] font-medium text-[var(--accent)]'
+                    : 'border-[var(--border)] text-[var(--text-muted)] hover:bg-[var(--surface-2)] hover:text-[var(--text)]',
+                )}
+              >
+                {v.label}
+                {count ? <span className="ml-1.5 opacity-70">{count}</span> : null}
+              </Link>
+            );
+          })}
+        </nav>
       </PageHeader>
 
-      <div className="space-y-4 px-4 py-4 sm:px-6">
-        <form className="flex flex-wrap gap-2" role="search">
-          <input type="hidden" name="period" value={preset} />
-          <input
-            name="q" defaultValue={params.q ?? ''} placeholder="Search merchant, description or category"
-            aria-label="Search transactions"
-            className="h-9 min-w-[200px] flex-1 rounded-[var(--radius-control)] border border-[var(--border-strong)] bg-[var(--surface)] px-3 text-sm focus:border-[var(--accent)] focus:outline-none"
-          />
-          <select name="type" defaultValue={params.type ?? ''} aria-label="Type"
-            className="h-9 rounded-[var(--radius-control)] border border-[var(--border-strong)] bg-[var(--surface)] px-2 text-sm">
-            <option value="">All types</option>
-            {['expense', 'income', 'transfer', 'refund', 'investment', 'debt_payment'].map((t) => (
-              <option key={t} value={t}>{t.replace('_', ' ')}</option>
-            ))}
-          </select>
-          <select name="account" defaultValue={params.account ?? ''} aria-label="Account"
-            className="h-9 rounded-[var(--radius-control)] border border-[var(--border-strong)] bg-[var(--surface)] px-2 text-sm">
-            <option value="">All accounts</option>
-            {accounts.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
-          </select>
-          <button type="submit" className="h-9 rounded-[var(--radius-control)] border border-[var(--border-strong)] bg-[var(--surface)] px-3 text-sm font-medium hover:bg-[var(--surface-2)]">
-            Filter
-          </button>
-        </form>
-
-        <div className="grid grid-cols-3 gap-3">
-          <Card className="p-3"><p className="text-xs text-[var(--text-muted)]">Income</p><Money minor={totals.income} currency={cur} size="lg" tone="plain" /></Card>
-          <Card className="p-3"><p className="text-xs text-[var(--text-muted)]">Spending</p><Money minor={totals.expenses} currency={cur} size="lg" tone="plain" /></Card>
-          <Card className="p-3"><p className="text-xs text-[var(--text-muted)]">Net</p><Money minor={totals.netCashFlow} currency={cur} size="lg" /></Card>
-        </div>
-
-        <Card>
-          {filtered.length === 0 ? (
+      <div className="space-y-5 px-4 py-4 sm:px-6">
+        {empty ? (
+          <Card>
             <EmptyState
-              title="No transactions match"
-              description="Try a wider date range, clear the filters, or import a statement to bring in history."
-              action={<LinkButton href="/imports/new" variant="primary">Import a file</LinkButton>}
+              icon="≡"
+              title="No transactions yet"
+              description="Add your first transaction to start tracking your spending, or import a bank statement to bring in your history all at once."
+              action={
+                <div className="flex flex-wrap justify-center gap-2">
+                  <AddTransaction accounts={accounts.map((a) => ({ id: a.id, name: a.name, currency: a.currency }))} categories={choices} today={today} />
+                  <LinkButton href="/imports/new">Import a file</LinkButton>
+                </div>
+              }
             />
-          ) : (
-            <Table>
-              <thead>
-                <tr>
-                  <Th>Date</Th><Th>Description</Th><Th>Category</Th><Th>Account</Th><Th>Type</Th><Th numeric>Amount</Th>
-                </tr>
-              </thead>
-              <tbody>
-                {filtered.map((t) => {
-                  const cat = t.categoryId ? categoryById.get(t.categoryId) : null;
-                  const acct = accountById.get(t.accountId);
-                  // Sign for display: money in is positive, money out is negative,
-                  // and transfers show their true direction on the account.
-                  const display =
-                    t.type === 'income' || t.type === 'refund' ? incomeAmount(t) || spendingAmount(t) * -1n
-                    : t.type === 'transfer' || t.type === 'investment' || t.type === 'debt_payment' ? t.amountMinor
-                    : -spendingAmount(t);
-                  return (
-                    <tr key={t.id} className="hover:bg-[var(--surface-2)]">
-                      <Td className="whitespace-nowrap text-[var(--text-muted)]">
-                        {new Date(`${t.postedDate}T12:00:00Z`).toLocaleDateString(user.locale, { month: 'short', day: 'numeric', timeZone: 'UTC' })}
-                      </Td>
-                      <Td>
-                        <span className="block max-w-[26ch] truncate sm:max-w-none">{t.merchantName ?? t.description}</span>
-                        {t.isRecurring ? <span className="text-xs text-[var(--text-subtle)]">recurring</span> : null}
-                      </Td>
-                      <Td className="text-[var(--text-muted)]">
-                        {cat ? <Link href={`/transactions?period=${preset}&category=${cat.id}`} className="hover:underline">{cat.icon} {cat.name}</Link> : '—'}
-                      </Td>
-                      <Td className="whitespace-nowrap text-[var(--text-muted)]">{acct?.name ?? '—'}</Td>
-                      <Td><Badge tone={TYPE_TONE[t.type]}>{t.type.replace('_', ' ')}</Badge></Td>
-                      <Td numeric><Money minor={display} currency={cur} size="sm" /></Td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </Table>
-          )}
-        </Card>
+          </Card>
+        ) : (
+          <>
+            {view !== 'upcoming' && posted.length > 0 ? (
+              <div className="flex flex-wrap gap-x-6 gap-y-1 text-sm">
+                <span className="text-[var(--text-muted)]">
+                  In: <Money minor={postedTotals.income} currency={cur} size="sm" tone="plain" />
+                </span>
+                <span className="text-[var(--text-muted)]">
+                  Out: <Money minor={postedTotals.expenses} currency={cur} size="sm" tone="plain" />
+                </span>
+                {scheduledOut.length > 0 ? (
+                  <span className="text-[var(--text-muted)]">
+                    Still to pay:{' '}
+                    <Money minor={scheduledOut.reduce((s, t) => s + absMinor(t.baseAmountMinor), 0n)} currency={cur} size="sm" tone="plain" />
+                  </span>
+                ) : null}
+              </div>
+            ) : null}
+
+            {scheduled.length > 0 ? (
+              <section>
+                <h2 className="mb-2 flex items-center gap-2 text-xs font-medium uppercase tracking-[0.06em] text-[var(--text-subtle)]">
+                  Scheduled
+                  <span className="font-normal normal-case tracking-normal text-[var(--text-subtle)]">
+                    · not paid yet
+                  </span>
+                </h2>
+                <Card className="overflow-hidden">
+                  <ul>
+                    {scheduled.map((t) => (
+                      <TxnRow
+                        key={t.id} txn={t} upcoming today={today} locale={user.locale} currency={cur}
+                        categoryById={categoryById} accountById={accountById}
+                        categories={choices} accounts={accountChoices}
+                      />
+                    ))}
+                  </ul>
+                </Card>
+              </section>
+            ) : null}
+
+            {posted.length > 0 ? (
+              <section>
+                {scheduled.length > 0 ? (
+                  <h2 className="mb-2 text-xs font-medium uppercase tracking-[0.06em] text-[var(--text-subtle)]">
+                    Completed
+                  </h2>
+                ) : null}
+                <Card className="overflow-hidden">
+                  <ul>
+                    {posted.map((t) => (
+                      <TxnRow
+                        key={t.id} txn={t} today={today} locale={user.locale} currency={cur}
+                        categoryById={categoryById} accountById={accountById}
+                        categories={choices} accounts={accountChoices}
+                      />
+                    ))}
+                  </ul>
+                </Card>
+              </section>
+            ) : null}
+
+            {visible.length === 0 ? (
+              <Card>
+                <EmptyState
+                  title={
+                    view === 'upcoming' ? 'Nothing scheduled yet'
+                    : view === 'past' ? 'Nothing before this month'
+                    : 'Nothing here yet'
+                  }
+                  description={
+                    view === 'upcoming'
+                      ? 'Add a transaction with a future date, or set up a recurring bill, and it will appear here before it happens.'
+                      : 'Try another view, or clear your search.'
+                  }
+                  action={
+                    view === 'upcoming'
+                      ? <LinkButton href="/recurring" variant="primary">Set up a recurring bill</LinkButton>
+                      : <LinkButton href="/transactions?view=all">Show all</LinkButton>
+                  }
+                />
+              </Card>
+            ) : null}
+          </>
+        )}
       </div>
     </>
   );
 }
+
+function TxnRow({
+  txn, upcoming, today, locale, currency, categoryById, accountById, categories, accounts,
+}: {
+  txn: LedgerTxn;
+  upcoming?: boolean;
+  today: string;
+  locale: string;
+  currency: string;
+  categoryById: Map<string, { name: string; icon: string | null }>;
+  accountById: Map<string, { name: string }>;
+  categories: { id: string; name: string; icon: string | null; parent: string | null; isPrimary: boolean }[];
+  accounts: { id: string; name: string }[];
+}) {
+  const cat = txn.categoryId ? categoryById.get(txn.categoryId) : null;
+  const signed =
+    txn.type === 'income' || txn.type === 'refund'
+      ? absMinor(txn.baseAmountMinor)
+      : txn.type === 'transfer' || txn.type === 'investment' || txn.type === 'debt_payment'
+        ? txn.baseAmountMinor
+        : -absMinor(txn.baseAmountMinor);
+
+  const daysAway = upcoming
+    ? Math.round((Date.parse(`${txn.postedDate}T00:00:00Z`) - Date.parse(`${today}T00:00:00Z`)) / 86_400_000)
+    : 0;
+
+  return (
+    <li className={cn(
+      'flex items-center gap-3 border-b border-[var(--border)] px-4 py-2.5 last:border-0',
+      upcoming && 'bg-[var(--surface-2)]/50',
+    )}>
+      <div className="w-11 shrink-0 text-center">
+        <div className="text-2xs uppercase tracking-wide text-[var(--text-subtle)]">
+          {new Date(`${txn.postedDate}T12:00:00Z`).toLocaleDateString(locale, { month: 'short', timeZone: 'UTC' })}
+        </div>
+        <div className={cn('text-sm tabular', upcoming ? 'text-[var(--text-muted)]' : 'font-medium')}>
+          {Number(txn.postedDate.slice(8, 10))}
+        </div>
+      </div>
+
+      <div className="min-w-0 flex-1">
+        <p className="flex items-center gap-2 truncate text-sm font-medium">
+          {txn.merchantName ?? txn.description}
+          {upcoming ? (
+            <Badge tone="info">
+              {daysAway <= 0 ? 'due today' : daysAway === 1 ? 'tomorrow' : `in ${daysAway} days`}
+            </Badge>
+          ) : null}
+          {txn.isRecurring ? <Badge tone="neutral">repeats</Badge> : null}
+        </p>
+        <p className="truncate text-xs text-[var(--text-subtle)]">
+          {cat ? `${cat.icon ?? ''} ${cat.name}` : 'Uncategorised'}
+          {' · '}
+          {accountById.get(txn.accountId)?.name ?? ''}
+        </p>
+      </div>
+
+      <div className={cn('shrink-0 text-right', upcoming && 'opacity-75')}>
+        <Money minor={signed} currency={currency} size="sm" />
+      </div>
+
+      <TransactionActions
+        currency={currency}
+        categories={categories}
+        accounts={accounts}
+        txn={{
+          id: txn.id,
+          postedDate: txn.postedDate,
+          description: txn.merchantName ?? txn.description,
+          amountMajor: toDecimalString(absMinor(txn.baseAmountMinor), currency),
+          type: txn.type,
+          categoryId: txn.categoryId,
+          accountId: txn.accountId,
+          businessClassification: txn.businessClassification,
+          isRecurring: txn.isRecurring,
+        }}
+      />
+    </li>
+  );
+}
+

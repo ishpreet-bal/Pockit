@@ -10,6 +10,7 @@ import { minorFromDb } from '@/lib/money';
 import type {
   LedgerTxn, LedgerAccount, LedgerCategory, DateRange, IsoDate, BusinessClass, TxnType,
 } from '@/lib/finance/types';
+import type { ManualSchedule } from '@/lib/finance/schedule';
 
 /**
  * Every read and write goes through a workspace-scoped repository.
@@ -249,6 +250,32 @@ export class WorkspaceRepo {
         .orderBy(budgetAllocations.sortOrder),
     );
     return { budget, allocations };
+  }
+
+  /** Manual schedules, in the shape the finance engine consumes. */
+  async listManualSchedules(): Promise<ManualSchedule[]> {
+    const rows = await this.run((tx) =>
+      tx.select().from(recurringSeries).where(and(
+        eq(recurringSeries.workspaceId, this.workspaceId),
+        eq(recurringSeries.isManual, true),
+      )).orderBy(recurringSeries.name),
+    );
+    return rows.map((r) => ({
+      id: r.id,
+      name: r.name,
+      amountMinor: minorFromDb(r.amountMinor as unknown as string),
+      currency: r.currency,
+      cadence: r.cadence,
+      interval: r.intervalCount,
+      dayOfMonth: r.dayOfMonth,
+      startDate: r.startDate ?? r.nextExpectedDate ?? new Date().toISOString().slice(0, 10),
+      endDate: r.endDate,
+      type: r.type,
+      categoryId: r.categoryId,
+      accountId: r.accountId,
+      direction: r.direction === 'inflow' ? 'inflow' : 'outflow',
+      isActive: r.status === 'active',
+    }));
   }
 
   async listRecurringSeries() {
