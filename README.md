@@ -99,7 +99,8 @@ BASE=http://localhost:3000 ADMIN_SECRET=... npm run e2e:setup
 
 It asserts that an un-migrated deployment explains itself and offers the fix rather
 than answering with a digest hash, that a wrong setup key is refused in words, and
-that the app works once setup has run — 11 assertions.
+that the app works once setup has run — 15 assertions. Run it a second time with
+`MODE=outdated` against a database migrated to an *earlier* release.
 
 Financial logic carries the test coverage, not the cosmetics. The suite asserts the
 cases the ledger must never get wrong: transfers excluded, card payments not
@@ -138,6 +139,16 @@ It also pins the bugs that reached working code:
   was no error boundary and no path from that screen to the fix. `/setup` now
   diagnoses the deployment and can run the migration itself, and the sign-up action
   no longer turns an infrastructure failure into a stack trace.
+- Readiness asked only whether *any* migration had run, so a database migrated
+  before a later release was reported healthy while every page touching a new
+  column threw — and `/setup`, believing the app fine, redirected the owner
+  straight back to the broken page. A partially migrated database is a broken one:
+  the diagnosis now compares what the database has applied against the migrations
+  the build actually ships.
+- The migration `.sql` files were read from `process.cwd()` at runtime and were not
+  in the deployed bundle at all, because Next cannot trace a dynamic `readdir`.
+  `outputFileTracingIncludes` now ships them, and the directory is resolved against
+  several candidate roots rather than one guess.
 
 ## Deployment
 
@@ -179,7 +190,7 @@ plus your own rules — images and video frames are what need a vision model.
 
 ## Status
 
-**Built, tested and verified** (lint + typecheck + 156 unit tests + 41 end-to-end checks + production build green):
+**Built, tested and verified** (lint + typecheck + 156 unit tests + 45 end-to-end checks + production build green):
 
 | Area | State |
 |---|---|

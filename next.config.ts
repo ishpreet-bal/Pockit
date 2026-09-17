@@ -20,6 +20,14 @@ const nextConfig: NextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
   serverExternalPackages: ['postgres', 'exceljs', 'unpdf'],
+  // The migration files are read at runtime, so Next's static tracing cannot see
+  // them. Without this they are simply absent from the deployed bundle and the
+  // migrate endpoint reports that it applied nothing, with no error to explain it.
+  outputFileTracingIncludes: {
+    '/api/admin/migrate': ['./drizzle/**/*.sql'],
+    '/api/health': ['./drizzle/**/*.sql'],
+    '/setup': ['./drizzle/**/*.sql'],
+  },
   experimental: {
     // Financial aggregation happens in Server Components; keep the payload lean.
     optimizePackageImports: ['recharts', 'date-fns'],

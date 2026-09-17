@@ -19,6 +19,7 @@ export const metadata: Metadata = { title: 'Setup' };
  */
 export default async function SetupPage() {
   const d = await diagnose();
+  const isUpdate = d.migrationsApplied.length > 0 && d.pendingMigrations.length > 0;
 
   // Nothing to do here once the app works; sending people onward beats a dead page.
   if (d.status === 'ready') redirect('/');
@@ -27,10 +28,13 @@ export default async function SetupPage() {
     <main className="mx-auto flex min-h-dvh max-w-xl flex-col justify-center gap-6 px-5 py-12">
       <header className="space-y-2">
         <p className="text-xs font-medium uppercase tracking-wide text-[var(--text-muted)]">Pockit setup</p>
-        <h1 className="text-2xl font-semibold tracking-tight">Almost there — one thing is missing</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">
+          {isUpdate ? 'Your database needs a quick update' : 'Almost there — one thing is missing'}
+        </h1>
         <p className="text-sm text-[var(--text-muted)]">
-          The app is deployed and running. It just cannot reach a working database yet, so every
-          page that loads your money fails. Here is exactly what is wrong.
+          {isUpdate
+            ? 'The app itself is running fine. Its database was set up for an older version, so the newer screens cannot load. Your data is not affected.'
+            : 'The app is deployed and running. It just cannot reach a working database yet, so every page that loads your money fails. Here is exactly what is wrong.'}
         </p>
       </header>
 
@@ -47,7 +51,7 @@ export default async function SetupPage() {
       </ol>
 
       {d.needsMigration ? (
-        <RunSetup />
+        <RunSetup isUpdate={isUpdate} />
       ) : (
         <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4 text-sm text-[var(--text-muted)]">
           <p className="font-medium text-[var(--text)]">What to do</p>

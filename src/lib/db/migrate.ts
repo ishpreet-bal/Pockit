@@ -3,6 +3,45 @@ import { join } from 'node:path';
 import postgres from 'postgres';
 
 /**
+ * Where the .sql files are, resolved rather than assumed.
+ *
+ * On a serverless host the function's working directory is not the repo root, and the
+ * SQL files only exist in the bundle because `outputFileTracingIncludes` in
+ * next.config.ts puts them there. Guessing a single path here is how "migrations
+ * applied: []" happens with no error to explain it, so every plausible root is tried
+ * and a miss is reported as a miss.
+ */
+async function resolveMigrationsDir(explicit?: string): Promise<string> {
+  if (explicit) return explicit;
+  const candidates = [
+    join(process.cwd(), 'drizzle'),
+    // Vercel runs the function from .next/server/app/..., with traced files laid out
+    // relative to the project root two-to-four levels up.
+    join(process.cwd(), '../drizzle'),
+    join(process.cwd(), '../../drizzle'),
+    join(process.cwd(), '../../../drizzle'),
+  ];
+  for (const dir of candidates) {
+    try {
+      const files = await readdir(dir);
+      if (files.some((f) => f.endsWith('.sql'))) return dir;
+    } catch {
+      // Try the next candidate.
+    }
+  }
+  throw new Error(
+    `Could not find the migration files. Looked in: ${candidates.join(', ')}. ` +
+      'They must be included in the deployment bundle (see outputFileTracingIncludes).',
+  );
+}
+
+/** The migrations this build ships, whether or not they have been applied. */
+export async function expectedMigrations(dir?: string): Promise<string[]> {
+  const migrationsDir = await resolveMigrationsDir(dir);
+  return (await readdir(migrationsDir)).filter((f) => f.endsWith('.sql')).sort();
+}
+
+/**
  * Migration runner, shared by `npm run db:migrate` and the guarded admin route.
  *
  * Deliberately NOT marked `server-only` and deliberately opening its own connection:
@@ -34,7 +73,7 @@ export interface MigrationResult {
 }
 
 export async function runMigrations(databaseUrl: string, dir?: string): Promise<MigrationResult> {
-  const migrationsDir = dir ?? join(process.cwd(), 'drizzle');
+  const migrationsDir = await resolveMigrationsDir(dir);
 
   const sql = postgres(databaseUrl, {
     ssl: databaseUrl.includes('sslmode=require') ? 'require' : undefined,

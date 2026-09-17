@@ -25,6 +25,8 @@ export interface Diagnosis {
   /** Kept as plain strings for backwards compatibility with the JSON health shape. */
   problems: string[];
   findings: Finding[];
+  /** Migrations this build ships that the database has not applied yet. */
+  pendingMigrations: string[];
   /** True when the only thing standing between here and a working app is running migrations. */
   needsMigration: boolean;
 }
@@ -49,6 +51,7 @@ export async function diagnose(): Promise<Diagnosis> {
 
   let database: DatabaseState = 'not_configured';
   let migrationsApplied: string[] = [];
+  let pendingMigrations: string[] = [];
   let needsMigration = false;
 
   if (envOk) {
@@ -65,18 +68,41 @@ export async function diagnose(): Promise<Diagnosis> {
           sql`SELECT name FROM public._pockit_migrations ORDER BY name`,
         );
         migrationsApplied = rows.map((r) => r.name);
-        if (migrationsApplied.length === 0) {
-          needsMigration = true;
-          findings.push({
-            problem: 'The database is reachable but completely empty — no tables have been created yet.',
-            fix: 'Run the one-time setup below. Nothing can be saved or read until it finishes.',
-          });
-        }
       } catch {
+        migrationsApplied = [];
+      }
+
+      // Comparing against the migrations this build ships is the whole point. An
+      // earlier version only asked whether ANY migration had run, so a database
+      // migrated before a later release was reported as ready while every page that
+      // touched a new column threw. A partially migrated database is a broken one.
+      try {
+        const { expectedMigrations } = await import('@/lib/db/migrate');
+        const expected = await expectedMigrations();
+        const done = new Set(migrationsApplied);
+        pendingMigrations = expected.filter((name) => !done.has(name));
+      } catch (error) {
+        findings.push({
+          problem: `Could not read this build's migration files: ${error instanceof Error ? error.message : 'unknown error'}`,
+          fix: 'This is a packaging problem in the deployment, not something you can fix from here.',
+        });
+      }
+
+      if (migrationsApplied.length === 0) {
         needsMigration = true;
         findings.push({
           problem: 'The database is reachable but the tables Pockit needs do not exist yet.',
           fix: 'Run the one-time setup below. Nothing can be saved or read until it finishes.',
+        });
+      } else if (pendingMigrations.length > 0) {
+        needsMigration = true;
+        findings.push({
+          problem:
+            `The database was set up for an older version of Pockit. ` +
+            `${pendingMigrations.length === 1 ? '1 update has' : `${pendingMigrations.length} updates have`} ` +
+            `not been applied yet (${pendingMigrations.join(', ')}), so pages that use the newer ` +
+            'features fail to load.',
+          fix: 'Run the update below. It only applies what is missing and leaves your existing data alone.',
         });
       }
     } catch (error) {
@@ -88,12 +114,13 @@ export async function diagnose(): Promise<Diagnosis> {
     }
   }
 
-  const ready = envOk && database === 'ok' && migrationsApplied.length > 0;
+  const ready = envOk && database === 'ok' && migrationsApplied.length > 0 && pendingMigrations.length === 0;
 
   return {
     status: ready ? 'ready' : 'degraded',
     database,
     migrationsApplied,
+    pendingMigrations,
     storageDriver,
     aiProvider,
     problems: findings.map((f) => `${f.problem} ${f.fix}`),

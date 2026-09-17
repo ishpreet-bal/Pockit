@@ -16,7 +16,7 @@ type State =
  * custom header, which in practice does not happen. The setup key is never stored and
  * never rendered back — it is typed, posted once, and dropped.
  */
-export function RunSetup() {
+export function RunSetup({ isUpdate = false }: { isUpdate?: boolean }) {
   const [secret, setSecret] = useState('');
   const [state, setState] = useState<State>({ kind: 'idle' });
 
@@ -47,18 +47,18 @@ export function RunSetup() {
   if (state.kind === 'done') {
     return (
       <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4 text-sm">
-        <p className="font-medium">Setup finished.</p>
+        <p className="font-medium">{isUpdate ? 'Update finished.' : 'Setup finished.'}</p>
         <p className="mt-1 text-[var(--text-muted)]">
           {state.applied.length === 1
-            ? '1 migration was applied.'
-            : `${state.applied.length} migrations were applied.`}{' '}
-          You can create your account now.
+            ? '1 update was applied.'
+            : `${state.applied.length} updates were applied.`}{' '}
+          {isUpdate ? 'Your app is ready again.' : 'You can create your account now.'}
         </p>
         <a
-          href="/sign-up"
+          href={isUpdate ? '/overview' : '/sign-up'}
           className="mt-3 inline-flex h-9 items-center rounded-lg bg-[var(--accent)] px-3.5 text-sm font-medium text-[var(--accent-fg)]"
         >
-          Create your account
+          {isUpdate ? 'Back to Pockit' : 'Create your account'}
         </a>
       </div>
     );
@@ -66,10 +66,11 @@ export function RunSetup() {
 
   return (
     <form onSubmit={run} className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4">
-      <p className="text-sm font-medium">Run the one-time setup</p>
+      <p className="text-sm font-medium">{isUpdate ? 'Apply the update' : 'Run the one-time setup'}</p>
       <p className="mt-1 text-sm text-[var(--text-muted)]">
-        This creates the tables and the security rules. It is safe to run more than once —
-        anything already applied is skipped.
+        {isUpdate
+          ? 'This adds what the newer version needs. Existing transactions, accounts and budgets are left as they are, and it is safe to run more than once.'
+          : 'This creates the tables and the security rules. It is safe to run more than once — anything already applied is skipped.'}
       </p>
       <div className="mt-3">
         <Field label="Setup key" hint="The ADMIN_SECRET you set in your hosting dashboard.">
@@ -86,7 +87,7 @@ export function RunSetup() {
         <p className="mt-2 text-sm text-[var(--negative)]">{state.message}</p>
       )}
       <Button type="submit" variant="primary" className="mt-3" disabled={state.kind === 'running' || secret === ''}>
-        {state.kind === 'running' ? 'Setting up…' : 'Run setup'}
+        {state.kind === 'running' ? 'Working…' : isUpdate ? 'Apply update' : 'Run setup'}
       </Button>
     </form>
   );
