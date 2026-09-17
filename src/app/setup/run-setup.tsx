@@ -16,7 +16,13 @@ type State =
  * custom header, which in practice does not happen. The setup key is never stored and
  * never rendered back — it is typed, posted once, and dropped.
  */
-export function RunSetup({ isUpdate = false }: { isUpdate?: boolean }) {
+export function RunSetup({
+  isUpdate = false,
+  adminSecretConfigured = true,
+}: {
+  isUpdate?: boolean;
+  adminSecretConfigured?: boolean;
+}) {
   const [secret, setSecret] = useState('');
   const [state, setState] = useState<State>({ kind: 'idle' });
 
@@ -26,7 +32,9 @@ export function RunSetup({ isUpdate = false }: { isUpdate?: boolean }) {
     try {
       const res = await fetch('/api/admin/migrate', {
         method: 'POST',
-        headers: { 'x-admin-secret': secret },
+        // Trimmed here as well as on the server: a pasted value often carries a
+        // trailing newline, which is not even a legal header value.
+        headers: { 'x-admin-secret': secret.trim() },
       });
       const body: unknown = await res.json().catch(() => ({}));
       const data = (body ?? {}) as { ok?: boolean; applied?: string[]; error?: string };
@@ -72,8 +80,15 @@ export function RunSetup({ isUpdate = false }: { isUpdate?: boolean }) {
           ? 'This adds what the newer version needs. Existing transactions, accounts and budgets are left as they are, and it is safe to run more than once.'
           : 'This creates the tables and the security rules. It is safe to run more than once — anything already applied is skipped.'}
       </p>
+      {!adminSecretConfigured && (
+        <p className="mt-3 rounded-[var(--radius-control)] bg-[var(--negative-soft)] px-3 py-2 text-sm text-[var(--negative)]">
+          This deployment has no <code className="font-mono text-xs">ADMIN_SECRET</code> set, so no
+          key will work here. Add one in your hosting dashboard and redeploy — an environment
+          variable only takes effect on a new deployment.
+        </p>
+      )}
       <div className="mt-3">
-        <Field label="Setup key" hint="The ADMIN_SECRET you set in your hosting dashboard.">
+        <Field label="Setup key" hint="The ADMIN_SECRET set on this deployment. Leading and trailing spaces are ignored.">
           <Input
             type="password"
             value={secret}

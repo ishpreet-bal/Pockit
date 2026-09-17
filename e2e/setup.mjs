@@ -80,7 +80,7 @@ check(
 await page.fill('input[type=password]', 'definitely-not-the-key');
 await page.click('button[type=submit]');
 await page.waitForTimeout(2000);
-check('a wrong setup key is refused in words', /not correct/i.test(await page.textContent('body')));
+check('a wrong setup key is refused in words', /does not match this deployment/i.test(await page.textContent('body')));
 
 console.log('\nRunning setup');
 

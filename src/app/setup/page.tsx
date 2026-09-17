@@ -51,7 +51,7 @@ export default async function SetupPage() {
       </ol>
 
       {d.needsMigration ? (
-        <RunSetup isUpdate={isUpdate} />
+        <RunSetup isUpdate={isUpdate} adminSecretConfigured={d.adminSecretConfigured} />
       ) : (
         <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4 text-sm text-[var(--text-muted)]">
           <p className="font-medium text-[var(--text)]">What to do</p>

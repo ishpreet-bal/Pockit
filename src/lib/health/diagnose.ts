@@ -25,6 +25,8 @@ export interface Diagnosis {
   /** Kept as plain strings for backwards compatibility with the JSON health shape. */
   problems: string[];
   findings: Finding[];
+  /** Whether this deployment has an ADMIN_SECRET at all — without one, setup cannot run. */
+  adminSecretConfigured: boolean;
   /** Migrations this build ships that the database has not applied yet. */
   pendingMigrations: string[];
   /** True when the only thing standing between here and a working app is running migrations. */
@@ -35,12 +37,14 @@ export async function diagnose(): Promise<Diagnosis> {
   const findings: Finding[] = [];
   let storageDriver = 'unknown';
   let aiProvider = 'unknown';
+  let adminSecretConfigured = false;
   let envOk = false;
 
   try {
     const { env, hasVisionProvider } = await import('@/lib/env');
     storageDriver = env.STORAGE_DRIVER;
     aiProvider = hasVisionProvider() ? env.AI_PROVIDER : 'heuristic (no API key configured)';
+    adminSecretConfigured = (env.ADMIN_SECRET ?? '').trim() !== '';
     envOk = true;
   } catch (error) {
     findings.push({
@@ -120,6 +124,7 @@ export async function diagnose(): Promise<Diagnosis> {
     status: ready ? 'ready' : 'degraded',
     database,
     migrationsApplied,
+    adminSecretConfigured,
     pendingMigrations,
     storageDriver,
     aiProvider,

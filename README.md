@@ -149,6 +149,12 @@ It also pins the bugs that reached working code:
   in the deployed bundle at all, because Next cannot trace a dynamic `readdir`.
   `outputFileTracingIncludes` now ships them, and the directory is resolved against
   several candidate roots rather than one guess.
+- The setup key was compared byte-for-byte, so a value copied out of a hosting
+  dashboard with a trailing newline — or saved as `KEY="value"` with the quotes
+  included — was rejected as wrong with no hint why. Both sides are now normalised
+  identically before the constant-time comparison, and the rejection message names
+  the two causes that are far more common than a typo: quotes, and changing the
+  variable without redeploying.
 
 ## Deployment
 
