@@ -155,6 +155,11 @@ It also pins the bugs that reached working code:
   identically before the constant-time comparison, and the rejection message names
   the two causes that are far more common than a typo: quotes, and changing the
   variable without redeploying.
+- A variable that existed but held an empty value reported as "DATABASE_URL is
+  required", which sent someone hunting for a variable they could plainly see
+  listed in their dashboard. Absent, blank and present-but-invalid are three
+  different problems and now read as three different messages. Only the length of
+  a value is ever reported, never any part of it.
 
 ## Deployment
 

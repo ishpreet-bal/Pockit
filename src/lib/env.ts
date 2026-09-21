@@ -54,6 +54,23 @@ function isBuildPhase(): boolean {
   return process.env.NEXT_PHASE === 'phase-production-build';
 }
 
+/**
+ * Says whether a failing variable is absent or merely blank.
+ *
+ * These are the same failure to a schema and completely different failures to a
+ * person: "DATABASE_URL is required" sent someone hunting for a variable they could
+ * see listed in their dashboard, because the value behind it had been saved empty.
+ * Only the length is ever reported — never any part of the value.
+ */
+function describeValue(key: string): string {
+  if (!(key in process.env)) return ' (this variable is not set on this deployment at all)';
+  const raw = process.env[key] ?? '';
+  if (raw.trim() === '') {
+    return ' (the variable EXISTS on this deployment but its value is empty — re-enter it, then redeploy)';
+  }
+  return ` (the variable is set, and ${raw.trim().length} characters long, but is not valid)`;
+}
+
 function load(): ServerEnv {
   const parsed = serverSchema.safeParse(process.env);
   if (parsed.success) return parsed.data;
@@ -68,7 +85,9 @@ function load(): ServerEnv {
     if (relaxed.success) return relaxed.data;
   }
 
-  const issues = parsed.error.issues.map((i) => `  - ${i.path.join('.')}: ${i.message}`).join('\n');
+  const issues = parsed.error.issues
+    .map((i) => `  - ${i.path.join('.')}: ${i.message}${describeValue(String(i.path[0] ?? ''))}`)
+    .join('\n');
   throw new Error(
     `Invalid environment configuration:\n${issues}\n\n` +
     `DATABASE_URL and AUTH_SECRET are required to serve requests. ` +
