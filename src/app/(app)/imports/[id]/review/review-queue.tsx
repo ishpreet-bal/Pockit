@@ -378,7 +378,7 @@ function CandidateRow({
         <td className="px-3 py-2.5 text-[var(--text-muted)]">
           {category ? (
             <span className={cn('rounded px-1', (fc.category ?? 0) < 50 && 'outline outline-1 outline-[var(--border-strong)]')}>
-              {category.icon} {category.name}
+              {category.name}
             </span>
           ) : <span className="text-[var(--text-subtle)]">—</span>}
         </td>

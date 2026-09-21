@@ -141,7 +141,7 @@ export default async function AnalyticsPage({
                     >
                       <span className="flex min-w-0 items-center gap-2">
                         <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: `var(--chart-${(i % 8) + 1})` }} />
-                        <span className="truncate">{x.c.icon} {x.c.name}</span>
+                        <span className="truncate">{x.c.name}</span>
                       </span>
                       <Money minor={x.amount} currency={cur} size="sm" tone="plain" />
                     </Link>

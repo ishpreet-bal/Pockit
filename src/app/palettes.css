@@ -1,0 +1,311 @@
+/* ============================================================
+   Pockit palettes
+
+   Three complete visual identities, each with a light and a dark variant, selected
+   by `data-palette` on <html>. Components never name a colour — they name a role,
+   and the role is redefined here. That is the only reason swapping the entire look
+   of the app is a one-attribute change rather than a rewrite.
+
+   Every palette must define the same roles:
+
+     --accent          brand colour that is safe as TEXT on --surface (>= 4.5:1)
+     --accent-fill     brand colour used as a BUTTON BACKGROUND
+     --accent-fill-fg  text drawn on --accent-fill
+     --accent-soft     faint brand tint for active pills and chips
+     --accent-ring     focus ring, needs to be visible but not shout
+
+   The split between --accent and --accent-fill exists because a colour bright
+   enough to be a good button (acid lime, copper) is unreadable as 13px text, and
+   a colour dark enough to read as text makes a dull button. Collapsing them into
+   one token is what forces most apps into safe, muted blues and greens.
+
+   Money roles are deliberately NOT the brand colour. If income is the same green
+   as every button, the eye stops seeing either of them.
+   ============================================================ */
+
+/* ---------------------------------------------------------------
+   1. Ink & Chartreuse — near-black on warm parchment, one acid accent
+   --------------------------------------------------------------- */
+
+:root,
+:root[data-palette='ink'] {
+  color-scheme: light;
+
+  --bg: #f4f1ea;
+  --surface: #fffefb;
+  --surface-2: #ede9df;
+  --surface-3: #e0dbcd;
+  --border: #e2ddd1;
+  --border-strong: #c5bdab;
+
+  --text: #14120f;
+  --text-muted: #635c4e;
+  --text-subtle: #8e8676;
+
+  --accent: #4a6b16;
+  --accent-hover: #3b5611;
+  --accent-fill: #c3f53c;
+  --accent-fill-fg: #14120f;
+  --accent-fg: #fffefb;
+  --accent-soft: #eef7d6;
+  --accent-ring: #c3f53c;
+
+  --positive: #2f6b4f;
+  --positive-soft: #e4f0e9;
+  --negative: #a8442f;
+  --negative-soft: #f7e8e3;
+  --warning: #8a5f14;
+  --warning-soft: #f7efdc;
+  --goal: #3b4a8c;
+  --goal-soft: #e6e9f6;
+  --info: #2c5f73;
+  --info-soft: #e4eff3;
+
+  --chart-1: #4a6b16;
+  --chart-2: #3b4a8c;
+  --chart-3: #a8442f;
+  --chart-4: #8a5f14;
+  --chart-5: #2c5f73;
+  --chart-6: #6b3d6b;
+  --chart-7: #2f6b4f;
+  --chart-8: #8c6239;
+}
+
+:root[data-palette='ink'][data-theme='dark'] {
+  color-scheme: dark;
+
+  --bg: #100f0c;
+  --surface: #191712;
+  --surface-2: #221f19;
+  --surface-3: #2d2a22;
+  --border: #2a271f;
+  --border-strong: #423d32;
+
+  --text: #f2efe6;
+  --text-muted: #a49c8a;
+  --text-subtle: #7a7362;
+
+  --accent: #c3f53c;
+  --accent-hover: #d4ff5e;
+  --accent-fill: #c3f53c;
+  --accent-fill-fg: #14120f;
+  --accent-fg: #14120f;
+  --accent-soft: #29300f;
+  --accent-ring: #8fb52c;
+
+  --positive: #6fbf92;
+  --positive-soft: #10281c;
+  --negative: #e58b70;
+  --negative-soft: #2e1710;
+  --warning: #e0b357;
+  --warning-soft: #2c2210;
+  --goal: #9aa6e8;
+  --goal-soft: #1a1d33;
+  --info: #7cb8cf;
+  --info-soft: #11242b;
+
+  --chart-1: #c3f53c;
+  --chart-2: #9aa6e8;
+  --chart-3: #e58b70;
+  --chart-4: #e0b357;
+  --chart-5: #7cb8cf;
+  --chart-6: #c49ac4;
+  --chart-7: #6fbf92;
+  --chart-8: #d4a97a;
+}
+
+/* ---------------------------------------------------------------
+   2. Midnight & Copper — dark-first, warm metal accents
+   --------------------------------------------------------------- */
+
+:root[data-palette='midnight'] {
+  color-scheme: light;
+
+  --bg: #faf7f2;
+  --surface: #ffffff;
+  --surface-2: #f2ede5;
+  --surface-3: #e6dfd4;
+  --border: #e8e2d8;
+  --border-strong: #cabfb0;
+
+  --text: #16191f;
+  --text-muted: #5f6672;
+  --text-subtle: #8d94a1;
+
+  --accent: #a65a22;
+  --accent-hover: #8a4a1b;
+  --accent-fill: #b06430;
+  --accent-fill-fg: #fffaf4;
+  --accent-fg: #fffaf4;
+  --accent-soft: #fbeee2;
+  --accent-ring: #d88c4a;
+
+  --positive: #2e7d5b;
+  --positive-soft: #e3f2eb;
+  --negative: #c0453a;
+  --negative-soft: #fbe9e7;
+  --warning: #a06a12;
+  --warning-soft: #fbf1dd;
+  --goal: #4a54a8;
+  --goal-soft: #e9eaf7;
+  --info: #26647f;
+  --info-soft: #e5f0f5;
+
+  --chart-1: #b06430;
+  --chart-2: #4a54a8;
+  --chart-3: #2e7d5b;
+  --chart-4: #c0453a;
+  --chart-5: #26647f;
+  --chart-6: #7a4a8f;
+  --chart-7: #a06a12;
+  --chart-8: #5c6470;
+}
+
+:root[data-palette='midnight'][data-theme='dark'] {
+  color-scheme: dark;
+
+  --bg: #0e1116;
+  --surface: #161b22;
+  --surface-2: #1d232c;
+  --surface-3: #272f3a;
+  --border: #232b35;
+  --border-strong: #3a4553;
+
+  --text: #ede8e0;
+  --text-muted: #9aa3b0;
+  --text-subtle: #6b7482;
+
+  --accent: #e0a066;
+  --accent-hover: #ecb27c;
+  --accent-fill: #d88c4a;
+  --accent-fill-fg: #14120f;
+  --accent-fg: #14120f;
+  --accent-soft: #2e2116;
+  --accent-ring: #a8672e;
+
+  --positive: #6bbf8a;
+  --positive-soft: #10281c;
+  --negative: #e06c5a;
+  --negative-soft: #2e1614;
+  --warning: #e0a33e;
+  --warning-soft: #2c2110;
+  --goal: #8b94f0;
+  --goal-soft: #191b33;
+  --info: #6fb6d6;
+  --info-soft: #10242e;
+
+  --chart-1: #d88c4a;
+  --chart-2: #8b94f0;
+  --chart-3: #6bbf8a;
+  --chart-4: #e06c5a;
+  --chart-5: #6fb6d6;
+  --chart-6: #b98fe0;
+  --chart-7: #e0a33e;
+  --chart-8: #8d97a5;
+}
+
+/* ---------------------------------------------------------------
+   3. Paper & Plum — soft paper, deep plum brand, apricot highlight
+   --------------------------------------------------------------- */
+
+:root[data-palette='plum'] {
+  color-scheme: light;
+
+  --bg: #fbf8f6;
+  --surface: #ffffff;
+  --surface-2: #f4eef2;
+  --surface-3: #e9e0e7;
+  --border: #ece4ea;
+  --border-strong: #cfc0cb;
+
+  --text: #241b26;
+  --text-muted: #6a5c6d;
+  --text-subtle: #978a99;
+
+  --accent: #6b2d5b;
+  --accent-hover: #552348;
+  --accent-fill: #6b2d5b;
+  --accent-fill-fg: #ffffff;
+  --accent-fg: #ffffff;
+  --accent-soft: #f5e9f1;
+  --accent-ring: #b06a9c;
+
+  --positive: #3e7d60;
+  --positive-soft: #e6f2ec;
+  --negative: #b8504f;
+  --negative-soft: #fbeaea;
+  --warning: #a4681f;
+  --warning-soft: #fcf0e1;
+  --goal: #6b52a3;
+  --goal-soft: #efeaf8;
+  --info: #2f6383;
+  --info-soft: #e7f0f6;
+
+  --chart-1: #6b2d5b;
+  --chart-2: #d98e3c;
+  --chart-3: #3e7d60;
+  --chart-4: #b8504f;
+  --chart-5: #2f6383;
+  --chart-6: #6b52a3;
+  --chart-7: #a4681f;
+  --chart-8: #7d6b77;
+}
+
+:root[data-palette='plum'][data-theme='dark'] {
+  color-scheme: dark;
+
+  --bg: #141016;
+  --surface: #1d1820;
+  --surface-2: #261f29;
+  --surface-3: #322936;
+  --border: #2c2430;
+  --border-strong: #463a4b;
+
+  --text: #f3edf4;
+  --text-muted: #a698a9;
+  --text-subtle: #7b6e7e;
+
+  --accent: #d9a0c8;
+  --accent-hover: #e8b8da;
+  --accent-fill: #8f3d79;
+  --accent-fill-fg: #ffffff;
+  --accent-fg: #241b26;
+  --accent-soft: #31163a;
+  --accent-ring: #8f3d79;
+
+  --positive: #6bbf94;
+  --positive-soft: #10281d;
+  --negative: #e0817f;
+  --negative-soft: #2e1618;
+  --warning: #e0a45c;
+  --warning-soft: #2c2110;
+  --goal: #a894e0;
+  --goal-soft: #1f1933;
+  --info: #79b2d4;
+  --info-soft: #11232e;
+
+  --chart-1: #d9a0c8;
+  --chart-2: #f2a65a;
+  --chart-3: #6bbf94;
+  --chart-4: #e0817f;
+  --chart-5: #79b2d4;
+  --chart-6: #a894e0;
+  --chart-7: #e0a45c;
+  --chart-8: #a394a0;
+}
+
+/* ---------------------------------------------------------------
+   Shared across every palette
+   --------------------------------------------------------------- */
+
+:root {
+  --shadow-sm: 0 1px 2px rgb(20 18 15 / 0.04), 0 1px 3px rgb(20 18 15 / 0.03);
+  --shadow-md: 0 4px 6px -1px rgb(20 18 15 / 0.07), 0 10px 20px -5px rgb(20 18 15 / 0.08);
+  --shadow-lg: 0 10px 15px -3px rgb(20 18 15 / 0.08), 0 25px 50px -12px rgb(20 18 15 / 0.15);
+}
+
+:root[data-theme='dark'] {
+  --shadow-sm: 0 1px 2px rgb(0 0 0 / 0.5), 0 1px 3px rgb(0 0 0 / 0.4);
+  --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.5), 0 10px 20px -5px rgb(0 0 0 / 0.45);
+  --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.5), 0 25px 50px -12px rgb(0 0 0 / 0.6);
+}

@@ -222,7 +222,7 @@ export function SettingsForms({
                 <tr key={c.id} className="hover:bg-[var(--surface-2)]">
                   <Td>
                     {c.parent ? <span className="text-[var(--text-subtle)]">{c.parent} › </span> : null}
-                    {c.icon} {c.name}
+                    {c.name}
                   </Td>
                   <Td>
                     <Select

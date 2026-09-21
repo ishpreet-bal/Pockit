@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useMemo, useState } from 'react';
-import { Search, X } from 'lucide-react';
+import { ArrowDownLeft, ArrowUpRight, Search, X } from 'lucide-react';
 import { formatMoney } from '@/lib/money';
 import { cn } from '@/lib/ui/cn';
 
@@ -118,11 +118,21 @@ export function RecentActivity({
                 key={t.id}
                 className="flex items-center gap-3 border-b border-[var(--border)] px-4 py-3 transition-colors last:border-0 hover:bg-[var(--surface-2)]"
               >
+                {/* Direction, not decoration. An arrow says which way the money went
+                    in every language and at every font size; the category emoji it
+                    replaces said nothing the label beneath does not already say. */}
                 <span
                   aria-hidden
-                  className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-[var(--surface-2)] text-sm"
+                  className={cn(
+                    'grid h-9 w-9 shrink-0 place-items-center rounded-full',
+                    t.signedMinor > 0
+                      ? 'bg-[var(--positive-soft)] text-[var(--positive)]'
+                      : 'bg-[var(--surface-2)] text-[var(--text-subtle)]',
+                  )}
                 >
-                  {t.categoryIcon ?? (t.signedMinor > 0 ? '↓' : '↑')}
+                  {t.signedMinor > 0
+                    ? <ArrowDownLeft className="h-4 w-4" strokeWidth={2.2} />
+                    : <ArrowUpRight className="h-4 w-4" strokeWidth={2.2} />}
                 </span>
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm font-medium">{t.description}</p>

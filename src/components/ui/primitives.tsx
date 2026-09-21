@@ -68,7 +68,10 @@ type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
 };
 
 const BUTTON_VARIANTS: Record<NonNullable<ButtonProps['variant']>, string> = {
-  primary: 'bg-[var(--accent)] text-[var(--accent-fg)] hover:bg-[var(--accent-hover)] border-transparent',
+  // --accent-fill, not --accent: the fill is the loud brand colour, while --accent
+  // is the version of it that stays readable as 13px text elsewhere. A palette whose
+  // button is acid lime cannot use that same lime for a link.
+  primary: 'bg-[var(--accent-fill)] text-[var(--accent-fill-fg)] hover:brightness-95 border-transparent',
   secondary: 'bg-[var(--surface)] text-[var(--text)] hover:bg-[var(--surface-2)] border-[var(--border-strong)]',
   ghost: 'bg-transparent text-[var(--text-muted)] hover:bg-[var(--surface-2)] hover:text-[var(--text)] border-transparent',
   danger: 'bg-[var(--negative)] text-white hover:opacity-90 border-transparent',

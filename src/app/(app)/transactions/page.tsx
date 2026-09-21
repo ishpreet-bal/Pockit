@@ -271,7 +271,7 @@ function TxnRow({
           {txn.isRecurring ? <Badge tone="neutral">repeats</Badge> : null}
         </p>
         <p className="truncate text-xs text-[var(--text-subtle)]">
-          {cat ? `${cat.icon ?? ''} ${cat.name}` : 'Uncategorised'}
+          {cat ? cat.name : 'Uncategorised'}
           {' · '}
           {accountById.get(txn.accountId)?.name ?? ''}
         </p>

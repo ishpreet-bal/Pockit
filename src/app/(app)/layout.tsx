@@ -1,6 +1,8 @@
 import { requireAuth } from '@/lib/auth/guard';
 import { Sidebar, MobileTabs, MobileHeader } from './nav';
 import { QuickAdd } from './quick-add';
+import { PaletteSwitcher } from '@/components/ui/palette-switcher';
+import { PageTransition } from '@/components/ui/page-transition';
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const { workspace, workspaces } = await requireAuth();
@@ -16,10 +18,14 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           transactions across two feet of glass. The cap lives here rather than on
           each page so every screen agrees on it.
         */}
-        <main className="mx-auto w-full max-w-7xl flex-1 pb-24 md:pb-8">{children}</main>
+        <main className="mx-auto w-full max-w-7xl flex-1 pb-24 md:pb-8">
+          <PageTransition>{children}</PageTransition>
+        </main>
       </div>
       <MobileTabs />
       <QuickAdd />
+      {/* Temporary, while the visual identity is being chosen. */}
+      <PaletteSwitcher />
     </div>
   );
 }

@@ -166,7 +166,7 @@ export function AddSchedule({
                       ? 'border-transparent bg-[var(--accent-soft)] font-medium text-[var(--accent)]'
                       : 'border-[var(--border)] text-[var(--text-muted)] hover:bg-[var(--surface-2)]')}
                 >
-                  {c.icon} {c.name}
+                  {c.name}
                 </button>
               ))}
               {relevant.length > visible.length || showAll ? (

@@ -1,4 +1,5 @@
 @import 'tailwindcss';
+@import './palettes.css';
 
 /* ============================================================
    Pockit design tokens — see docs/06-design-system.md
@@ -6,9 +7,10 @@
    ============================================================ */
 
 @theme {
-  --font-sans: var(--font-inter), ui-sans-serif, -apple-system, BlinkMacSystemFont,
+  --font-sans: var(--font-display), ui-sans-serif, -apple-system, BlinkMacSystemFont,
     'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-  --font-mono: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace;
+  --font-mono: var(--font-numeric), ui-monospace, SFMono-Regular, 'SF Mono', Menlo,
+    Consolas, monospace;
 
   --text-2xs: 0.6875rem;  /* 11 */
   --text-xs: 0.75rem;     /* 12 */
@@ -23,104 +25,6 @@
   --radius-control: 0.625rem;
   --radius-card: 1rem;
   --radius-pill: 9999px;
-}
-
-:root {
-  color-scheme: light;
-
-  /* Surfaces. A warm off-white page with pure-white cards is what gives the cards
-     their lift; a white page with white cards needs heavy borders to read at all. */
-  --bg: #f8f9fa;
-  --surface: #ffffff;
-  --surface-2: #f1f3f5;
-  --surface-3: #e5e8eb;
-  --border: #e6eaef;
-  --border-strong: #cbd5e1;
-
-  --text: #0f172a;
-  --text-muted: #6b7280;
-  --text-subtle: #94a3b8;
-
-  /* Emerald carries every primary action and all positive cash flow. */
-  --accent: #059669;
-  --accent-hover: #047857;
-  --accent-fg: #ffffff;
-  --accent-soft: #ecfdf5;
-  --accent-ring: #a7f3d0;
-
-  /* Semantic money colours. Each one means exactly one thing across the whole app:
-     money arriving, money leaving, money promised, money being set aside. */
-  --positive: #059669;        /* money in */
-  --positive-soft: #ecfdf5;
-  --negative: #e11d48;        /* money out */
-  --negative-soft: #fff1f2;
-  --warning: #b45309;         /* bills due, not yet paid */
-  --warning-soft: #fffbeb;
-  --goal: #4f46e5;            /* savings and goals */
-  --goal-soft: #eef2ff;
-  --info: #0369a1;
-  --info-soft: #f0f9ff;
-
-  /* Ambient elevation rather than hard drop shadows: a wide, very soft spread reads
-     as depth, while a tight dark shadow reads as a border that went wrong. */
-  --shadow-sm: 0 1px 2px rgb(15 23 42 / 0.04), 0 1px 3px rgb(15 23 42 / 0.03);
-  --shadow-md: 0 4px 6px -1px rgb(15 23 42 / 0.07), 0 10px 20px -5px rgb(15 23 42 / 0.08);
-  --shadow-lg: 0 10px 15px -3px rgb(15 23 42 / 0.08), 0 25px 50px -12px rgb(15 23 42 / 0.15);
-
-  --chart-1: #059669;
-  --chart-2: #4f46e5;
-  --chart-3: #f59e0b;
-  --chart-4: #e11d48;
-  --chart-5: #0891b2;
-  --chart-6: #7c3aed;
-  --chart-7: #65a30d;
-  --chart-8: #c2410c;
-}
-
-:root[data-theme='dark'] {
-  color-scheme: dark;
-  --bg: #0b0f14;
-  --surface: #131a22;
-  --surface-2: #1a232d;
-  --surface-3: #232e3a;
-  --border: #243040;
-  --border-strong: #38465a;
-
-  --text: #f1f5f9;
-  --text-muted: #94a3b8;
-  --text-subtle: #64748b;
-
-  /* Lightened so they clear 4.5:1 on the dark surface; the light-mode emerald is
-     too dark to read as a colour here at all. */
-  --accent: #34d399;
-  --accent-hover: #6ee7b7;
-  --accent-fg: #052e21;
-  --accent-soft: #08322a;
-  --accent-ring: #065f46;
-
-  --positive: #34d399;
-  --positive-soft: #08322a;
-  --negative: #fb7185;
-  --negative-soft: #3a1620;
-  --warning: #fbbf24;
-  --warning-soft: #3a2a10;
-  --goal: #a5b4fc;
-  --goal-soft: #1e1b4b;
-  --info: #7dd3fc;
-  --info-soft: #0c2a3e;
-
-  --shadow-sm: 0 1px 2px rgb(0 0 0 / 0.5), 0 1px 3px rgb(0 0 0 / 0.4);
-  --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.5), 0 10px 20px -5px rgb(0 0 0 / 0.45);
-  --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.5), 0 25px 50px -12px rgb(0 0 0 / 0.6);
-
-  --chart-1: #34d399;
-  --chart-2: #a5b4fc;
-  --chart-3: #fbbf24;
-  --chart-4: #fb7185;
-  --chart-5: #67e8f9;
-  --chart-6: #c4b5fd;
-  --chart-7: #bef264;
-  --chart-8: #fdba74;
 }
 
 @theme inline {
@@ -147,6 +51,8 @@
   --color-info-soft: var(--info-soft);
   --color-goal: var(--goal);
   --color-goal-soft: var(--goal-soft);
+  --color-accent-fill: var(--accent-fill);
+  --color-accent-fill-fg: var(--accent-fill-fg);
 }
 
 * { border-color: var(--border); }
@@ -155,6 +61,9 @@ html { -webkit-text-size-adjust: 100%; }
 
 body {
   background: var(--bg);
+  /* Swapping palette or theme should feel like a light changing, not a page
+     reloading. 180ms is under the threshold where it reads as a delay. */
+  transition: background-color 180ms ease, color 180ms ease;
   color: var(--text);
   font-family: var(--font-sans);
   font-size: var(--text-base);
@@ -164,15 +73,31 @@ body {
 }
 
 /* Monetary figures must always align in columns and never jitter. */
-.tabular { font-variant-numeric: tabular-nums; font-feature-settings: 'tnum' 1; }
+.tabular {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum' 1;
+  letter-spacing: -0.01em;
+}
 
 /* Large balances. Tight tracking stops a big number from looking spaced out, and
    tabular figures stop it from jittering while a counter animates. */
 .pk-figure {
+  font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
   font-feature-settings: 'tnum' 1;
-  letter-spacing: -0.025em;
-  font-weight: 600;
+  letter-spacing: -0.03em;
+  font-weight: 700;
+}
+
+/*
+ * Headings take the display face at a tighter track. Space Grotesk is drawn a
+ * little wide, which reads as confident at 32px and as loose at 14px, so the
+ * negative tracking is applied where the size can carry it.
+ */
+h1, h2, h3, .pk-display {
+  font-family: var(--font-display), var(--font-sans);
+  letter-spacing: -0.02em;
 }
 
 :focus-visible {

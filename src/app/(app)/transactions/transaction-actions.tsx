@@ -230,7 +230,7 @@ function EditSheet({
                       : 'border-[var(--border)] text-[var(--text-muted)] hover:bg-[var(--surface-2)]',
                   )}
                 >
-                  {c.icon} {c.name}
+                  {c.name}
                 </button>
               ))}
               <button type="button" onClick={() => setShowAll((v) => !v)}

@@ -126,7 +126,7 @@ export default async function BusinessPage({
                         <Td>
                           {c.categoryId ? (
                             <Link href={`/transactions?category=${c.categoryId}&period=${preset}`} className="hover:underline">
-                              {categoryById.get(c.categoryId)?.icon} {categoryById.get(c.categoryId)?.name}
+                              {categoryById.get(c.categoryId)?.name}
                             </Link>
                           ) : 'Uncategorised'}
                         </Td>

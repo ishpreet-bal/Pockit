@@ -102,7 +102,7 @@ export function AddTransaction({
       onClick={() => setOpen(true)}
       aria-label="Add transaction"
       className={cn(
-        'fixed right-4 z-40 grid h-14 w-14 place-items-center rounded-full bg-[var(--accent)] text-[var(--accent-fg)]',
+        'fixed right-4 z-40 grid h-14 w-14 place-items-center rounded-full bg-[var(--accent-fill)] text-[var(--accent-fill-fg)]',
         'shadow-[var(--shadow-lg)] transition-transform duration-200 hover:scale-105 active:scale-95',
         // Clears the mobile tab bar, and sits in the normal corner once it is gone.
         'bottom-[calc(env(safe-area-inset-bottom)+72px)] md:bottom-6 md:right-6',
@@ -174,7 +174,7 @@ export function AddTransaction({
                       : 'border-[var(--border)] text-[var(--text-muted)] hover:bg-[var(--surface-2)]',
                   )}
                 >
-                  {c.icon} {c.name}
+                  {c.name}
                 </button>
               ))}
               {relevant.length > visible.length || showAll ? (

@@ -33,7 +33,7 @@ export function SpendingDonut({
 
   const active = slices.find((s) => s.id === activeId) ?? null;
   const centreAmount = active ? active.amountMinor : totalMinor;
-  const centreLabel = active ? `${active.icon ?? ''} ${active.name}`.trim() : 'Total spent';
+  const centreLabel = active ? active.name : 'Total spent';
 
   return (
     <div className="flex flex-col items-center gap-5 sm:flex-row sm:items-center sm:gap-6">
@@ -100,7 +100,7 @@ export function SpendingDonut({
                 className="h-2.5 w-2.5 shrink-0 rounded-full"
                 style={{ background: `var(--chart-${(i % 8) + 1})` }}
               />
-              <span className="min-w-0 flex-1 truncate text-xs">{s.icon} {s.name}</span>
+              <span className="min-w-0 flex-1 truncate text-xs">{s.name}</span>
               <span className="tabular shrink-0 text-xs font-medium">
                 {formatMoney(BigInt(Math.round(s.amountMinor)), currency, { compact: true })}
               </span>

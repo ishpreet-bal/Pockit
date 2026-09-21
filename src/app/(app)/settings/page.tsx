@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { requireAuth } from '@/lib/auth/guard';
 import { WorkspaceRepo } from '@/lib/data/repository';
 import { PageHeader } from '../page-header';
+import { ResetWorkspace } from './reset-workspace';
 import { Card, CardHeader, CardBody } from '@/components/ui/primitives';
 import { SettingsForms } from './forms';
 import { getAiProvider } from '@/lib/ai';
@@ -105,6 +106,10 @@ export default async function SettingsPage() {
             </p>
           </CardBody>
         </Card>
+
+        {/* Last on the page on purpose: the one irreversible control should not sit
+            above things people visit routinely. */}
+        <ResetWorkspace workspaceName={workspace.name} />
       </div>
     </>
   );

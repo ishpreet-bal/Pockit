@@ -149,3 +149,17 @@ export async function findUserByEmail(email: string) {
   );
   return rows[0] ?? null;
 }
+
+/**
+ * Look a user up by id, including the password hash.
+ *
+ * Used where an already-authenticated person must re-prove who they are before an
+ * irreversible action. `getSessionUser` deliberately does not carry the hash, so
+ * re-authentication needs its own read rather than widening the session shape.
+ */
+export async function findUserById(id: string) {
+  const rows = await withoutUser((tx) =>
+    tx.select().from(users).where(eq(users.id, id)).limit(1),
+  );
+  return rows[0] ?? null;
+}
