@@ -10,6 +10,7 @@
  *   BASE=http://localhost:3000 npm run e2e:onboarding
  */
 import { chromium } from 'playwright';
+import { signUp } from './signup.mjs';
 
 const B = process.env.BASE ?? 'http://localhost:3000';
 const EXECUTABLE = process.env.CHROMIUM_PATH || undefined;
@@ -19,12 +20,7 @@ const ctx=await b.newContext({viewport:{width:900,height:1000}});
 const p=await ctx.newPage();
 const errs=[]; p.on('pageerror',e=>errs.push(e.message.slice(0,140)));
 
-await p.goto(B+'/sign-up');
-await p.fill('#displayName','Ishpreet Bal');
-await p.fill('#email','ob@example.com');
-await p.fill('#password','correcthorse1');
-await p.click('button[type=submit]');
-await p.waitForURL(/onboarding/,{timeout:30000});
+await signUp(p, B, { email: 'ob@example.com', displayName: 'Ishpreet Bal' });
 await p.waitForTimeout(900);
 
 const s0 = await p.textContent('body');
@@ -58,12 +54,7 @@ ok('the recommendation actually takes you there', /\/debts/.test(p.url()));
 const ctx2 = await b.newContext({ viewport: { width: 900, height: 1000 } });
 const p2 = await ctx2.newPage();
 p2.on('pageerror', e => errs.push(e.message.slice(0,140)));
-await p2.goto(B+'/sign-up');
-await p2.fill('#displayName','Sam Other');
-await p2.fill('#email','ob2@example.com');
-await p2.fill('#password','correcthorse1');
-await p2.click('button[type=submit]');
-await p2.waitForURL(/onboarding/,{timeout:30000});
+await signUp(p2, B, { email: 'ob2@example.com', displayName: 'Sam Other' });
 await p2.waitForTimeout(800);
 await p2.locator('button:has-text("Understand and control my spending")').click();
 await p2.waitForTimeout(300);

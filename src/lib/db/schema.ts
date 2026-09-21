@@ -1000,3 +1000,38 @@ export type LiabilityRow = typeof liabilities.$inferSelect;
 export type Insight = typeof insights.$inferSelect;
 export type Notification = typeof notifications.$inferSelect;
 export type UserProfile = typeof userProfiles.$inferSelect;
+
+/* ---------------- Investing ---------------- */
+
+/**
+ * One risk profile per workspace. The raw answers are kept alongside the derived
+ * allocation so the profile can be recomputed if the model changes, rather than
+ * quietly going stale.
+ */
+export const investorProfiles = pockit.table('investor_profiles', {
+  workspaceId: uuid('workspace_id').primaryKey().references(() => workspaces.id, { onDelete: 'cascade' }),
+  answers: jsonb('answers').notNull(),
+  level: text('level').notNull(),
+  stocksPct: integer('stocks_pct'),
+  bondsPct: integer('bonds_pct'),
+  cashPct: integer('cash_pct'),
+  /** When the disclaimers were accepted, not merely that they were. */
+  disclaimerAcceptedAt: timestamp('disclaimer_accepted_at', { withTimezone: true }).notNull(),
+  disclaimerVersion: integer('disclaimer_version').notNull().default(1),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
+/**
+ * Symbols someone is watching. Deliberately not `holdings`: a holding is owned and
+ * counts towards net worth, a watchlist item is only being looked at, and merging
+ * them would put imaginary money into real totals.
+ */
+export const watchlistItems = pockit.table('watchlist_items', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  workspaceId: uuid('workspace_id').notNull().references(() => workspaces.id, { onDelete: 'cascade' }),
+  symbol: text('symbol').notNull(),
+  name: text('name').notNull(),
+  note: text('note'),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [index('watchlist_items_workspace_idx').on(t.workspaceId)]);

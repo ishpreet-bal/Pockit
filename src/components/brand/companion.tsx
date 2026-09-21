@@ -66,7 +66,10 @@ export function Companion({ tip }: { tip: CompanionTip | null }) {
   const mood: Mood = activeTip?.mood ?? 'idle';
 
   return (
-    <div className="pointer-events-none fixed bottom-[calc(env(safe-area-inset-bottom)+72px)] left-4 z-40 md:bottom-6">
+    // Stacked above the quick-add button rather than bottom-left: the sidebar's
+    // own footer lives in that corner on desktop, and a character sitting on top of
+    // the theme switcher is not a guide, it is an obstruction.
+    <div className="pointer-events-none fixed bottom-[calc(env(safe-area-inset-bottom)+136px)] right-4 z-40 flex flex-col items-end md:bottom-24 md:right-6">
       <AnimatePresence>
         {open ? (
           <motion.div
@@ -74,7 +77,7 @@ export function Companion({ tip }: { tip: CompanionTip | null }) {
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 8, scale: 0.97 }}
             transition={{ duration: 0.18 }}
-            className="pointer-events-auto mb-2 w-[min(280px,calc(100vw-2rem))] rounded-[var(--radius-card)] border border-[var(--border)] bg-[var(--surface)] p-3.5 shadow-[var(--shadow-lg)]"
+            className="pointer-events-auto mb-2 w-[min(280px,calc(100vw-2rem))] origin-bottom-right rounded-[var(--radius-card)] border border-[var(--border)] bg-[var(--surface)] p-3.5 shadow-[var(--shadow-lg)]"
           >
             <div className="flex items-start justify-between gap-2">
               <p className="text-sm leading-relaxed">

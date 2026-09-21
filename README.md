@@ -124,6 +124,11 @@ quick-add sheet opens from the floating button and closes on Escape, that all
 thirteen pages still render, and that nothing pushes the page sideways at 390px —
 31 assertions.
 
+A sixth suite (`npm run e2e:investing`, 19 assertions) covers the investing
+feature, weighted towards the REFUSALS: that it declines to suggest a mix while
+high-interest debt exists, and for money needed within three years. A feature that
+gives an asset allocation to someone carrying card debt is worse than no feature.
+
 A fifth suite (`npm run e2e:onboarding`, 13 assertions) signs up twice with
 different answers and asserts the walkthrough genuinely diverges — different
 wording, different seeded goal, different recommended first action.
@@ -191,6 +196,20 @@ It also pins the bugs that reached working code:
   different problems and now read as three different messages. Only the length of
   a value is ever reported, never any part of it.
 
+## Investing
+
+`/investing` profiles someone from five questions and suggests a broad asset mix —
+never a security to buy, and never for money needed inside three years. High-interest
+debt and a missing cash buffer stop the process rather than adjusting a percentage,
+because both outrank any question about risk appetite.
+
+Market data sits behind `lib/market/provider.ts`. With no `FINNHUB_API_KEY` the app
+uses clearly-labelled sample prices and every other part of the feature works
+unchanged; adding the key switches to live quotes with no code change. The sample
+provider returns nothing for symbols it does not know, exactly as a real one would —
+inventing a price for any string typed in would let someone build a watchlist of
+tickers that do not exist.
+
 ## Deployment
 
 The app targets Vercel with any Postgres. See **Environment** below, then after the
@@ -231,7 +250,7 @@ plus your own rules — images and video frames are what need a vision model.
 
 ## Status
 
-**Built, tested and verified** (lint + typecheck + 156 unit tests + 102 end-to-end checks + production build green):
+**Built, tested and verified** (lint + typecheck + 156 unit tests + 121 end-to-end checks + production build green):
 
 | Area | State |
 |---|---|

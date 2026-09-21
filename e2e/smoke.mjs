@@ -9,6 +9,7 @@
  *   npm run e2e          (expects a server on $BASE and a migrated database)
  */
 import { chromium } from 'playwright';
+import { signUp } from './signup.mjs';
 
 const BASE = process.env.BASE ?? 'http://localhost:3000';
 const EXECUTABLE = process.env.CHROMIUM_PATH || undefined;
@@ -35,12 +36,10 @@ page.on('pageerror', (e) => serverErrors.push(`${page.url()}: ${e.message.slice(
 
 try {
   console.log('\nAuth and onboarding');
-  const email = `smoke${Date.now()}@example.com`;
-  await page.goto(`${BASE}/sign-up`, { waitUntil: 'domcontentloaded' });
-  await page.fill('#email', email);
-  await page.fill('#password', 'smoke-test-password');
-  await page.click('button[type=submit]');
-  await page.waitForURL(/onboarding|overview/, { timeout: 30000 });
+  await signUp(page, BASE, {
+    email: `smoke${Date.now()}@example.com`,
+    password: 'smoke-test-password',
+  });
   check('registration redirects into the app', /onboarding|overview/.test(page.url()));
 
   const onboarded = await page.evaluate(async () => {

@@ -6,7 +6,7 @@ import { useEffect, useState, type ComponentType } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
   LayoutDashboard, ArrowLeftRight, PieChart, Target, CalendarDays,
-  Repeat, Landmark, Upload, BarChart3, Briefcase,
+  Repeat, Landmark, Upload, BarChart3, Briefcase, LineChart,
   Sparkles, Settings, MoreHorizontal, PanelLeftClose, PanelLeftOpen,
   Monitor, Sun, Moon, ChevronDown, X,
 } from 'lucide-react';
@@ -41,6 +41,7 @@ const SECONDARY: { href: string; label: string; icon: Icon; blurb: string }[] = 
   { href: '/recurring', label: 'Recurring', icon: Repeat, blurb: 'Bills and subscriptions that repeat' },
   { href: '/accounts', label: 'Accounts & debts', icon: Landmark, blurb: 'Balances, what you owe, payoff plans' },
   { href: '/analytics', label: 'Insights', icon: BarChart3, blurb: 'Spending patterns and forecast' },
+  { href: '/investing', label: 'Investing', icon: LineChart, blurb: 'Your risk profile and watchlist' },
   { href: '/imports', label: 'Import', icon: Upload, blurb: 'Bring in statements and receipts' },
   { href: '/business', label: 'Business', icon: Briefcase, blurb: 'Revenue, expenses and margin' },
   { href: '/assistant', label: 'Assistant', icon: Sparkles, blurb: 'Ask about your own records' },
