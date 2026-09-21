@@ -124,6 +124,10 @@ quick-add sheet opens from the floating button and closes on Escape, that all
 thirteen pages still render, and that nothing pushes the page sideways at 390px —
 31 assertions.
 
+A fifth suite (`npm run e2e:onboarding`, 13 assertions) signs up twice with
+different answers and asserts the walkthrough genuinely diverges — different
+wording, different seeded goal, different recommended first action.
+
 A fourth suite walks the budget wizard's branches (`npm run e2e:wizard`, 13
 assertions), asserting that different goals genuinely ask different questions — the
 one thing a snapshot cannot catch, and exactly how the wizard went wrong before.
@@ -227,7 +231,7 @@ plus your own rules — images and video frames are what need a vision model.
 
 ## Status
 
-**Built, tested and verified** (lint + typecheck + 156 unit tests + 89 end-to-end checks + production build green):
+**Built, tested and verified** (lint + typecheck + 156 unit tests + 102 end-to-end checks + production build green):
 
 | Area | State |
 |---|---|

@@ -24,6 +24,13 @@ const schema = z.object({
     targetDate: z.string().nullable(),
   }).nullable().optional(),
   loadDemo: z.boolean().default(false),
+  /**
+   * What they said they are here for, and how much detail they want. Stored so the
+   * app can behave differently afterwards rather than asking and forgetting — the
+   * whole point of a personalised setup.
+   */
+  primaryIntent: z.string().max(40).nullable().optional(),
+  experienceLevel: z.enum(['simple', 'detailed']).optional(),
 });
 
 export async function POST(request: Request) {
@@ -60,8 +67,10 @@ export async function POST(request: Request) {
     await tx.update(userProfiles).set({
       incomeSchedule: input.incomeSchedule ?? null,
       approxIncomeMinor: input.incomeAmount ? safeParseAmount(input.incomeAmount) : null,
+      primaryIntent: input.primaryIntent ?? null,
+      experienceLevel: input.experienceLevel ?? 'simple',
       onboardingCompletedAt: new Date(),
-      onboardingStep: 4,
+      onboardingStep: 5,
     }).where(eq(userProfiles.userId, ctx.user.id));
 
     if (input.goal && input.goal.target) {

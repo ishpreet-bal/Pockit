@@ -23,6 +23,7 @@
     "e2e:setup": "node e2e/setup.mjs",
     "e2e:ui": "node e2e/ui.mjs",
     "e2e:wizard": "node e2e/wizard.mjs",
+    "e2e:onboarding": "node e2e/onboarding.mjs",
     "db:start": "bash scripts/dev-db.sh"
   },
   "dependencies": {
