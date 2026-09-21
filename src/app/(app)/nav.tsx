@@ -6,7 +6,7 @@ import { useEffect, useState, type ComponentType } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
   LayoutDashboard, ArrowLeftRight, PieChart, Target, CalendarDays,
-  Repeat, Landmark, Upload, BarChart3, TrendingUp, CreditCard, Briefcase,
+  Repeat, Landmark, Upload, BarChart3, Briefcase,
   Sparkles, Settings, MoreHorizontal, PanelLeftClose, PanelLeftOpen,
   Monitor, Sun, Moon, ChevronDown, X,
 } from 'lucide-react';
@@ -31,13 +31,16 @@ const PRIMARY: { href: string; label: string; icon: Icon }[] = [
   { href: '/calendar', label: 'Calendar', icon: CalendarDays },
 ];
 
+/**
+ * Debts and Forecast are not missing — they are tabs inside Accounts and Insights.
+ * Listing every view separately made the app look wider and thinner than it is, and
+ * gave four related questions four half-empty screens.
+ */
 const SECONDARY: { href: string; label: string; icon: Icon; blurb: string }[] = [
   { href: '/recurring', label: 'Recurring', icon: Repeat, blurb: 'Bills and subscriptions that repeat' },
-  { href: '/accounts', label: 'Accounts', icon: Landmark, blurb: 'Balances and what you owe' },
+  { href: '/accounts', label: 'Accounts & debts', icon: Landmark, blurb: 'Balances, what you owe, payoff plans' },
+  { href: '/analytics', label: 'Insights', icon: BarChart3, blurb: 'Spending patterns and forecast' },
   { href: '/imports', label: 'Import', icon: Upload, blurb: 'Bring in statements and receipts' },
-  { href: '/analytics', label: 'Analytics', icon: BarChart3, blurb: 'Spending patterns over time' },
-  { href: '/forecast', label: 'Forecast', icon: TrendingUp, blurb: 'Where your balance is heading' },
-  { href: '/debts', label: 'Debts', icon: CreditCard, blurb: 'Payoff plans and interest' },
   { href: '/business', label: 'Business', icon: Briefcase, blurb: 'Revenue, expenses and margin' },
   { href: '/assistant', label: 'Assistant', icon: Sparkles, blurb: 'Ask about your own records' },
   { href: '/settings', label: 'Settings', icon: Settings, blurb: 'Profile, privacy and export' },
@@ -50,9 +53,18 @@ const MOBILE_TABS: { href: string; label: string; icon: Icon }[] = [
   { href: '/calendar', label: 'Calendar', icon: CalendarDays },
 ];
 
+/** Sibling routes that live as tabs under one nav entry, so the entry stays lit. */
+const TAB_SIBLINGS: Record<string, string[]> = {
+  '/accounts': ['/debts'],
+  '/analytics': ['/forecast'],
+};
+
 function useIsActive() {
   const pathname = usePathname();
-  return (href: string) => pathname === href || pathname.startsWith(`${href}/`);
+  return (href: string) => {
+    if (pathname === href || pathname.startsWith(`${href}/`)) return true;
+    return (TAB_SIBLINGS[href] ?? []).some((s) => pathname === s || pathname.startsWith(`${s}/`));
+  };
 }
 
 /* ---------------- Sidebar ---------------- */

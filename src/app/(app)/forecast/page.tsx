@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { requireAuth } from '@/lib/auth/guard';
 import { WorkspaceRepo } from '@/lib/data/repository';
 import { PageHeader } from '../page-header';
+import { SectionTabs, INSIGHTS_TABS } from '@/components/ui/section-tabs';
 import { Card, CardHeader, CardBody, EmptyState, Table, Th, Td, Badge, LinkButton } from '@/components/ui/primitives';
 import { Money } from '@/components/finance/money';
 import { Stat } from '@/components/finance/stat';
@@ -35,7 +36,9 @@ export default async function ForecastPage({
   if (txns.length === 0) {
     return (
       <>
-        <PageHeader title="Forecast" />
+        <PageHeader title="Insights">
+          <SectionTabs tabs={INSIGHTS_TABS} />
+        </PageHeader>
         <div className="px-4 py-8 sm:px-6">
           <Card>
             <EmptyState
@@ -86,10 +89,11 @@ export default async function ForecastPage({
   return (
     <>
       <PageHeader
-        title="Forecast"
+        title="Insights"
         description={`Projected from your scheduled payments plus an estimated daily rate of ${formatMoney(result.dailyVariableRateMinor, cur)} for everything else.`}
       >
-        <div className="flex gap-1" role="group" aria-label="Forecast horizon">
+        <SectionTabs tabs={INSIGHTS_TABS} />
+        <div className="mt-3 flex gap-1" role="group" aria-label="Forecast horizon">
           {HORIZONS.map((d) => (
             <a
               key={d}

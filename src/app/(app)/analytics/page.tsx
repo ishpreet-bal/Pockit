@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { requireAuth } from '@/lib/auth/guard';
 import { WorkspaceRepo } from '@/lib/data/repository';
 import { PageHeader, PeriodFilter } from '../page-header';
+import { SectionTabs, INSIGHTS_TABS } from '@/components/ui/section-tabs';
 import { Card, CardHeader, CardBody, EmptyState, Table, Th, Td, LinkButton } from '@/components/ui/primitives';
 import { Money } from '@/components/finance/money';
 import { Stat } from '@/components/finance/stat';
@@ -38,7 +39,9 @@ export default async function AnalyticsPage({
   if (txns.length === 0) {
     return (
       <>
-        <PageHeader title="Analytics" />
+        <PageHeader title="Insights">
+          <SectionTabs tabs={INSIGHTS_TABS} />
+        </PageHeader>
         <div className="px-4 py-8 sm:px-6">
           <Card>
             <EmptyState
@@ -78,8 +81,9 @@ export default async function AnalyticsPage({
 
   return (
     <>
-      <PageHeader title="Analytics" description={formatRange(range, user.locale)}>
-        <PeriodFilter active={preset} />
+      <PageHeader title="Insights" description={formatRange(range, user.locale)}>
+        <SectionTabs tabs={INSIGHTS_TABS} />
+        <div className="mt-3"><PeriodFilter active={preset} /></div>
       </PageHeader>
 
       <div className="space-y-4 px-4 py-4 sm:px-6">

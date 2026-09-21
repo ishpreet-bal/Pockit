@@ -16,6 +16,15 @@ statements and spreadsheets into structured transactions.
 | [docs/05-roadmap.md](docs/05-roadmap.md) | Milestones, each leaving the repo deployable |
 | [docs/06-design-system.md](docs/06-design-system.md) | Tokens, typography, components, mobile and dark mode |
 
+## Navigation
+
+Related views are tabs inside one destination rather than separate nav entries:
+`Accounts & debts` holds Balances and Debts & payoff, `Insights` holds Patterns and
+Forecast. Each keeps its own route, its own data fetch and its own streaming
+boundary — they simply read as one place. Splitting them had made the app look
+wider and thinner than it is, and gave four related questions four half-empty
+screens.
+
 ## The three rules that matter most
 
 **1. Money is never a float.** Every monetary value is a `bigint` count of minor

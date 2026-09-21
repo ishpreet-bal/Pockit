@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { requireAuth } from '@/lib/auth/guard';
 import { WorkspaceRepo } from '@/lib/data/repository';
 import { PageHeader } from '../page-header';
+import { SectionTabs, BALANCES_TABS } from '@/components/ui/section-tabs';
 import { Card, CardHeader, CardBody, EmptyState, Table, Th, Td, Badge, LinkButton } from '@/components/ui/primitives';
 import { Money } from '@/components/finance/money';
 import { Stat } from '@/components/finance/stat';
@@ -33,11 +34,16 @@ export default async function AccountsPage() {
 
   const cur = workspace.baseCurrency;
   const assetAccounts = accounts.filter((a) => a.normalBalance === 'debit');
+  const accountAssetsMinor = assetAccounts.reduce(
+    (sum, a) => sum + (balanceById.get(a.id)?.rawMinor ?? 0n), 0n,
+  );
   const debtAccounts = accounts.filter((a) => a.normalBalance === 'credit');
 
   return (
     <>
-      <PageHeader title="Accounts" description="Balances are derived from your opening balance plus every transaction." />
+      <PageHeader title="Accounts &amp; debts">
+        <SectionTabs tabs={BALANCES_TABS} />
+      </PageHeader>
 
       <div className="space-y-4 px-4 py-4 sm:px-6">
         {accounts.length === 0 ? (
@@ -57,6 +63,8 @@ export default async function AccountsPage() {
               <Stat label="Net worth" minor={netWorth.netMinor} currency={cur} hint="Assets minus liabilities" />
             </section>
 
+            <div className="grid gap-4 xl:grid-cols-3">
+            <div className="space-y-4 xl:col-span-2">
             <Card>
               <CardHeader title="Asset accounts" description="A positive balance is money you have" />
               <CardBody className="px-0 pb-0">
@@ -106,6 +114,64 @@ export default async function AccountsPage() {
                 </CardBody>
               </Card>
             ) : null}
+            </div>
+
+            <aside className="space-y-4">
+              <Card>
+                <CardHeader title="Where your money sits" description="Share across the accounts listed here" />
+                <CardBody className="space-y-3">
+                  {assetAccounts.map((a, i) => {
+                    const balance = balanceById.get(a.id)?.rawMinor ?? 0n;
+                    // Divided by the accounts actually shown, not by total assets:
+                    // assets include manually tracked holdings that have no row here,
+                    // so using that denominator produced shares summing to 72%.
+                    const share = accountAssetsMinor > 0n
+                      ? Number((balance * 1000n) / accountAssetsMinor) / 10
+                      : 0;
+                    return (
+                      <div key={a.id}>
+                        <div className="flex items-baseline justify-between gap-2 text-sm">
+                          <span className="truncate">{a.name}</span>
+                          <span className="tabular shrink-0 text-xs text-[var(--text-muted)]">
+                            {share.toFixed(0)}%
+                          </span>
+                        </div>
+                        <div className="mt-1.5 h-2 overflow-hidden rounded-full bg-[var(--surface-3)]">
+                          <div
+                            className="h-full rounded-full transition-[width] duration-500"
+                            style={{ width: `${Math.max(0, Math.min(100, share))}%`, background: `var(--chart-${(i % 8) + 1})` }}
+                          />
+                        </div>
+                      </div>
+                    );
+                  })}
+                  {assetAccounts.length === 0 ? (
+                    <p className="text-sm text-[var(--text-muted)]">No asset accounts yet.</p>
+                  ) : null}
+                </CardBody>
+              </Card>
+
+              <Card>
+                <CardHeader title="What this means" />
+                <CardBody className="space-y-2.5 text-sm text-[var(--text-muted)]">
+                  <p>
+                    <strong className="text-[var(--text)]">Cash</strong> is what you can spend today.
+                    <strong className="text-[var(--text)]"> Assets</strong> includes money you hold but
+                    would have to sell or withdraw first.
+                  </p>
+                  <p>
+                    Paying a credit card moves money between two of your own accounts, so it lowers your
+                    debt without counting as new spending. That is why a card payment never appears in
+                    your monthly total twice.
+                  </p>
+                  <p className="text-xs text-[var(--text-subtle)]">
+                    Every balance here is derived from your opening balance plus every transaction — none
+                    of them are typed in and left to drift.
+                  </p>
+                </CardBody>
+              </Card>
+            </aside>
+            </div>
           </>
         )}
       </div>

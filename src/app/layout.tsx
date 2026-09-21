@@ -43,15 +43,15 @@ export const viewport: Viewport = {
   initialScale: 1,
   viewportFit: 'cover',
   themeColor: [
-    { media: '(prefers-color-scheme: light)', color: '#fbfbfa' },
-    { media: '(prefers-color-scheme: dark)', color: '#0b0c0e' },
+    { media: '(prefers-color-scheme: light)', color: '#faf7f2' },
+    { media: '(prefers-color-scheme: dark)', color: '#0e1116' },
   ],
 };
 
 /**
- * Applied before first paint so neither the theme nor the palette ever flashes.
- * Inline because an external script would necessarily run after the initial render,
- * which is exactly the frame in which the wrong colours would be visible.
+ * Applied before first paint so the theme never flashes. Inline because an external
+ * script would necessarily run after the initial render, which is exactly the frame
+ * in which the wrong colours would be visible.
  */
 const THEME_SCRIPT = `
 (function(){try{
@@ -59,10 +59,7 @@ const THEME_SCRIPT = `
   var theme = stored && stored !== 'system' ? stored
     : (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
   document.documentElement.setAttribute('data-theme', theme);
-  document.documentElement.setAttribute(
-    'data-palette', localStorage.getItem('pockit-palette') || 'ink'
-  );
-}catch(e){document.documentElement.setAttribute('data-palette','ink');}})();
+}catch(e){}})();
 `;
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

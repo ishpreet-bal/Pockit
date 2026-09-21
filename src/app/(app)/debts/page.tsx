@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { requireAuth } from '@/lib/auth/guard';
 import { WorkspaceRepo } from '@/lib/data/repository';
 import { PageHeader } from '../page-header';
+import { SectionTabs, BALANCES_TABS } from '@/components/ui/section-tabs';
 import { Card, CardHeader, CardBody, EmptyState, Table, Th, Td, Badge, LinkButton } from '@/components/ui/primitives';
 import { Money } from '@/components/finance/money';
 import { Stat } from '@/components/finance/stat';
@@ -34,7 +35,9 @@ export default async function DebtsPage({
   if (debts.length === 0) {
     return (
       <>
-        <PageHeader title="Debts" />
+        <PageHeader title="Accounts &amp; debts">
+          <SectionTabs tabs={BALANCES_TABS} />
+        </PageHeader>
         <div className="px-4 py-8 sm:px-6">
           <Card>
             <EmptyState
@@ -63,9 +66,11 @@ export default async function DebtsPage({
   return (
     <>
       <PageHeader
-        title="Debts"
+        title="Accounts &amp; debts"
         description={`Simulated month by month at ${formatMoney(budget, cur)} per month across all debts.`}
-      />
+      >
+        <SectionTabs tabs={BALANCES_TABS} />
+      </PageHeader>
 
       <div className="space-y-4 px-4 py-4 sm:px-6">
         <section className="grid grid-cols-2 gap-3 lg:grid-cols-4">

@@ -1,7 +1,6 @@
 import { requireAuth } from '@/lib/auth/guard';
 import { Sidebar, MobileTabs, MobileHeader } from './nav';
 import { QuickAdd } from './quick-add';
-import { PaletteSwitcher } from '@/components/ui/palette-switcher';
 import { PageTransition } from '@/components/ui/page-transition';
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
@@ -24,8 +23,6 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       </div>
       <MobileTabs />
       <QuickAdd />
-      {/* Temporary, while the visual identity is being chosen. */}
-      <PaletteSwitcher />
     </div>
   );
 }

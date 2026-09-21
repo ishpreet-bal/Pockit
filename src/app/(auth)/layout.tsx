@@ -1,5 +1,3 @@
-import { PaletteSwitcher } from '@/components/ui/palette-switcher';
-
 export default function AuthLayout({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex min-h-dvh flex-col items-center justify-center px-4 py-10">
@@ -13,7 +11,6 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
         </div>
         {children}
       </div>
-      <PaletteSwitcher />
     </div>
   );
 }
