@@ -2,6 +2,7 @@ import { requireAuth } from '@/lib/auth/guard';
 import { Sidebar, MobileTabs, MobileHeader } from './nav';
 import { QuickAdd } from './quick-add';
 import { PageTransition } from '@/components/ui/page-transition';
+import { CompanionHost } from './companion-host';
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const { workspace, workspaces } = await requireAuth();
@@ -23,6 +24,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       </div>
       <MobileTabs />
       <QuickAdd />
+      <CompanionHost />
     </div>
   );
 }

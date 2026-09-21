@@ -10,6 +10,7 @@ import {
   Sparkles, Settings, MoreHorizontal, PanelLeftClose, PanelLeftOpen,
   Monitor, Sun, Moon, ChevronDown, X,
 } from 'lucide-react';
+import { Logo, Mark } from '@/components/brand/logo';
 import { cn } from '@/lib/ui/cn';
 
 export interface NavWorkspace { id: string; name: string; kind: 'personal' | 'business'; isDemo: boolean }
@@ -133,11 +134,8 @@ export function Sidebar({ workspaces, activeId }: { workspaces: NavWorkspace[]; 
       )}
     >
       <div className={cn('flex items-center gap-2 py-4', collapsed ? 'justify-center px-2' : 'px-4')}>
-        <Link href="/overview" className="flex items-center gap-2.5">
-          <span className="grid h-8 w-8 shrink-0 place-items-center rounded-xl bg-[var(--accent-fill)] text-sm font-bold text-[var(--accent-fill-fg)] shadow-[var(--shadow-sm)]">
-            P
-          </span>
-          {collapsed ? null : <span className="text-base font-semibold tracking-tight">Pockit</span>}
+        <Link href="/overview" aria-label="Pockit">
+          <Logo size="sm" showWordmark={!collapsed} />
         </Link>
       </div>
 
@@ -400,8 +398,12 @@ export function MobileTabs() {
 export function MobileHeader({ workspaces, activeId }: { workspaces: NavWorkspace[]; activeId: string }) {
   return (
     <header className="sticky top-0 z-30 flex items-center gap-3 border-b border-[var(--border)] bg-[var(--surface)]/90 px-4 py-2.5 backdrop-blur-lg md:hidden">
-      <Link href="/overview" className="grid h-8 w-8 shrink-0 place-items-center rounded-xl bg-[var(--accent-fill)] text-sm font-bold text-[var(--accent-fill-fg)]">
-        P
+      <Link
+        href="/overview"
+        aria-label="Pockit"
+        className="grid h-8 w-8 shrink-0 place-items-center rounded-xl bg-[var(--accent-fill)] text-[var(--accent-fill-fg)]"
+      >
+        <Mark className="h-4.5 w-4.5" />
       </Link>
       <div className="min-w-0 flex-1"><WorkspaceSwitcher workspaces={workspaces} activeId={activeId} /></div>
     </header>
