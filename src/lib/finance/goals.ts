@@ -112,6 +112,34 @@ export function computeGoalMath(goal: GoalInput, today: IsoDate): GoalMath {
   };
 }
 
+/**
+ * What a chosen timeline costs per period.
+ *
+ * Extracted so the timeline slider on a goal card cannot drift from the figures the
+ * goal card itself already shows: dragging to exactly the goal's own number of months
+ * must reproduce its stated monthly amount, or the slider is lying.
+ *
+ * Weeks are derived from months at 30.44/7 for the same reason the main calculation
+ * does — twelve four-week months is ten months of the year, not twelve.
+ */
+export function contributionForMonths(remainingMinor: bigint, months: number): {
+  monthlyMinor: bigint;
+  biweeklyMinor: bigint;
+  weeklyMinor: bigint;
+} {
+  if (remainingMinor <= 0n || months <= 0) {
+    return { monthlyMinor: 0n, biweeklyMinor: 0n, weeklyMinor: 0n };
+  }
+  const thousandths = BigInt(Math.round(months * 1000));
+  const weeks = (months * 30.44) / 7;
+  const weekThousandths = BigInt(Math.round(weeks * 1000));
+  return {
+    monthlyMinor: mulRatio(remainingMinor, 1000n, thousandths),
+    biweeklyMinor: mulRatio(remainingMinor, 2000n, weekThousandths),
+    weeklyMinor: mulRatio(remainingMinor, 1000n, weekThousandths),
+  };
+}
+
 /** Reverse calculation: "I can save $X/month — when do I get there?" */
 export function projectCompletion(
   remainingMinor: bigint,
@@ -251,7 +279,7 @@ export function assessFeasibility(
     availableMinor: available,
     shortfallMinor: shortfall > 0n ? shortfall : 0n,
     basis,
-    explanation: buildExplanation(feasible, shortfall, basis, required),
+    explanation: buildExplanation(feasible, shortfall, basis, required, available),
     adjustments,
     adjustedAvailableMinor: available + recovered,
     achievableDate,
@@ -263,15 +291,25 @@ function buildExplanation(
   shortfall: bigint,
   basis: CashFlowBasis,
   required: bigint,
+  /**
+   * Spare cash AFTER other goals are funded, which is what the shortfall was
+   * measured against. Quoting the gross figure here instead made the sentence fail
+   * its own arithmetic: "$593 more per month than your available $1,090" for a goal
+   * needing $433 is not a sum anyone can follow.
+   */
+  available: bigint,
 ): string {
   const window = `your last ${basis.months} month${basis.months === 1 ? '' : 's'}`;
   if (required <= 0n) {
     return `This goal has no target date, so there is no required monthly amount to check against your cash flow.`;
   }
+  const net = available === basis.availableMinor
+    ? ''
+    : ` (after what your other goals already claim)`;
   if (feasible) {
-    return `Based on ${window}, your income has exceeded your spending by about ${fmt(basis.availableMinor)} per month, which covers the ${fmt(required)} this goal needs. This is an estimate from past activity, not a guarantee of future cash flow.`;
+    return `Based on ${window}, you have about ${fmt(available)} a month spare${net}, which covers the ${fmt(required)} this goal needs. This is an estimate from past activity, not a guarantee of future cash flow.`;
   }
-  return `Based on ${window}, this goal requires approximately ${fmt(shortfall)} more per month than your current available cash flow of ${fmt(basis.availableMinor)}. This is an estimate from past activity, not financial advice.`;
+  return `Based on ${window}, this goal needs ${fmt(required)} a month but you have about ${fmt(available)} spare${net} — a gap of ${fmt(shortfall)}. This is an estimate from past activity, not financial advice.`;
 }
 
 function fmt(minor: bigint): string {

@@ -3,6 +3,7 @@ import { requireAuth } from '@/lib/auth/guard';
 import { WorkspaceRepo } from '@/lib/data/repository';
 import { PageHeader } from '../page-header';
 import { Card, CardHeader, CardBody, EmptyState, ProgressBar, Badge, LinkButton } from '@/components/ui/primitives';
+import { TimelineSlider } from './timeline-slider';
 import { Money } from '@/components/finance/money';
 import { Stat } from '@/components/finance/stat';
 import {
@@ -158,6 +159,16 @@ export default async function GoalsPage() {
                   ) : null}
 
                   {!math.isAchieved ? (
+                    <TimelineSlider
+                      remainingMinor={Number(math.remainingMinor)}
+                      currency={cur}
+                      initialMonths={math.monthsRemaining ?? math.projectedMonths ?? 12}
+                      affordableMonthlyMinor={Number(feasibility.availableMinor)}
+                      locale={user.locale}
+                    />
+                  ) : null}
+
+                  {!math.isAchieved ? (
                     <div className="mt-3 rounded-[var(--radius-control)] bg-[var(--surface-2)] p-3">
                       <p className="text-sm">{feasibility.explanation}</p>
 
@@ -185,7 +196,10 @@ export default async function GoalsPage() {
 
                       {feasibility.achievableDate ? (
                         <p className="mt-2 text-xs text-[var(--text-subtle)]">
-                          At your current available cash flow, this goal would be reached around {feasibility.achievableDate}.
+                          At your current available cash flow, this goal would be reached around{' '}
+                          {new Date(`${feasibility.achievableDate}T12:00:00Z`).toLocaleDateString(user.locale, {
+                            month: 'long', year: 'numeric', timeZone: 'UTC',
+                          })}.
                         </p>
                       ) : null}
                     </div>

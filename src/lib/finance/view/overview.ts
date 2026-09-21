@@ -23,6 +23,21 @@ import type { DateRange } from '@/lib/finance/types';
  * An earlier version showed fifteen cards at once. Depth still exists, but it lives on
  * the pages that specialise in it rather than competing for attention here.
  */
+/**
+ * Which filter pill a transaction belongs under on the dashboard.
+ *
+ * "Bills" means the things that arrive whether or not you decide anything this month,
+ * which is what people mean by the word — not, as the ledger would have it, whichever
+ * rows happen to be linked to a recurring series. Everything else you chose to spend.
+ */
+const BILL_CATEGORIES = new Set(['Housing', 'Bills', 'Subscriptions', 'Debt payments', 'Insurance']);
+
+function bucketOf(type: string, categoryName: string | null): 'income' | 'bill' | 'discretionary' {
+  if (type === 'income' || type === 'refund') return 'income';
+  if (categoryName && BILL_CATEGORIES.has(categoryName)) return 'bill';
+  return 'discretionary';
+}
+
 export async function buildOverview(repo: WorkspaceRepo, timezone: string, locale: string) {
   const today = todayIn(timezone);
   const period: DateRange = { start: startOfMonth(today), end: endOfMonth(today) };
@@ -81,7 +96,16 @@ export async function buildOverview(repo: WorkspaceRepo, timezone: string, local
   const hasPriorMonth = prevTxns.length > 0;
 
   /* ---- what is coming ---- */
-  const upcoming = position.soonCommitments.filter((c) => c.kind !== 'income').slice(0, 5);
+  // Two windows live on this page and they must never share a label.
+  //
+  //  - "Still to pay" is THIS MONTH, because that is the figure the headline
+  //    subtracts. Showing a 30-day number beside a sentence that says "this month"
+  //    put two different totals under one phrase.
+  //  - "Coming up" looks 30 days ahead on purpose: a bill due on the 1st matters on
+  //    the 28th, and a month boundary is not a reason to hide it.
+  const dueThisPeriod = position.commitments.filter((c) => c.kind !== 'income');
+  const allUpcoming = position.soonCommitments.filter((c) => c.kind !== 'income');
+  const upcoming = allUpcoming.slice(0, 5);
   const nextIncome = position.soonCommitments.find((c) => c.kind === 'income');
 
   /* ---- goals ---- */
@@ -155,8 +179,14 @@ export async function buildOverview(repo: WorkspaceRepo, timezone: string, local
     spendTotal,
 
     upcoming,
-    upcomingTotal: sumMinor(upcoming.map((u) => u.amountMinor)),
-    commitmentCount: position.soonCommitments.filter((c) => c.kind !== 'income').length,
+    /** This month's remaining bills — the figure the headline subtracts. */
+    dueThisPeriodTotal: sumMinor(dueThisPeriod.map((u) => u.amountMinor)),
+    dueThisPeriodCount: dueThisPeriod.length,
+    /** The next 30 days, which is what the "Coming up" list shows. */
+    upcomingTotal: sumMinor(allUpcoming.map((u) => u.amountMinor)),
+    commitmentCount: allUpcoming.length,
+    upcomingShown: upcoming.length,
+    lookaheadDays: position.lookaheadDays,
     nextIncome,
 
     goalStatus,
@@ -174,17 +204,23 @@ export async function buildOverview(repo: WorkspaceRepo, timezone: string, local
 
     // Transfers are excluded: moving money between your own accounts is neither
     // income nor spending, and both legs appearing makes it look like activity twice.
+    // Twelve, not five: the dashboard list is searchable and filterable, and a list
+    // of five is too short for either control to be worth showing.
     recent: postedThisPeriod
       .filter((t) => t.type !== 'transfer' && t.type !== 'debt_payment')
-      .slice(0, 5).map((t) => ({
-      id: t.id,
-      date: t.postedDate,
-      description: t.merchantName ?? t.description,
-      amountMinor: t.baseAmountMinor,
-      type: t.type,
-      categoryName: t.categoryId ? categoryById.get(t.categoryId)?.name ?? null : null,
-      categoryIcon: t.categoryId ? categoryById.get(t.categoryId)?.icon ?? null : null,
-    })),
+      .slice(0, 12).map((t) => {
+        const categoryName = t.categoryId ? categoryById.get(t.categoryId)?.name ?? null : null;
+        return {
+          id: t.id,
+          date: t.postedDate,
+          description: t.merchantName ?? t.description,
+          amountMinor: t.baseAmountMinor,
+          type: t.type,
+          categoryName,
+          categoryIcon: t.categoryId ? categoryById.get(t.categoryId)?.icon ?? null : null,
+          bucket: bucketOf(t.type, categoryName),
+        };
+      }),
     absMinor,
   };
 }

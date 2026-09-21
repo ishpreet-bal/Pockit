@@ -1,5 +1,17 @@
 import type { Metadata, Viewport } from 'next';
+import { Inter } from 'next/font/google';
 import './globals.css';
+
+/**
+ * Self-hosted by next/font rather than linked from Google. The CSP in next.config.ts
+ * allows no external style or font origins, so a <link> to fonts.googleapis.com would
+ * be blocked outright — and self-hosting also removes the render-blocking round trip.
+ */
+const inter = Inter({
+  subsets: ['latin'],
+  display: 'swap',
+  variable: '--font-inter',
+});
 
 export const metadata: Metadata = {
   title: { default: 'Pockit', template: '%s · Pockit' },
@@ -33,7 +45,7 @@ const THEME_SCRIPT = `
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html lang="en" className={inter.variable} suppressHydrationWarning>
       <head>
         <script dangerouslySetInnerHTML={{ __html: THEME_SCRIPT }} />
       </head>

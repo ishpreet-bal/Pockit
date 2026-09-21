@@ -3,11 +3,22 @@ import type { ReactNode, HTMLAttributes, ButtonHTMLAttributes, InputHTMLAttribut
 
 /* ---------------- Card ---------------- */
 
-export function Card({ className, ...props }: HTMLAttributes<HTMLDivElement>) {
+/**
+ * A white card on a warm off-white page, lifted by an ambient shadow rather than a
+ * heavy outline. The border stays, faintly, because the shadow alone disappears in
+ * dark mode where there is nothing for it to fall on.
+ *
+ * `interactive` is for cards that are themselves a link or button; it adds the hover
+ * lift. A card that does nothing must not pretend it can be clicked.
+ */
+export function Card({
+  className, interactive, ...props
+}: HTMLAttributes<HTMLDivElement> & { interactive?: boolean }) {
   return (
     <div
       className={cn(
-        'rounded-[var(--radius-card)] border border-[var(--border)] bg-[var(--surface)]',
+        'rounded-[var(--radius-card)] border border-[var(--border)] bg-[var(--surface)] shadow-[var(--shadow-sm)]',
+        interactive && 'transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[var(--shadow-md)] active:translate-y-0',
         className,
       )}
       {...props}
@@ -68,7 +79,8 @@ export function Button({ className, variant = 'secondary', size = 'md', ...props
     <button
       className={cn(
         'inline-flex items-center justify-center gap-1.5 rounded-[var(--radius-control)] border font-medium',
-        'transition-colors disabled:cursor-not-allowed disabled:opacity-50',
+        'transition-all duration-150 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50 disabled:active:scale-100',
+        variant === 'primary' && 'shadow-[var(--shadow-sm)] hover:shadow-[var(--shadow-md)]',
         size === 'sm' ? 'h-8 px-2.5 text-xs' : 'h-9 px-3.5 text-sm',
         BUTTON_VARIANTS[variant],
         className,
@@ -132,6 +144,7 @@ const BADGE_TONES = {
   warning: 'bg-[var(--warning-soft)] text-[var(--warning)] border-transparent',
   info: 'bg-[var(--info-soft)] text-[var(--info)] border-transparent',
   accent: 'bg-[var(--accent-soft)] text-[var(--accent)] border-transparent',
+  goal: 'bg-[var(--goal-soft)] text-[var(--goal)] border-transparent',
 } as const;
 
 export function Badge({
@@ -153,13 +166,16 @@ export function Badge({
  */
 export function ProgressBar({
   fraction, markerFraction, tone = 'accent', className,
-}: { fraction: number; markerFraction?: number; tone?: 'accent' | 'positive' | 'warning' | 'negative'; className?: string }) {
+}: { fraction: number; markerFraction?: number; tone?: 'accent' | 'positive' | 'warning' | 'negative' | 'goal'; className?: string }) {
   const pct = Math.max(0, Math.min(100, fraction * 100));
   const over = fraction > 1;
-  const color = over ? 'var(--negative)' : tone === 'warning' ? 'var(--warning)' : tone === 'positive' ? 'var(--positive)' : tone === 'negative' ? 'var(--negative)' : 'var(--accent)';
+  const color = over ? 'var(--negative)' : tone === 'warning' ? 'var(--warning)' : tone === 'positive' ? 'var(--positive)' : tone === 'negative' ? 'var(--negative)' : tone === 'goal' ? 'var(--goal)' : 'var(--accent)';
   return (
-    <div className={cn('relative h-1.5 w-full overflow-hidden rounded-full bg-[var(--surface-3)]', className)}>
-      <div className="h-full rounded-full transition-[width]" style={{ width: `${pct}%`, background: color }} />
+    <div className={cn('relative h-2 w-full overflow-hidden rounded-full bg-[var(--surface-3)]', className)}>
+      <div
+        className="h-full rounded-full transition-[width] duration-500 ease-out"
+        style={{ width: `${pct}%`, background: color }}
+      />
       {markerFraction !== undefined && markerFraction > 0 && markerFraction < 1 ? (
         <div
           className="absolute top-0 h-full w-px bg-[var(--text-subtle)] opacity-70"

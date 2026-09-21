@@ -24,9 +24,12 @@ export function Money({
     : minor < 0n ? 'text-[var(--negative)]'
     : minor > 0n ? '' : 'text-[var(--text-muted)]';
 
+  // The large sizes step up only once there is room for them. A five-figure balance
+  // at text-2xl overflows a card at 390px, and `whitespace-nowrap` means it cannot
+  // wrap its way out — it just pushes the page sideways.
   const sizeClass =
-    size === 'xl' ? 'text-2xl font-semibold'
-    : size === 'lg' ? 'text-lg font-semibold'
+    size === 'xl' ? 'text-xl font-semibold sm:text-2xl'
+    : size === 'lg' ? 'text-base font-semibold sm:text-lg'
     : size === 'sm' ? 'text-sm' : 'text-base font-medium';
 
   return (

@@ -2,107 +2,196 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { useState } from 'react';
+import { useEffect, useState, type ComponentType } from 'react';
+import { AnimatePresence, motion } from 'framer-motion';
+import {
+  LayoutDashboard, ArrowLeftRight, PieChart, Target, CalendarDays,
+  Repeat, Landmark, Upload, BarChart3, TrendingUp, CreditCard, Briefcase,
+  Sparkles, Settings, MoreHorizontal, PanelLeftClose, PanelLeftOpen,
+  Monitor, Sun, Moon, ChevronDown, X,
+} from 'lucide-react';
 import { cn } from '@/lib/ui/cn';
 
 export interface NavWorkspace { id: string; name: string; kind: 'personal' | 'business'; isDemo: boolean }
+
+type Icon = ComponentType<{ className?: string; strokeWidth?: number }>;
 
 /**
  * Navigation is split by how often people need it, not by how the code is organised.
  *
  * Five everyday destinations sit at the top level. The rest are real, working features
  * but they answer occasional questions, so they live under "More" — visible enough to
- * discover, quiet enough not to compete. The previous eleven flat items made the app
- * look more complicated than it is.
+ * discover, quiet enough not to compete.
  */
-const PRIMARY: { href: string; label: string; icon: string }[] = [
-  { href: '/overview', label: 'Overview', icon: '◎' },
-  { href: '/transactions', label: 'Transactions', icon: '≡' },
-  { href: '/budget', label: 'Budget', icon: '◧' },
-  { href: '/goals', label: 'Goals', icon: '◆' },
-  { href: '/calendar', label: 'Calendar', icon: '▦' },
+const PRIMARY: { href: string; label: string; icon: Icon }[] = [
+  { href: '/overview', label: 'Overview', icon: LayoutDashboard },
+  { href: '/transactions', label: 'Transactions', icon: ArrowLeftRight },
+  { href: '/budget', label: 'Budget', icon: PieChart },
+  { href: '/goals', label: 'Goals', icon: Target },
+  { href: '/calendar', label: 'Calendar', icon: CalendarDays },
 ];
 
-const SECONDARY: { href: string; label: string; icon: string; blurb: string }[] = [
-  { href: '/recurring', label: 'Recurring', icon: '↻', blurb: 'Bills and subscriptions that repeat' },
-  { href: '/accounts', label: 'Accounts', icon: '▤', blurb: 'Balances and what you owe' },
-  { href: '/imports', label: 'Import', icon: '↥', blurb: 'Bring in statements and receipts' },
-  { href: '/analytics', label: 'Analytics', icon: '◔', blurb: 'Spending patterns over time' },
-  { href: '/forecast', label: 'Forecast', icon: '↗', blurb: 'Where your balance is heading' },
-  { href: '/debts', label: 'Debts', icon: '▼', blurb: 'Payoff plans and interest' },
-  { href: '/business', label: 'Business', icon: '▣', blurb: 'Revenue, expenses and margin' },
-  { href: '/assistant', label: 'Assistant', icon: '✦', blurb: 'Ask about your own records' },
-  { href: '/settings', label: 'Settings', icon: '⚙', blurb: 'Profile, privacy and export' },
+const SECONDARY: { href: string; label: string; icon: Icon; blurb: string }[] = [
+  { href: '/recurring', label: 'Recurring', icon: Repeat, blurb: 'Bills and subscriptions that repeat' },
+  { href: '/accounts', label: 'Accounts', icon: Landmark, blurb: 'Balances and what you owe' },
+  { href: '/imports', label: 'Import', icon: Upload, blurb: 'Bring in statements and receipts' },
+  { href: '/analytics', label: 'Analytics', icon: BarChart3, blurb: 'Spending patterns over time' },
+  { href: '/forecast', label: 'Forecast', icon: TrendingUp, blurb: 'Where your balance is heading' },
+  { href: '/debts', label: 'Debts', icon: CreditCard, blurb: 'Payoff plans and interest' },
+  { href: '/business', label: 'Business', icon: Briefcase, blurb: 'Revenue, expenses and margin' },
+  { href: '/assistant', label: 'Assistant', icon: Sparkles, blurb: 'Ask about your own records' },
+  { href: '/settings', label: 'Settings', icon: Settings, blurb: 'Profile, privacy and export' },
 ];
 
-const MOBILE_TABS = [
-  { href: '/overview', label: 'Overview', icon: '◎' },
-  { href: '/transactions', label: 'Activity', icon: '≡' },
-  { href: '/budget', label: 'Budget', icon: '◧' },
-  { href: '/calendar', label: 'Calendar', icon: '▦' },
+const MOBILE_TABS: { href: string; label: string; icon: Icon }[] = [
+  { href: '/overview', label: 'Overview', icon: LayoutDashboard },
+  { href: '/transactions', label: 'Activity', icon: ArrowLeftRight },
+  { href: '/budget', label: 'Budget', icon: PieChart },
+  { href: '/calendar', label: 'Calendar', icon: CalendarDays },
 ];
+
+function useIsActive() {
+  const pathname = usePathname();
+  return (href: string) => pathname === href || pathname.startsWith(`${href}/`);
+}
+
+/* ---------------- Sidebar ---------------- */
+
+const COLLAPSE_KEY = 'pockit-sidebar-collapsed';
 
 export function Sidebar({ workspaces, activeId }: { workspaces: NavWorkspace[]; activeId: string }) {
-  const pathname = usePathname();
-  const [moreOpen, setMoreOpen] = useState(
-    () => SECONDARY.some((i) => pathname === i.href || pathname.startsWith(`${i.href}/`)),
-  );
+  const isActive = useIsActive();
+  const [collapsed, setCollapsed] = useState(false);
+  const [moreOpen, setMoreOpen] = useState(() => SECONDARY.some((i) => isActive(i.href)));
 
-  const link = (item: { href: string; label: string; icon: string }) => {
-    const active = pathname === item.href || pathname.startsWith(`${item.href}/`);
+  // Read the stored preference after mount rather than during render: the server has
+  // no localStorage, and initialising from it directly would hydrate mismatched.
+  useEffect(() => {
+    try {
+      setCollapsed(localStorage.getItem(COLLAPSE_KEY) === '1');
+    } catch { /* private mode */ }
+  }, []);
+
+  function toggleCollapse() {
+    setCollapsed((v) => {
+      const next = !v;
+      try { localStorage.setItem(COLLAPSE_KEY, next ? '1' : '0'); } catch { /* private mode */ }
+      return next;
+    });
+  }
+
+  const link = (item: { href: string; label: string; icon: Icon }) => {
+    const active = isActive(item.href);
+    const Ico = item.icon;
     return (
       <Link
         key={item.href}
         href={item.href}
         aria-current={active ? 'page' : undefined}
+        title={collapsed ? item.label : undefined}
         className={cn(
-          'flex items-center gap-2.5 rounded-[var(--radius-control)] px-3 py-2 text-sm transition-colors',
+          'group relative flex items-center gap-3 rounded-[var(--radius-control)] py-2 text-sm transition-colors',
+          collapsed ? 'justify-center px-0' : 'px-3',
           active
-            ? 'bg-[var(--accent-soft)] font-medium text-[var(--accent)]'
+            ? 'bg-[var(--accent-soft)] font-semibold text-[var(--accent)]'
             : 'text-[var(--text-muted)] hover:bg-[var(--surface-2)] hover:text-[var(--text)]',
         )}
       >
-        <span className="w-4 text-center opacity-70" aria-hidden>{item.icon}</span>
-        {item.label}
+        {/* The accent bar anchors the active row to the edge of the rail, so the eye
+            finds "where am I" without having to read any label. */}
+        {active ? (
+          <motion.span
+            layoutId="nav-active-bar"
+            aria-hidden
+            className="absolute -left-2 top-1/2 h-5 w-1 -translate-y-1/2 rounded-r-full bg-[var(--accent)]"
+            transition={{ type: 'spring', stiffness: 420, damping: 34 }}
+          />
+        ) : null}
+        <Ico className="h-[18px] w-[18px] shrink-0" strokeWidth={active ? 2.2 : 1.8} />
+        {collapsed ? <span className="sr-only">{item.label}</span> : item.label}
       </Link>
     );
   };
 
   return (
-    <aside className="hidden w-60 shrink-0 flex-col border-r border-[var(--border)] bg-[var(--surface)] lg:flex">
-      <div className="px-4 py-4">
-        <Link href="/overview" className="flex items-center gap-2">
-          <span className="grid h-7 w-7 place-items-center rounded-lg bg-[var(--accent)] text-sm font-semibold text-[var(--accent-fg)]">P</span>
-          <span className="text-base font-semibold tracking-tight">Pockit</span>
+    <aside
+      className={cn(
+        'hidden shrink-0 flex-col border-r border-[var(--border)] bg-[var(--surface)] transition-[width] duration-200 md:flex',
+        collapsed ? 'w-[72px]' : 'w-60',
+      )}
+    >
+      <div className={cn('flex items-center gap-2 py-4', collapsed ? 'justify-center px-2' : 'px-4')}>
+        <Link href="/overview" className="flex items-center gap-2.5">
+          <span className="grid h-8 w-8 shrink-0 place-items-center rounded-xl bg-[var(--accent)] text-sm font-bold text-[var(--accent-fg)] shadow-[var(--shadow-sm)]">
+            P
+          </span>
+          {collapsed ? null : <span className="text-base font-semibold tracking-tight">Pockit</span>}
         </Link>
       </div>
 
-      <div className="px-3 pb-3">
-        <WorkspaceSwitcher workspaces={workspaces} activeId={activeId} />
-      </div>
+      {collapsed ? null : (
+        <div className="px-3 pb-3">
+          <WorkspaceSwitcher workspaces={workspaces} activeId={activeId} />
+        </div>
+      )}
 
-      <nav className="flex-1 overflow-y-auto px-2 pb-4">
+      <nav className={cn('flex-1 space-y-0.5 overflow-y-auto pb-4', collapsed ? 'px-3' : 'px-4')}>
         {PRIMARY.map(link)}
 
         <button
           type="button"
           onClick={() => setMoreOpen((v) => !v)}
           aria-expanded={moreOpen}
-          className="mt-3 flex w-full items-center gap-2.5 rounded-[var(--radius-control)] px-3 py-2 text-sm text-[var(--text-muted)] transition-colors hover:bg-[var(--surface-2)] hover:text-[var(--text)]"
+          title={collapsed ? 'More' : undefined}
+          className={cn(
+            'mt-3 flex w-full items-center gap-3 rounded-[var(--radius-control)] py-2 text-sm text-[var(--text-muted)] transition-colors hover:bg-[var(--surface-2)] hover:text-[var(--text)]',
+            collapsed ? 'justify-center px-0' : 'px-3',
+          )}
         >
-          <span className="w-4 text-center opacity-70" aria-hidden>{moreOpen ? '−' : '+'}</span>
-          More
+          <MoreHorizontal className="h-[18px] w-[18px] shrink-0" strokeWidth={1.8} />
+          {collapsed ? null : (
+            <>
+              <span className="flex-1 text-left">More</span>
+              <ChevronDown className={cn('h-4 w-4 transition-transform', moreOpen && 'rotate-180')} />
+            </>
+          )}
         </button>
 
-        {moreOpen ? <div className="mt-0.5">{SECONDARY.map(link)}</div> : null}
+        <AnimatePresence initial={false}>
+          {moreOpen ? (
+            <motion.div
+              className="space-y-0.5 overflow-hidden"
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: 'auto', opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
+            >
+              {SECONDARY.map(link)}
+            </motion.div>
+          ) : null}
+        </AnimatePresence>
       </nav>
 
-      <div className="border-t border-[var(--border)] p-3">
-        <ThemeToggle />
+      <div className={cn('space-y-2 border-t border-[var(--border)] p-3', collapsed && 'px-2')}>
+        {collapsed ? null : <ThemeToggle />}
+        <button
+          type="button"
+          onClick={toggleCollapse}
+          aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+          className={cn(
+            'flex w-full items-center gap-2 rounded-[var(--radius-control)] px-2 py-1.5 text-xs text-[var(--text-subtle)] transition-colors hover:bg-[var(--surface-2)] hover:text-[var(--text)]',
+            collapsed && 'justify-center',
+          )}
+        >
+          {collapsed ? <PanelLeftOpen className="h-4 w-4" /> : <PanelLeftClose className="h-4 w-4" />}
+          {collapsed ? null : 'Collapse'}
+        </button>
       </div>
     </aside>
   );
 }
+
+/* ---------------- Workspace switcher ---------------- */
 
 export function WorkspaceSwitcher({ workspaces, activeId }: { workspaces: NavWorkspace[]; activeId: string }) {
   const [busy, setBusy] = useState(false);
@@ -126,7 +215,7 @@ export function WorkspaceSwitcher({ workspaces, activeId }: { workspaces: NavWor
         value={activeId}
         disabled={busy}
         onChange={(e) => void switchTo(e.target.value)}
-        className="h-9 w-full appearance-none rounded-[var(--radius-control)] border border-[var(--border)] bg-[var(--surface-2)] pl-7 pr-7 text-sm font-medium text-[var(--text)] focus:border-[var(--accent)] focus:outline-none"
+        className="h-10 w-full appearance-none rounded-[var(--radius-control)] border border-[var(--border)] bg-[var(--surface-2)] pl-7 pr-8 text-sm font-medium text-[var(--text)] transition-colors focus:border-[var(--accent)] focus:outline-none"
       >
         {workspaces.map((w) => (
           <option key={w.id} value={w.id}>{w.name}{w.isDemo ? ' (demo)' : ''}</option>
@@ -135,18 +224,29 @@ export function WorkspaceSwitcher({ workspaces, activeId }: { workspaces: NavWor
       <span
         aria-hidden
         className="pointer-events-none absolute left-2.5 top-1/2 h-2 w-2 -translate-y-1/2 rounded-full"
-        style={{ background: active?.kind === 'business' ? '#7d5ba6' : 'var(--accent)' }}
+        style={{ background: active?.kind === 'business' ? 'var(--goal)' : 'var(--accent)' }}
       />
-      <span aria-hidden className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-xs text-[var(--text-subtle)]">▾</span>
+      <ChevronDown aria-hidden className="pointer-events-none absolute right-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--text-subtle)]" />
     </div>
   );
 }
 
+/* ---------------- Theme ---------------- */
+
+const THEMES: { value: 'system' | 'light' | 'dark'; icon: Icon; label: string }[] = [
+  { value: 'system', icon: Monitor, label: 'System' },
+  { value: 'light', icon: Sun, label: 'Light' },
+  { value: 'dark', icon: Moon, label: 'Dark' },
+];
+
 export function ThemeToggle() {
-  const [theme, setTheme] = useState<'system' | 'light' | 'dark'>(() => {
-    if (typeof window === 'undefined') return 'system';
-    return (localStorage.getItem('pockit-theme') as 'system' | 'light' | 'dark' | null) ?? 'system';
-  });
+  const [theme, setTheme] = useState<'system' | 'light' | 'dark'>('system');
+
+  useEffect(() => {
+    try {
+      setTheme((localStorage.getItem('pockit-theme') as 'system' | 'light' | 'dark' | null) ?? 'system');
+    } catch { /* private mode */ }
+  }, []);
 
   function apply(next: 'system' | 'light' | 'dark') {
     setTheme(next);
@@ -158,76 +258,115 @@ export function ThemeToggle() {
   }
 
   return (
-    <div role="group" aria-label="Colour theme" className="flex rounded-[var(--radius-control)] border border-[var(--border)] p-0.5">
-      {(['system', 'light', 'dark'] as const).map((t) => (
-        <button
-          key={t}
-          type="button"
-          onClick={() => apply(t)}
-          aria-pressed={theme === t}
-          className={cn(
-            'flex-1 rounded-[6px] py-1 text-xs capitalize transition-colors',
-            theme === t ? 'bg-[var(--surface-3)] font-medium text-[var(--text)]' : 'text-[var(--text-subtle)] hover:text-[var(--text)]',
-          )}
-        >
-          {t}
-        </button>
-      ))}
+    <div role="group" aria-label="Colour theme" className="flex rounded-[var(--radius-control)] bg-[var(--surface-2)] p-1">
+      {THEMES.map((t) => {
+        const Ico = t.icon;
+        const on = theme === t.value;
+        return (
+          <button
+            key={t.value}
+            type="button"
+            onClick={() => apply(t.value)}
+            aria-pressed={on}
+            title={t.label}
+            className={cn(
+              'flex flex-1 items-center justify-center rounded-md py-1.5 transition-colors',
+              on ? 'bg-[var(--surface)] text-[var(--text)] shadow-[var(--shadow-sm)]' : 'text-[var(--text-subtle)] hover:text-[var(--text)]',
+            )}
+          >
+            <Ico className="h-4 w-4" strokeWidth={1.9} />
+            <span className="sr-only">{t.label}</span>
+          </button>
+        );
+      })}
     </div>
   );
 }
 
+/* ---------------- Mobile ---------------- */
+
 export function MobileTabs() {
-  const pathname = usePathname();
+  const isActive = useIsActive();
   const [moreOpen, setMoreOpen] = useState(false);
 
   return (
     <>
-      {moreOpen ? (
-        <div className="fixed inset-0 z-50 flex items-end bg-black/40 lg:hidden"
-          role="dialog" aria-modal="true" aria-label="More">
-          <div className="max-h-[80dvh] w-full overflow-y-auto rounded-t-2xl bg-[var(--surface)] p-4 pb-[calc(env(safe-area-inset-bottom)+1rem)] animate-[pk-sheet-up_0.2s_ease-out]">
-            <div className="mb-3 flex items-center justify-between">
-              <h2 className="text-base font-semibold">More</h2>
-              <button type="button" onClick={() => setMoreOpen(false)}
-                className="px-2 py-1 text-sm text-[var(--text-muted)]">Close</button>
-            </div>
-            <ul className="space-y-1">
-              {[{ href: '/goals', label: 'Goals', icon: '◆', blurb: 'What you are saving towards' }, ...SECONDARY].map((item) => (
-                <li key={item.href}>
-                  <Link href={item.href} onClick={() => setMoreOpen(false)}
-                    className="flex items-center gap-3 rounded-[var(--radius-control)] p-3 hover:bg-[var(--surface-2)]">
-                    <span className="w-5 text-center opacity-70" aria-hidden>{item.icon}</span>
-                    <span className="min-w-0">
-                      <span className="block text-sm font-medium">{item.label}</span>
-                      <span className="block text-xs text-[var(--text-muted)]">{item.blurb}</span>
-                    </span>
-                  </Link>
-                </li>
-              ))}
-            </ul>
-            <div className="mt-4 border-t border-[var(--border)] pt-3"><ThemeToggle /></div>
-          </div>
-        </div>
-      ) : null}
+      <AnimatePresence>
+        {moreOpen ? (
+          <motion.div
+            className="fixed inset-0 z-50 flex items-end md:hidden"
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            transition={{ duration: 0.18 }}
+          >
+            <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-[2px]" onClick={() => setMoreOpen(false)} aria-hidden />
+            <motion.div
+              role="dialog" aria-modal="true" aria-label="More"
+              className="relative z-10 max-h-[80dvh] w-full overflow-y-auto rounded-t-2xl bg-[var(--surface)] p-4 pb-[calc(env(safe-area-inset-bottom)+1rem)] shadow-[var(--shadow-lg)]"
+              initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }}
+              transition={{ type: 'spring', stiffness: 360, damping: 34 }}
+            >
+              <div className="mb-3 flex items-center justify-between">
+                <h2 className="text-base font-semibold">More</h2>
+                <button
+                  type="button" onClick={() => setMoreOpen(false)} aria-label="Close"
+                  className="grid h-8 w-8 place-items-center rounded-full text-[var(--text-muted)] hover:bg-[var(--surface-2)]"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+              <ul className="space-y-1">
+                {[{ href: '/goals', label: 'Goals', icon: Target, blurb: 'What you are saving towards' }, ...SECONDARY].map((item) => {
+                  const Ico = item.icon;
+                  return (
+                    <li key={item.href}>
+                      <Link
+                        href={item.href} onClick={() => setMoreOpen(false)}
+                        className="flex items-center gap-3 rounded-[var(--radius-control)] p-3 transition-colors hover:bg-[var(--surface-2)]"
+                      >
+                        <span className="grid h-9 w-9 shrink-0 place-items-center rounded-[var(--radius-control)] bg-[var(--surface-2)] text-[var(--text-muted)]">
+                          <Ico className="h-[18px] w-[18px]" strokeWidth={1.8} />
+                        </span>
+                        <span className="min-w-0">
+                          <span className="block text-sm font-medium">{item.label}</span>
+                          <span className="block text-xs text-[var(--text-muted)]">{item.blurb}</span>
+                        </span>
+                      </Link>
+                    </li>
+                  );
+                })}
+              </ul>
+              <div className="mt-4 border-t border-[var(--border)] pt-3"><ThemeToggle /></div>
+            </motion.div>
+          </motion.div>
+        ) : null}
+      </AnimatePresence>
 
       <nav
-        className="fixed inset-x-0 bottom-0 z-40 flex border-t border-[var(--border)] bg-[var(--surface)] pb-[env(safe-area-inset-bottom)] lg:hidden"
+        className="fixed inset-x-0 bottom-0 z-40 flex border-t border-[var(--border)] bg-[var(--surface)]/95 pb-[env(safe-area-inset-bottom)] backdrop-blur-lg md:hidden"
         aria-label="Primary"
       >
         {MOBILE_TABS.map((tab) => {
-          const active = pathname === tab.href || pathname.startsWith(`${tab.href}/`);
+          const active = isActive(tab.href);
+          const Ico = tab.icon;
           return (
             <Link
               key={tab.href}
               href={tab.href}
               aria-current={active ? 'page' : undefined}
               className={cn(
-                'flex min-h-[56px] flex-1 flex-col items-center justify-center gap-0.5 text-2xs',
-                active ? 'text-[var(--accent)]' : 'text-[var(--text-subtle)]',
+                'relative flex min-h-[58px] flex-1 flex-col items-center justify-center gap-1 text-2xs transition-colors',
+                active ? 'font-semibold text-[var(--accent)]' : 'text-[var(--text-subtle)]',
               )}
             >
-              <span className="text-base leading-none" aria-hidden>{tab.icon}</span>
+              {active ? (
+                <motion.span
+                  layoutId="tab-active"
+                  aria-hidden
+                  className="absolute inset-x-3 top-0 h-0.5 rounded-b-full bg-[var(--accent)]"
+                  transition={{ type: 'spring', stiffness: 420, damping: 34 }}
+                />
+              ) : null}
+              <Ico className="h-[20px] w-[20px]" strokeWidth={active ? 2.2 : 1.8} />
               {tab.label}
             </Link>
           );
@@ -236,9 +375,9 @@ export function MobileTabs() {
           type="button"
           onClick={() => setMoreOpen(true)}
           aria-expanded={moreOpen}
-          className="flex min-h-[56px] flex-1 flex-col items-center justify-center gap-0.5 text-2xs text-[var(--text-subtle)]"
+          className="flex min-h-[58px] flex-1 flex-col items-center justify-center gap-1 text-2xs text-[var(--text-subtle)]"
         >
-          <span className="text-base leading-none" aria-hidden>⋯</span>
+          <MoreHorizontal className="h-[20px] w-[20px]" strokeWidth={1.8} />
           More
         </button>
       </nav>
@@ -248,8 +387,8 @@ export function MobileTabs() {
 
 export function MobileHeader({ workspaces, activeId }: { workspaces: NavWorkspace[]; activeId: string }) {
   return (
-    <header className="sticky top-0 z-30 flex items-center gap-3 border-b border-[var(--border)] bg-[var(--surface)] px-4 py-2.5 lg:hidden">
-      <Link href="/overview" className="grid h-7 w-7 shrink-0 place-items-center rounded-lg bg-[var(--accent)] text-sm font-semibold text-[var(--accent-fg)]">
+    <header className="sticky top-0 z-30 flex items-center gap-3 border-b border-[var(--border)] bg-[var(--surface)]/90 px-4 py-2.5 backdrop-blur-lg md:hidden">
+      <Link href="/overview" className="grid h-8 w-8 shrink-0 place-items-center rounded-xl bg-[var(--accent)] text-sm font-bold text-[var(--accent-fg)]">
         P
       </Link>
       <div className="min-w-0 flex-1"><WorkspaceSwitcher workspaces={workspaces} activeId={activeId} /></div>

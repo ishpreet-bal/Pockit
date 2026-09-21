@@ -2,7 +2,9 @@
 
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
+import { Plus, X } from 'lucide-react';
 import { Button, Input, Select } from '@/components/ui/primitives';
+import { Sheet } from '@/components/ui/motion';
 import { cn } from '@/lib/ui/cn';
 import type { CategoryChoice } from './transaction-actions';
 
@@ -19,8 +21,18 @@ interface AccountOption { id: string; name: string; currency?: string }
  *    trick that loses the transaction.
  */
 export function AddTransaction({
-  accounts, categories, today,
-}: { accounts: AccountOption[]; categories: CategoryChoice[]; today: string }) {
+  accounts, categories, today, variant = 'button',
+}: {
+  accounts: AccountOption[];
+  categories: CategoryChoice[];
+  today: string;
+  /**
+   * 'button' sits inline on the transactions page. 'fab' is the floating button
+   * present on every screen, so that logging a spend never costs a navigation —
+   * the single most repeated action in the app should never be more than one tap.
+   */
+  variant?: 'button' | 'fab';
+}) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -79,17 +91,45 @@ export function AddTransaction({
     }
   }
 
-  if (!open) {
-    return <Button variant="primary" onClick={() => setOpen(true)}>Add transaction</Button>;
+  function close() {
+    setOpen(false);
+    reset();
   }
 
+  const trigger = variant === 'fab' ? (
+    <button
+      type="button"
+      onClick={() => setOpen(true)}
+      aria-label="Add transaction"
+      className={cn(
+        'fixed right-4 z-40 grid h-14 w-14 place-items-center rounded-full bg-[var(--accent)] text-[var(--accent-fg)]',
+        'shadow-[var(--shadow-lg)] transition-transform duration-200 hover:scale-105 active:scale-95',
+        // Clears the mobile tab bar, and sits in the normal corner once it is gone.
+        'bottom-[calc(env(safe-area-inset-bottom)+72px)] md:bottom-6 md:right-6',
+      )}
+    >
+      <Plus className="h-6 w-6" strokeWidth={2.4} />
+    </button>
+  ) : (
+    <Button variant="primary" onClick={() => setOpen(true)}>
+      <Plus className="h-4 w-4" strokeWidth={2.2} />
+      Add transaction
+    </Button>
+  );
+
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 sm:items-center"
-      role="dialog" aria-modal="true" aria-label="Add transaction">
-      <div className="max-h-[92dvh] w-full overflow-y-auto rounded-t-2xl bg-[var(--surface)] p-5 shadow-[var(--shadow-md)] animate-[pk-sheet-up_0.2s_ease-out] sm:max-w-md sm:rounded-2xl">
+    <>
+      {open ? null : trigger}
+      <Sheet open={open} onClose={close} title="Add transaction">
+      <div className="p-5">
         <div className="mb-4 flex items-center justify-between">
           <h2 className="text-base font-semibold">Add transaction</h2>
-          <Button variant="ghost" size="sm" onClick={() => { setOpen(false); reset(); }} aria-label="Close">✕</Button>
+          <button
+            type="button" onClick={close} aria-label="Close"
+            className="grid h-8 w-8 place-items-center rounded-full text-[var(--text-muted)] transition-colors hover:bg-[var(--surface-2)]"
+          >
+            <X className="h-4 w-4" />
+          </button>
         </div>
 
         <div role="group" aria-label="Direction" className="mb-4 flex rounded-[var(--radius-control)] border border-[var(--border)] p-0.5">
@@ -189,7 +229,7 @@ export function AddTransaction({
           ) : null}
 
           <div className="mt-1 flex gap-2">
-            <Button type="button" variant="secondary" className="flex-1" onClick={() => { setOpen(false); reset(); }}>
+            <Button type="button" variant="secondary" className="flex-1" onClick={close}>
               Cancel
             </Button>
             <Button type="submit" variant="primary" className="flex-1" disabled={saving}>
@@ -198,6 +238,7 @@ export function AddTransaction({
           </div>
         </form>
       </div>
-    </div>
+      </Sheet>
+    </>
   );
 }

@@ -102,6 +102,19 @@ than answering with a digest hash, that a wrong setup key is refused in words, a
 that the app works once setup has run — 15 assertions. Run it a second time with
 `MODE=outdated` against a database migrated to an *earlier* release.
 
+A third suite covers the interface itself — the things unit tests cannot see:
+
+```bash
+BASE=http://localhost:3000 npm run e2e:ui
+```
+
+It checks that the headline figure is explained rather than left bare, that
+"still to pay" and "coming up" never share a label across their two different time
+windows, that the search and filter pills actually narrow the list, that the
+quick-add sheet opens from the floating button and closes on Escape, that all
+thirteen pages still render, and that nothing pushes the page sideways at 390px —
+31 assertions.
+
 Financial logic carries the test coverage, not the cosmetics. The suite asserts the
 cases the ledger must never get wrong: transfers excluded, card payments not
 double-counted, refunds offsetting, splits totalling exactly, currency conversion
@@ -201,7 +214,7 @@ plus your own rules — images and video frames are what need a vision model.
 
 ## Status
 
-**Built, tested and verified** (lint + typecheck + 156 unit tests + 45 end-to-end checks + production build green):
+**Built, tested and verified** (lint + typecheck + 156 unit tests + 76 end-to-end checks + production build green):
 
 | Area | State |
 |---|---|

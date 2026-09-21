@@ -21,6 +21,7 @@
     "verify": "npm run lint && npm run typecheck && npm run test && npm run build",
     "e2e": "node e2e/smoke.mjs",
     "e2e:setup": "node e2e/setup.mjs",
+    "e2e:ui": "node e2e/ui.mjs",
     "db:start": "bash scripts/dev-db.sh"
   },
   "dependencies": {
@@ -29,6 +30,8 @@
     "date-fns": "4.4.0",
     "drizzle-orm": "0.45.2",
     "exceljs": "4.4.0",
+    "framer-motion": "^12.43.0",
+    "lucide-react": "^0.550.0",
     "nanoid": "5.1.6",
     "next": "15.5.25",
     "papaparse": "5.7.0",
