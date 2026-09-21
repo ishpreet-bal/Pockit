@@ -8,6 +8,7 @@ import { Card, CardBody, EmptyState, LinkButton, ProgressBar } from '@/component
 import { Callout } from '@/components/ui/callout';
 import { Money } from '@/components/finance/money';
 import { SeedDemoButton } from './seed-demo';
+import { DemoBanner } from '../demo-banner';
 import { Hero } from './hero';
 import { StatGrid, type Stat } from './stat-grid';
 import { SpendingDonut } from './spending-donut';
@@ -136,6 +137,8 @@ export default async function OverviewPage() {
 
   return (
     <div className={cn('space-y-8 py-6 sm:py-8', GUTTER)}>
+      {workspace.isDemo ? <DemoBanner /> : null}
+
       <section aria-label="Where you stand">
         <Hero
           greeting={firstName ? `Hello, ${firstName}` : 'Your money'}

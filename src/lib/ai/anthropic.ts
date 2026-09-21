@@ -172,6 +172,31 @@ export class AnthropicProvider implements AiProvider {
     };
   }
 
+  async research(input: { brief: string; factSheet: string; maxTokens?: number }): Promise<ProviderResponse<string>> {
+    const started = Date.now();
+    const response = await this.client.messages.create({
+      model: this.model,
+      max_tokens: input.maxTokens ?? 1600,
+      system: input.brief,
+      messages: [{ role: 'user', content: input.factSheet }],
+    });
+
+    const text = response.content
+      .filter((b): b is Anthropic.TextBlock => b.type === 'text')
+      .map((b) => b.text).join('').trim();
+
+    return {
+      data: text,
+      usage: {
+        inputTokens: response.usage.input_tokens,
+        outputTokens: response.usage.output_tokens,
+        latencyMs: Date.now() - started,
+        model: this.model,
+        provider: 'anthropic',
+      },
+    };
+  }
+
   async narrate(input: { instruction: string; facts: Record<string, unknown> }): Promise<ProviderResponse<string>> {
     const started = Date.now();
     const response = await this.client.messages.create({

@@ -198,17 +198,31 @@ It also pins the bugs that reached working code:
 
 ## Investing
 
-`/investing` profiles someone from five questions and suggests a broad asset mix —
-never a security to buy, and never for money needed inside three years. High-interest
-debt and a missing cash buffer stop the process rather than adjusting a percentage,
-because both outrank any question about risk appetite.
+A section rather than a page: Overview, Stocks, ETFs, Crypto, Watchlist, Portfolio,
+plus an asset page for anything in it and a comparison view.
 
-Market data sits behind `lib/market/provider.ts`. With no `FINNHUB_API_KEY` the app
-uses clearly-labelled sample prices and every other part of the feature works
-unchanged; adding the key switches to live quotes with no code change. The sample
-provider returns nothing for symbols it does not know, exactly as a real one would —
-inventing a price for any string typed in would let someone build a watchlist of
-tickers that do not exist.
+`lib/market` separates the concerns that would otherwise fuse together:
+
+| Module | Responsibility |
+|---|---|
+| `types.ts` | The contract. Every figure carries source, timestamp and a `simulated` flag |
+| `catalog.ts` | Instrument REFERENCE data — names, sectors, what a fund tracks. Never prices |
+| `search.ts` | Case-, punctuation- and typo-insensitive matching. "nv" finds NVIDIA, "s&p" finds VOO |
+| `finnhub.ts` | The real source, on its free tier |
+| `sample.ts` | Development data, clearly marked, for building against before a key exists |
+| `analysis.ts` | Model-written notes, grounded in a fact sheet and nothing else |
+
+Three rules keep the sample source honest: every value it returns is flagged
+`simulated` and the UI says so; it answers only for symbols in the catalogue, so a
+watchlist cannot fill with instruments that do not exist; and it returns **no**
+fundamentals and **no** news, because invented earnings and invented headlines are
+not sample data, they are misinformation. Historical candles are a paid Finnhub
+endpoint, so with a free key the chart says history is unavailable rather than
+drawing an approximation.
+
+The risk questionnaire lives at `/investing/profile` and suggests a broad asset mix —
+never a security to buy, and never for money needed inside three years. High-interest
+debt and a missing cash buffer stop the process rather than adjusting a percentage.
 
 ## Deployment
 
@@ -250,7 +264,7 @@ plus your own rules — images and video frames are what need a vision model.
 
 ## Status
 
-**Built, tested and verified** (lint + typecheck + 156 unit tests + 121 end-to-end checks + production build green):
+**Built, tested and verified** (lint + typecheck + 156 unit tests + 145 end-to-end checks + production build green):
 
 | Area | State |
 |---|---|

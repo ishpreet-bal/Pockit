@@ -126,6 +126,14 @@ export interface AiProvider {
   answerQuestion(input: AssistantInput): Promise<ProviderResponse<AssistantResult>>;
   /** Phrases figures it did NOT compute. It may never introduce a new number. */
   narrate(input: { instruction: string; facts: Record<string, unknown> }): Promise<ProviderResponse<string>>;
+  /**
+   * Longer-form reasoning over a supplied fact sheet.
+   *
+   * Separate from `narrate` because that one is capped at two sentences by design.
+   * The constraint is the same and is the whole point: the model works from the
+   * facts it is handed and may not import anything it thinks it remembers.
+   */
+  research(input: { brief: string; factSheet: string; maxTokens?: number }): Promise<ProviderResponse<string>>;
 }
 
 export class AiUnavailableError extends Error {

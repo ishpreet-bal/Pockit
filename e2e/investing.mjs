@@ -29,7 +29,7 @@ p.on('pageerror', (e) => errs.push(e.message.slice(0, 140)));
 await signUp(p, B, { email: EMAIL, password: PASSWORD });
 
 async function answer(labels) {
-  await p.goto(B + '/investing'); await p.waitForTimeout(900);
+  await p.goto(B + '/investing/profile'); await p.waitForTimeout(900);
   const redo = p.locator('button:has-text("Answer again")');
   if (await redo.count()) { await redo.click(); await p.waitForTimeout(500); }
   else {
@@ -46,7 +46,7 @@ async function answer(labels) {
 }
 
 console.log('\nConsent gate');
-await p.goto(B + '/investing'); await p.waitForTimeout(900);
+await p.goto(B + '/investing/profile'); await p.waitForTimeout(900);
 const intro = await p.textContent('body');
 ok('states it is not financial advice before anything else', /not a financial adviser/i.test(intro));
 ok('disowns day trading up front', /day trading/i.test(intro));
@@ -72,22 +72,48 @@ ok('shows stocks, bonds and cash', /Stocks/.test(good) && /Bonds/.test(good) && 
 ok('repeats the scope limit with the result', /not a recommendation to buy/i.test(good));
 ok('never names a ticker to buy', !/\b(AAPL|TSLA|NVDA)\b/.test(good.split('Watchlist')[0] ?? good));
 
-console.log('\nWatchlist');
-await p.fill('input[aria-label="Symbol to add"]', 'VOO');
-await p.locator('button:has-text("Add")').click();
-await p.waitForTimeout(1800);
-ok('adds a symbol with a price', /VOO/.test(await p.textContent('body')));
-await p.fill('input[aria-label="Symbol to add"]', 'VOO');
-await p.locator('button:has-text("Add")').click();
-await p.waitForTimeout(1500);
-ok('refuses a duplicate in words', /already on your watchlist/i.test(await p.textContent('body')));
-await p.fill('input[aria-label="Symbol to add"]', 'ZZZZZZ');
-await p.locator('button:has-text("Add")').click();
-await p.waitForTimeout(1500);
-ok('refuses an unknown symbol in words', /No price found/i.test(await p.textContent('body')));
-await p.locator('button[aria-label="Remove VOO"]').click();
-await p.waitForTimeout(1500);
-ok('removes a symbol', !/Remove VOO/.test(await p.textContent('body')));
+console.log('\nSearch');
+await p.goto(B + '/investing'); await p.waitForTimeout(1200);
+const typed = async (q) => {
+  await p.fill('input[role=combobox]', q);
+  await p.waitForTimeout(600);
+  return (await p.locator('[role=option]').allTextContents()).join(' | ');
+};
+ok('two letters are enough', (await typed('nv')).includes('NVDA'));
+ok('a company name works', (await typed('nvidia')).includes('NVDA'));
+ok('capitals do not matter', (await typed('NVIDIA')).includes('NVDA'));
+ok('"s&p" finds the index funds', (await typed('s&p')).includes('VOO'));
+ok('a typo still finds it', (await typed('aple')).includes('AAPL'));
+ok('nonsense finds nothing', (await typed('zzzqqq')) === '');
+
+console.log('\nDiscovery and the asset page');
+await p.goto(B + '/investing/etfs'); await p.waitForTimeout(2200);
+const etfs = await p.textContent('body');
+ok('collections are offered, not one long table', /Broad market/i.test(etfs) && /Bonds/i.test(etfs));
+ok('the method behind the list is stated', /How this list was built/i.test(etfs));
+ok('it disclaims being a ranking', /not a ranking/i.test(etfs));
+
+await p.locator('a[href="/investing/VOO"]').first().click();
+await p.waitForURL(/investing\/VOO/, { timeout: 20000 });
+await p.waitForTimeout(2600);
+const asset = await p.textContent('body');
+ok('the asset page opens', /Vanguard S&P 500 ETF/i.test(asset));
+ok('it has range controls', /1D/.test(asset) && /MAX/.test(asset));
+ok('a chart is drawn', await p.locator('.recharts-surface').count() > 0);
+ok('provenance is shown with the price', /Sample data, not a real market/i.test(asset));
+ok('analysis says what it is missing rather than inventing it', /What is missing/i.test(asset));
+ok('news is declared unavailable rather than fabricated', /will not invent headlines/i.test(asset));
+
+// The headline figure and the "today" panel must be the same number, which they
+// were not when quote and history were independent series.
+const figures = asset.match(/\$[\d,]+\.\d\d/g) ?? [];
+ok('the chart headline matches the quoted price', figures[0] === figures[1], `${figures[0]} vs ${figures[1]}`);
+
+console.log('\nFollowing');
+await p.locator('button:has-text("Follow")').first().click();
+await p.waitForTimeout(1600);
+await p.goto(B + '/investing/watchlist'); await p.waitForTimeout(2200);
+ok('it appears on the watchlist', /VOO/.test(await p.textContent('body')));
 
 ok('no client errors', errs.length === 0, errs.slice(0, 2).join(' | '));
 await b.close();

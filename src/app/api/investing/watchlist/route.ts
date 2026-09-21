@@ -4,7 +4,7 @@ import { and, eq } from 'drizzle-orm';
 import { requireAuthApi } from '@/lib/auth/api';
 import { withUser } from '@/lib/db/client';
 import { watchlistItems } from '@/lib/db/schema';
-import { getMarketProvider } from '@/lib/market/provider';
+import { marketData, catalogEntry } from '@/lib/market';
 
 const addSchema = z.object({
   symbol: z.string().trim().min(1).max(12),
@@ -19,8 +19,8 @@ export async function GET(request: Request) {
   const query = new URL(request.url).searchParams.get('q')?.trim() ?? '';
   if (query === '') return NextResponse.json({ results: [] });
 
-  const results = await getMarketProvider().search(query);
-  return NextResponse.json({ results });
+  const { searchCatalog } = await import('@/lib/market');
+  return NextResponse.json({ results: searchCatalog(query) });
 }
 
 export async function POST(request: Request) {
@@ -32,12 +32,14 @@ export async function POST(request: Request) {
 
   const symbol = parsed.data.symbol.toUpperCase();
 
-  // Reject a symbol the provider does not recognise, rather than storing a row that
-  // can only ever render as a blank price.
-  const quote = await getMarketProvider().quote(symbol);
-  if (!quote) {
+  // Reject a symbol nothing recognises, rather than storing a row that can only
+  // ever render as a blank price. The catalogue is checked first so this works
+  // identically with or without a market-data key.
+  const entry = catalogEntry(symbol);
+  const quote = entry ? null : await marketData().quote(symbol);
+  if (!entry && !quote) {
     return NextResponse.json(
-      { error: `No price found for ${symbol}. Check the ticker and try again.` },
+      { error: `No instrument found for ${symbol}. Try searching by name instead.` },
       { status: 404 },
     );
   }
@@ -47,7 +49,7 @@ export async function POST(request: Request) {
       await tx.insert(watchlistItems).values({
         workspaceId: ctx.workspace.id,
         symbol,
-        name: parsed.data.name?.trim() || symbol,
+        name: parsed.data.name?.trim() || entry?.name || symbol,
       });
     });
   } catch (error) {
@@ -83,12 +85,21 @@ export async function DELETE(request: Request) {
   const ctx = await requireAuthApi();
   if ('response' in ctx) return ctx.response;
 
-  const id = new URL(request.url).searchParams.get('id') ?? '';
-  if (id === '') return NextResponse.json({ error: 'Missing id.' }, { status: 400 });
+  // Callers that already hold the row id use it; a star button on a card only knows
+  // the symbol, and making it look the id up first would be a round trip for nothing.
+  const params = new URL(request.url).searchParams;
+  const id = params.get('id')?.trim() ?? '';
+  const symbol = params.get('symbol')?.trim().toUpperCase() ?? '';
+  if (id === '' && symbol === '') {
+    return NextResponse.json({ error: 'Pass an id or a symbol.' }, { status: 400 });
+  }
 
   await withUser(ctx.user.id, async (tx) => {
     await tx.delete(watchlistItems).where(
-      and(eq(watchlistItems.id, id), eq(watchlistItems.workspaceId, ctx.workspace.id)),
+      and(
+        eq(watchlistItems.workspaceId, ctx.workspace.id),
+        id !== '' ? eq(watchlistItems.id, id) : eq(watchlistItems.symbol, symbol),
+      ),
     );
   });
 

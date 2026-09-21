@@ -265,3 +265,31 @@ describe('currencyInfo', () => {
     expect(currencyInfo('unknown').exponent).toBe(2);
   });
 });
+
+describe('formatting does not depend on the runtime', () => {
+  it('renders a currency symbol from our own table, not from ICU', () => {
+    // The bug this pins: with `currencyDisplay: 'narrowSymbol'`, a Node build
+    // without full ICU rendered USD as "US$" while the browser rendered "$" — the
+    // same price, formatted two ways, on the same page.
+    expect(formatMoney(31295n, 'USD')).toBe('$312.95');
+    expect(formatMoney(31295n, 'CAD')).toBe('$312.95');
+    expect(formatMoney(31295n, 'EUR')).toBe('€312.95');
+    expect(formatMoney(31295n, 'GBP')).toBe('£312.95');
+  });
+
+  it('still shows the code when asked', () => {
+    expect(formatMoney(31295n, 'USD', { showCode: true })).toBe('312.95 USD');
+  });
+
+  it('keeps the sign outside the symbol', () => {
+    expect(formatMoney(-31295n, 'USD')).toBe('-$312.95');
+    expect(formatMoney(31295n, 'USD', { signed: true })).toBe('+$312.95');
+  });
+
+  it('splits into parts the same way after the change', () => {
+    const parts = formatMoneyParts(31295n, 'USD');
+    expect(parts.symbol).toBe('$');
+    expect(parts.whole).toBe('312');
+    expect(parts.fraction).toBe('.95');
+  });
+});

@@ -59,6 +59,18 @@ export class HeuristicProvider implements AiProvider {
     );
   }
 
+  /**
+   * Not attempted without a model.
+   *
+   * A template-generated "analysis" would read like insight while containing none,
+   * which is worse than the section plainly saying it needs an AI key.
+   */
+  async research(): Promise<ProviderResponse<string>> {
+    throw new AiUnavailableError(
+      'Written analysis needs an AI provider. The figures beside it are real and do not.',
+    );
+  }
+
   async narrate(input: { instruction: string; facts: Record<string, unknown> }): Promise<ProviderResponse<string>> {
     // Without a model there is nothing to phrase the figures with, so the caller
     // falls back to the deterministic headline the insights engine already produced.

@@ -2,25 +2,15 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { AlertTriangle, Plus, ShieldAlert, Trash2, TrendingDown, TrendingUp } from 'lucide-react';
-import { Button, Card, CardBody, CardHeader, EmptyState, Input } from '@/components/ui/primitives';
+import { AlertTriangle, ShieldAlert } from 'lucide-react';
+import { Button, Card, CardBody } from '@/components/ui/primitives';
 import { StepTransition } from '@/components/ui/motion';
 import { Mascot } from '@/components/brand/mascot';
 import {
   INVESTING_DISCLAIMER, INVESTOR_QUESTIONS,
   type InvestorAnswers, type InvestorProfile,
 } from '@/lib/finance/investing';
-import { formatMoney } from '@/lib/money';
 import { cn } from '@/lib/ui/cn';
-
-export interface WatchRow {
-  id: string;
-  symbol: string;
-  name: string;
-  priceMinor: number | null;
-  changeBps: number | null;
-  quoteCurrency: string | null;
-}
 
 /**
  * The whole investing experience: consent, profiling, the resulting mix, and a
@@ -32,11 +22,11 @@ export interface WatchRow {
  * number appears, not tucked under it in grey text afterwards.
  */
 export function InvestingClient({
-  profile, answers, watchlist, providerLabel, providerLive,
+  profile, answers, providerLabel, providerLive,
 }: {
   profile: InvestorProfile | null;
   answers: InvestorAnswers | null;
-  watchlist: WatchRow[];
+  watchlist?: never[];
   providerLabel: string;
   providerLive: boolean;
 }) {
@@ -92,7 +82,6 @@ export function InvestingClient({
         />
       )}
 
-      <Watchlist rows={watchlist} live={providerLive} />
     </div>
   );
 }
@@ -332,117 +321,6 @@ function ProfileResult({ profile, onRedo }: { profile: InvestorProfile; onRedo: 
         </p>
 
         <Button className="mt-3" onClick={onRedo}>Answer again</Button>
-      </CardBody>
-    </Card>
-  );
-}
-
-/* ---------------- Watchlist ---------------- */
-
-function Watchlist({ rows, live }: { rows: WatchRow[]; live: boolean }) {
-  const router = useRouter();
-  const [symbol, setSymbol] = useState('');
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  async function add() {
-    if (symbol.trim() === '') return;
-    setBusy(true);
-    setError(null);
-    try {
-      const res = await fetch('/api/investing/watchlist', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ symbol: symbol.trim() }),
-      });
-      const body = (await res.json().catch(() => ({}))) as { error?: string };
-      if (!res.ok) throw new Error(body.error ?? 'Could not add that symbol.');
-      setSymbol('');
-      router.refresh();
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Something went wrong.');
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function remove(id: string) {
-    await fetch(`/api/investing/watchlist?id=${encodeURIComponent(id)}`, { method: 'DELETE' });
-    router.refresh();
-  }
-
-  return (
-    <Card>
-      <CardHeader
-        title="Watchlist"
-        description={live ? 'Prices may be delayed' : 'Sample prices — not a real market'}
-      />
-      <CardBody>
-        <div className="flex gap-2">
-          <Input
-            value={symbol}
-            onChange={(e) => setSymbol(e.target.value.toUpperCase())}
-            onKeyDown={(e) => { if (e.key === 'Enter') void add(); }}
-            placeholder="Add a symbol, e.g. VOO"
-            aria-label="Symbol to add"
-            className="flex-1"
-          />
-          <Button variant="primary" disabled={busy || symbol.trim() === ''} onClick={() => void add()}>
-            <Plus className="h-4 w-4" />
-            Add
-          </Button>
-        </div>
-
-        {error ? (
-          <p role="alert" className="mt-2 rounded-[var(--radius-control)] bg-[var(--negative-soft)] px-3 py-2 text-sm text-[var(--negative)]">
-            {error}
-          </p>
-        ) : null}
-
-        {rows.length === 0 ? (
-          <EmptyState
-            title="Nothing on your watchlist"
-            description="Add a symbol to follow it here. Watching something is not owning it — nothing here counts towards your net worth."
-          />
-        ) : (
-          <ul className="mt-3 divide-y divide-[var(--border)]">
-            {rows.map((row) => {
-              const up = (row.changeBps ?? 0) >= 0;
-              return (
-                <li key={row.id} className="flex items-center gap-3 py-3">
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm font-semibold">{row.symbol}</p>
-                    <p className="truncate text-xs text-[var(--text-subtle)]">{row.name}</p>
-                  </div>
-                  <div className="shrink-0 text-right">
-                    <p className="tabular text-sm font-semibold">
-                      {row.priceMinor === null
-                        ? '—'
-                        : formatMoney(BigInt(Math.round(row.priceMinor)), row.quoteCurrency ?? 'USD')}
-                    </p>
-                    {row.changeBps !== null ? (
-                      <p className={cn(
-                        'flex items-center justify-end gap-0.5 text-xs',
-                        up ? 'text-[var(--positive)]' : 'text-[var(--negative)]',
-                      )}>
-                        {up ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
-                        {(row.changeBps / 100).toFixed(2)}%
-                      </p>
-                    ) : null}
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => void remove(row.id)}
-                    aria-label={`Remove ${row.symbol}`}
-                    className="grid h-8 w-8 shrink-0 place-items-center rounded-full text-[var(--text-subtle)] transition-colors hover:bg-[var(--surface-2)] hover:text-[var(--negative)]"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </button>
-                </li>
-              );
-            })}
-          </ul>
-        )}
       </CardBody>
     </Card>
   );

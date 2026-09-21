@@ -3,6 +3,7 @@ import { requireAuth } from '@/lib/auth/guard';
 import { WorkspaceRepo } from '@/lib/data/repository';
 import { PageHeader } from '../page-header';
 import { ResetWorkspace } from './reset-workspace';
+import { DemoBanner } from '../demo-banner';
 import { Card, CardHeader, CardBody } from '@/components/ui/primitives';
 import { SettingsForms } from './forms';
 import { getAiProvider } from '@/lib/ai';
@@ -26,7 +27,17 @@ export default async function SettingsPage() {
     <>
       <PageHeader title="Settings" description={`Signed in as ${user.email}`} />
 
-      <div className="max-w-3xl space-y-4 px-4 py-4 sm:px-6">
+      {/*
+        Two columns on a wide screen. Settings is a long list of unrelated panels, and
+        stacking them in a 768px strip left two thirds of a desktop empty while making
+        the page twice as long to scroll.
+      */}
+      <div className="grid gap-4 px-4 py-5 sm:px-6 lg:grid-cols-2 lg:px-8 xl:gap-5">
+        <div className="space-y-4 lg:col-span-2">
+          {workspace.isDemo ? <DemoBanner /> : null}
+        </div>
+
+        <div className="space-y-4 lg:col-span-2">
         <SettingsForms
           profile={{
             displayName: user.displayName,
@@ -57,6 +68,7 @@ export default async function SettingsPage() {
           aiProviderLabel={provider.capabilities.label}
           aiConfigured={provider.capabilities.vision || provider.capabilities.tools}
         />
+        </div>
 
         <Card>
           <CardHeader title="What is sent to an AI provider" description="Spec-mandated disclosure, kept accurate" />
@@ -109,7 +121,9 @@ export default async function SettingsPage() {
 
         {/* Last on the page on purpose: the one irreversible control should not sit
             above things people visit routinely. */}
-        <ResetWorkspace workspaceName={workspace.name} />
+        <div className="lg:col-span-2">
+          <ResetWorkspace workspaceName={workspace.name} />
+        </div>
       </div>
     </>
   );

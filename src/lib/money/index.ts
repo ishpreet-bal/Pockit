@@ -260,10 +260,21 @@ export function formatMoney(
     minFractionDigits = 0;
   }
 
+  /*
+   * The NUMBER is formatted by Intl; the SYMBOL is ours.
+   *
+   * `style: 'currency'` with `currencyDisplay: 'narrowSymbol'` looks right until you
+   * notice the output depends on how much ICU data the runtime shipped with. A Node
+   * build without full ICU silently falls back and renders USD as "US$" while the
+   * browser renders "$" — which is a real hydration mismatch, and was one: the server
+   * and the client disagreed about the same price on the same page.
+   *
+   * Grouping and decimal separators still come from Intl, because those genuinely are
+   * locale rules. Only the symbol is pinned, and it comes from our own currency table,
+   * so a given amount renders identically everywhere.
+   */
   const formatter = new Intl.NumberFormat(locale, {
-    style: 'currency',
-    currency: info.code,
-    currencyDisplay: showCode ? 'code' : 'narrowSymbol',
+    style: 'decimal',
     minimumFractionDigits: minFractionDigits,
     maximumFractionDigits: maxFractionDigits,
     ...(compact ? { notation: 'compact' as const } : {}),
@@ -271,7 +282,8 @@ export function formatMoney(
 
   let out: string;
   try {
-    out = formatter.format(value);
+    const number = formatter.format(value);
+    out = showCode ? `${number} ${info.code}` : `${info.symbol}${number}`;
   } catch {
     out = `${info.symbol}${value.toFixed(digits)}`;
   }
