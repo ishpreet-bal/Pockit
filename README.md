@@ -124,6 +124,10 @@ quick-add sheet opens from the floating button and closes on Escape, that all
 thirteen pages still render, and that nothing pushes the page sideways at 390px —
 31 assertions.
 
+A fourth suite walks the budget wizard's branches (`npm run e2e:wizard`, 13
+assertions), asserting that different goals genuinely ask different questions — the
+one thing a snapshot cannot catch, and exactly how the wizard went wrong before.
+
 Financial logic carries the test coverage, not the cosmetics. The suite asserts the
 cases the ledger must never get wrong: transfers excluded, card payments not
 double-counted, refunds offsetting, splits totalling exactly, currency conversion
@@ -223,7 +227,7 @@ plus your own rules — images and video frames are what need a vision model.
 
 ## Status
 
-**Built, tested and verified** (lint + typecheck + 156 unit tests + 76 end-to-end checks + production build green):
+**Built, tested and verified** (lint + typecheck + 156 unit tests + 89 end-to-end checks + production build green):
 
 | Area | State |
 |---|---|

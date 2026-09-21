@@ -303,6 +303,12 @@ function fmt(minor: bigint, currency: string): string {
 
 export interface PlanContext {
   monthlyIncomeMinor: bigint;
+  /**
+   * Average monthly spending. "Three months of expenses" — the usual emergency
+   * fund target — is meaningless without it, and asking someone to estimate their
+   * own monthly outgoings is exactly the question the app can answer for them.
+   */
+  monthlyExpensesMinor: bigint;
   historicalByCategory: Map<string, bigint>;
   monthsOfHistory: number;
 }
@@ -326,6 +332,7 @@ export function derivePlanContext(
 
   return {
     monthlyIncomeMinor: totals.income / months,
+    monthlyExpensesMinor: absMinor(totals.expenses) / months,
     historicalByCategory: byCategory,
     monthsOfHistory: Number(months),
   };
