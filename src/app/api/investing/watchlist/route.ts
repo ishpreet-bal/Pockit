@@ -5,10 +5,14 @@ import { requireAuthApi } from '@/lib/auth/api';
 import { withUser } from '@/lib/db/client';
 import { watchlistItems } from '@/lib/db/schema';
 import { marketData, catalogEntry } from '@/lib/market';
+import { defaultListId, ownsList } from '@/lib/investing/lists';
 
 const addSchema = z.object({
   symbol: z.string().trim().min(1).max(12),
   name: z.string().trim().max(120).optional(),
+  // Omitted by the star button on a card, which has no idea lists exist. Those
+  // land on the first list rather than failing.
+  listId: z.string().uuid().optional(),
 });
 
 /** Search for a symbol to add. Returns nothing for an empty query rather than everything. */
@@ -45,18 +49,26 @@ export async function POST(request: Request) {
   }
 
   try {
-    await withUser(ctx.user.id, async (tx) => {
+    const outcome = await withUser(ctx.user.id, async (tx) => {
+      const requested = parsed.data.listId;
+      if (requested && !(await ownsList(tx, ctx.workspace.id, requested))) return 'no-list' as const;
+      const listId = requested ?? (await defaultListId(tx, ctx.workspace.id));
       await tx.insert(watchlistItems).values({
         workspaceId: ctx.workspace.id,
+        listId,
         symbol,
         name: parsed.data.name?.trim() || entry?.name || symbol,
       });
+      return 'ok' as const;
     });
+    if (outcome === 'no-list') {
+      return NextResponse.json({ error: 'That list no longer exists.' }, { status: 404 });
+    }
   } catch (error) {
     // The unique index is what actually prevents duplicates; this turns the
     // constraint violation into a sentence rather than a 500.
     if (isUniqueViolation(error)) {
-      return NextResponse.json({ error: `${symbol} is already on your watchlist.` }, { status: 409 });
+      return NextResponse.json({ error: `${symbol} is already on that list.` }, { status: 409 });
     }
     throw error;
   }
@@ -90,6 +102,10 @@ export async function DELETE(request: Request) {
   const params = new URL(request.url).searchParams;
   const id = params.get('id')?.trim() ?? '';
   const symbol = params.get('symbol')?.trim().toUpperCase() ?? '';
+  // Without a list, unfollowing by symbol removes it everywhere. That is what the
+  // star on an asset page means — it is lit if the symbol is on ANY list, so
+  // clearing it from one and leaving it on another would put the star back on.
+  const listId = params.get('listId')?.trim() ?? '';
   if (id === '' && symbol === '') {
     return NextResponse.json({ error: 'Pass an id or a symbol.' }, { status: 400 });
   }
@@ -99,6 +115,7 @@ export async function DELETE(request: Request) {
       and(
         eq(watchlistItems.workspaceId, ctx.workspace.id),
         id !== '' ? eq(watchlistItems.id, id) : eq(watchlistItems.symbol, symbol),
+        listId !== '' ? eq(watchlistItems.listId, listId) : undefined,
       ),
     );
   });

@@ -13,6 +13,7 @@ import { Provenance } from '@/components/market/provenance';
 import { formatMoney } from '@/lib/money';
 import { ChartPanel } from './chart-panel';
 import { WatchButton } from './watch-button';
+import { listsFor } from '@/lib/investing/lists';
 import { AiAnalysis } from './ai-analysis';
 
 export const dynamic = 'force-dynamic';
@@ -37,11 +38,13 @@ export default async function AssetPage({ params }: { params: Promise<{ symbol: 
     source.history(symbol, '1M'),
     source.fundamentals(symbol),
     source.news(symbol, 5),
-    withUser(user.id, (tx) =>
-      tx.select().from(watchlistItems)
-        .where(and(eq(watchlistItems.workspaceId, workspace.id), eq(watchlistItems.symbol, symbol)))
-        .limit(1),
-    ),
+    withUser(user.id, async (tx) => ({
+      // Which LISTS hold this symbol, not merely whether one does: the follow control
+      // offers the lists, so it has to know which are already ticked.
+      on: await tx.select({ listId: watchlistItems.listId }).from(watchlistItems)
+        .where(and(eq(watchlistItems.workspaceId, workspace.id), eq(watchlistItems.symbol, symbol))),
+      lists: await listsFor(tx, workspace.id),
+    })),
     withUser(user.id, (tx) =>
       tx.select().from(holdings)
         .where(and(eq(holdings.workspaceId, workspace.id), eq(holdings.symbol, symbol)))
@@ -78,7 +81,12 @@ export default async function AssetPage({ params }: { params: Promise<{ symbol: 
           </div>
           <p className="mt-1 text-sm text-[var(--text-muted)]">{profile?.name ?? entry?.name ?? symbol}</p>
         </div>
-        <WatchButton symbol={symbol} name={profile?.name ?? symbol} initiallyWatched={watched.length > 0} />
+        <WatchButton
+          symbol={symbol}
+          name={profile?.name ?? symbol}
+          lists={watched.lists.map((l) => ({ id: l.id, name: l.name }))}
+          onLists={watched.on.map((r) => r.listId)}
+        />
       </div>
 
       <Card>

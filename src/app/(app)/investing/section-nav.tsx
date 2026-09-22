@@ -1,5 +1,6 @@
 'use client';
 
+import { useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { motion } from 'framer-motion';
@@ -23,6 +24,15 @@ const TABS = [
  */
 export function SectionNav() {
   const pathname = usePathname();
+  const activeRef = useRef<HTMLAnchorElement>(null);
+
+  // On a phone the rail is wider than the screen, and the section you are actually
+  // in can start off past the right edge — the app then looks like it is on
+  // "Overview" whatever you clicked. Scrolling the current tab into view fixes that;
+  // `block: 'nearest'` keeps it from yanking the page vertically as well.
+  useEffect(() => {
+    activeRef.current?.scrollIntoView({ inline: 'center', block: 'nearest' });
+  }, [pathname]);
 
   return (
     <nav aria-label="Investing sections" className="-mx-1 flex gap-0.5 overflow-x-auto pb-px">
@@ -34,6 +44,7 @@ export function SectionNav() {
           <Link
             key={tab.href}
             href={tab.href}
+            ref={active ? activeRef : undefined}
             aria-current={active ? 'page' : undefined}
             className={cn(
               'relative shrink-0 rounded-full px-3.5 py-1.5 text-sm transition-colors',

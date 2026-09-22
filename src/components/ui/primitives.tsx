@@ -119,7 +119,11 @@ export function Field({
   label, hint, error, htmlFor, children, className,
 }: { label: string; hint?: string; error?: string; htmlFor?: string; children: ReactNode; className?: string }) {
   return (
-    <div className={cn('flex flex-col gap-1.5', className)}>
+    // `min-w-0` is load-bearing. A field is usually a grid or flex child, whose
+    // default `min-width: auto` lets a control's INTRINSIC width win over `w-full` —
+    // and a <select>'s intrinsic width is its longest option. That is how a timezone
+    // picker pushed the settings page 90px wider than a phone screen.
+    <div className={cn('flex min-w-0 flex-col gap-1.5', className)}>
       <label htmlFor={htmlFor} className="text-sm font-medium text-[var(--text)]">{label}</label>
       {children}
       {error ? <p className="text-xs text-[var(--negative)]">{error}</p>
@@ -128,7 +132,7 @@ export function Field({
   );
 }
 
-const CONTROL = 'h-10 w-full rounded-[var(--radius-control)] border border-[var(--border-strong)] bg-[var(--surface)] px-3 text-sm text-[var(--text)] placeholder:text-[var(--text-subtle)] focus:border-[var(--accent)] focus:outline-none';
+const CONTROL = 'h-10 w-full min-w-0 rounded-[var(--radius-control)] border border-[var(--border-strong)] bg-[var(--surface)] px-3 text-sm text-[var(--text)] placeholder:text-[var(--text-subtle)] focus:border-[var(--accent)] focus:outline-none';
 
 export function Input({ className, ...props }: InputHTMLAttributes<HTMLInputElement>) {
   return <input className={cn(CONTROL, className)} {...props} />;

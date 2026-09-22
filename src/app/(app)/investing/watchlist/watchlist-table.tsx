@@ -12,14 +12,14 @@ import { cn } from '@/lib/ui/cn';
  * Same two views as discovery, and the same star control, so following and
  * unfollowing work identically wherever an instrument appears.
  */
-export function WatchlistTable({ assets }: { assets: AssetSummary[] }) {
+export function WatchlistTable({ assets, listId }: { assets: AssetSummary[]; listId: string }) {
   const router = useRouter();
   const [view, setView] = useState<'cards' | 'table'>('table');
   const [following, setFollowing] = useState(assets.map((a) => a.symbol));
 
   async function unfollow(symbol: string) {
     setFollowing((prev) => prev.filter((s) => s !== symbol));
-    await fetch(`/api/investing/watchlist?symbol=${encodeURIComponent(symbol)}`, { method: 'DELETE' })
+    await fetch(`/api/investing/watchlist?symbol=${encodeURIComponent(symbol)}&listId=${encodeURIComponent(listId)}`, { method: 'DELETE' })
       .catch(() => { /* the refresh below reconciles */ });
     router.refresh();
   }

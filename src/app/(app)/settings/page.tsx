@@ -32,7 +32,7 @@ export default async function SettingsPage() {
         stacking them in a 768px strip left two thirds of a desktop empty while making
         the page twice as long to scroll.
       */}
-      <div className="grid gap-4 px-4 py-5 sm:px-6 lg:grid-cols-2 lg:px-8 xl:gap-5">
+      <div className="grid gap-4 px-4 py-5 sm:px-6 lg:grid-cols-2 lg:px-8 xl:gap-5 [&>*]:min-w-0">
         <div className="space-y-4 lg:col-span-2">
           {workspace.isDemo ? <DemoBanner /> : null}
         </div>

@@ -1023,6 +1023,18 @@ export const investorProfiles = pockit.table('investor_profiles', {
 });
 
 /**
+ * A named watchlist. A table rather than a name on each item, so a list someone
+ * creates and has not filled yet still exists when they come back to it.
+ */
+export const watchlists = pockit.table('watchlists', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  workspaceId: uuid('workspace_id').notNull().references(() => workspaces.id, { onDelete: 'cascade' }),
+  name: text('name').notNull(),
+  position: integer('position').notNull().default(0),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [index('watchlists_workspace_idx').on(t.workspaceId)]);
+
+/**
  * Symbols someone is watching. Deliberately not `holdings`: a holding is owned and
  * counts towards net worth, a watchlist item is only being looked at, and merging
  * them would put imaginary money into real totals.
@@ -1030,6 +1042,7 @@ export const investorProfiles = pockit.table('investor_profiles', {
 export const watchlistItems = pockit.table('watchlist_items', {
   id: uuid('id').primaryKey().defaultRandom(),
   workspaceId: uuid('workspace_id').notNull().references(() => workspaces.id, { onDelete: 'cascade' }),
+  listId: uuid('list_id').notNull().references(() => watchlists.id, { onDelete: 'cascade' }),
   symbol: text('symbol').notNull(),
   name: text('name').notNull(),
   note: text('note'),

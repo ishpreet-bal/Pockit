@@ -220,6 +220,13 @@ not sample data, they are misinformation. Historical candles are a paid Finnhub
 endpoint, so with a free key the chart says history is unavailable rather than
 drawing an approximation.
 
+Watchlists are named and there can be up to ten: `Watchlist`, `Long term`, `ETFs`,
+`Research`. They are a table (`pockit.watchlists`) rather than a label on each row,
+so a list you create and have not filled yet still exists when you come back. The
+same symbol may sit on several lists; it may not sit on one twice, which the database
+enforces. The star on an asset page is lit if the symbol is on ANY list and clears it
+from all of them, while the caret beside it ticks individual lists.
+
 The risk questionnaire lives at `/investing/profile` and suggests a broad asset mix —
 never a security to buy, and never for money needed inside three years. High-interest
 debt and a missing cash buffer stop the process rather than adjusting a percentage.

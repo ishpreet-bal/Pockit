@@ -115,6 +115,37 @@ await p.waitForTimeout(1600);
 await p.goto(B + '/investing/watchlist'); await p.waitForTimeout(2200);
 ok('it appears on the watchlist', /VOO/.test(await p.textContent('body')));
 
+console.log('\nNamed lists');
+await p.waitForSelector('button:has-text("New list")', { timeout: 20000 });
+ok('a default list exists', /Watchlist/.test(await p.textContent('body')));
+
+await p.click('button:has-text("New list")');
+await p.fill('input[aria-label="New list name"]', 'Long term');
+await p.keyboard.press('Enter');
+await p.waitForTimeout(2000);
+ok('a second list can be created', /Long term/.test(await p.textContent('body')));
+
+// The same name twice is refused by the database, and the refusal has to reach the
+// screen as a sentence rather than a 500.
+await p.click('button:has-text("New list")');
+await p.fill('input[aria-label="New list name"]', 'long term');
+await p.keyboard.press('Enter');
+await p.waitForTimeout(1500);
+ok('a duplicate name is refused in words', /already have a list/i.test(await p.textContent('body')));
+await p.keyboard.press('Escape');
+
+// A symbol can sit on two lists at once; that is the whole point of having them.
+await p.goto(B + '/investing/VOO'); await p.waitForTimeout(2400);
+await p.click('button[aria-label="Choose lists"]');
+await p.waitForTimeout(500);
+ok('the follow control offers the lists', /Long term/.test(await p.textContent('[role=menu]')));
+await p.locator('[role=menuitemcheckbox]:has-text("Long term")').click();
+await p.waitForTimeout(2000);
+ok('the button counts the lists it is on', /On 2 lists/.test(await p.textContent('body')));
+
+await p.goto(B + '/investing/watchlist'); await p.waitForTimeout(2200);
+ok('each tab carries its own count', /Long term\s*1/.test((await p.textContent('body')).replace(/\s+/g, ' ')));
+
 ok('no client errors', errs.length === 0, errs.slice(0, 2).join(' | '));
 await b.close();
 console.log(`\n${fails === 0 ? 'All checks passed.' : fails + ' failed.'}`);
