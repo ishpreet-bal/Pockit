@@ -1,18 +1,19 @@
 import { NextResponse } from 'next/server';
 import { requireAuthApi } from '@/lib/auth/api';
-import { searchCatalog } from '@/lib/market';
+import { searchAll } from '@/lib/market';
 
 /**
  * Instrument search.
  *
- * Runs against the shipped catalogue, so it returns the same results with or without
- * a market-data key — search is how people find things, and a search box that only
- * works once you have configured an API key is a broken front door.
+ * The shipped catalogue answers first and always, so search works with or without a
+ * market-data key — a search box that only works once an API key is configured is a
+ * broken front door. The provider's universe is merged in behind it, which is what
+ * lets someone find an instrument nobody thought to curate.
  */
 export async function GET(request: Request) {
   const ctx = await requireAuthApi();
   if ('response' in ctx) return ctx.response;
 
   const q = new URL(request.url).searchParams.get('q') ?? '';
-  return NextResponse.json({ results: searchCatalog(q, 8) });
+  return NextResponse.json({ results: await searchAll(q, 10) });
 }

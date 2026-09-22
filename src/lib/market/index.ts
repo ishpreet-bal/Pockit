@@ -1,10 +1,12 @@
 import 'server-only';
 import { FinnhubSource } from './finnhub';
+import { TwelveDataSource } from './twelvedata';
 import { SampleSource } from './sample';
 import type { MarketDataSource } from './types';
 
 export * from './types';
 export { searchCatalog } from './search';
+export { searchAll } from './search-all';
 export {
   CATALOG, COLLECTIONS, CATALOG_REVIEWED, catalogEntry, collectionsFor, entriesIn, entriesOfKind,
 } from './catalog';
@@ -21,8 +23,16 @@ let cached: MarketDataSource | undefined;
  */
 export function marketData(): MarketDataSource {
   if (cached) return cached;
-  const key = process.env.FINNHUB_API_KEY?.trim();
-  cached = key ? new FinnhubSource(key) : new SampleSource();
+  // Twelve Data first: its free tier is the only one of the three that serves
+  // historical candles, and a section built around charts is not much use without
+  // them. Finnhub stays supported so an existing key keeps working.
+  const twelve = process.env.TWELVEDATA_API_KEY?.trim();
+  if (twelve) {
+    cached = new TwelveDataSource(twelve);
+    return cached;
+  }
+  const finnhub = process.env.FINNHUB_API_KEY?.trim();
+  cached = finnhub ? new FinnhubSource(finnhub) : new SampleSource();
   return cached;
 }
 

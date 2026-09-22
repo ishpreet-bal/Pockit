@@ -208,9 +208,16 @@ plus an asset page for anything in it and a comparison view.
 | `types.ts` | The contract. Every figure carries source, timestamp and a `simulated` flag |
 | `catalog.ts` | Instrument REFERENCE data — names, sectors, what a fund tracks. Never prices |
 | `search.ts` | Case-, punctuation- and typo-insensitive matching. "nv" finds NVIDIA, "s&p" finds VOO |
-| `finnhub.ts` | The real source, on its free tier |
+| `twelvedata.ts` | The default real source. Free tier covers quotes, intraday and daily history, and a symbol universe of tens of thousands |
+| `finnhub.ts` | Still supported for an existing key. Its free plan has no historical candles, so charts read as unavailable |
+| `search-all.ts` | Merges the curated catalogue with the provider's universe — editorial answers first, everything else behind them |
 | `sample.ts` | Development data, clearly marked, for building against before a key exists |
 | `analysis.ts` | Model-written notes, grounded in a fact sheet and nothing else |
+
+`TWELVEDATA_API_KEY` is checked first and is the one to set. Settings → **Market data**
+runs a real call against the provider and reports what came back, because a wrong key
+and no key look identical on the investing screens — blank prices and an unavailable
+chart either way.
 
 Three rules keep the sample source honest: every value it returns is flagged
 `simulated` and the UI says so; it answers only for symbols in the catalogue, so a

@@ -132,4 +132,13 @@ export interface MarketDataSource {
   profile(symbol: string): Promise<AssetProfile | null>;
   fundamentals(symbol: string): Promise<Fundamentals | null>;
   news(symbol: string, limit?: number): Promise<NewsItem[]>;
+
+  /**
+   * Search the provider's whole instrument universe.
+   *
+   * Optional, because not every provider offers one and a source without it should
+   * degrade to the local catalogue rather than fail to compile. Callers go through
+   * `searchAll`, which merges this with the curated list.
+   */
+  search?(query: string, limit?: number): Promise<SearchResult[]>;
 }

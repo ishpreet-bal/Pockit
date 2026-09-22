@@ -23,8 +23,8 @@ export async function GET(request: Request) {
   const query = new URL(request.url).searchParams.get('q')?.trim() ?? '';
   if (query === '') return NextResponse.json({ results: [] });
 
-  const { searchCatalog } = await import('@/lib/market');
-  return NextResponse.json({ results: searchCatalog(query) });
+  const { searchAll } = await import('@/lib/market');
+  return NextResponse.json({ results: await searchAll(query) });
 }
 
 export async function POST(request: Request) {
