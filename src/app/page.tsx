@@ -13,5 +13,8 @@ export default async function RootPage() {
     // explains it instead of letting the boundary render a generic apology.
     redirect('/setup');
   }
-  redirect(user ? '/overview' : '/sign-in');
+  // A signed-out visitor meets the welcome screen, not the sign-in form. Landing
+  // straight on a password field asks someone to prove who they are before anything
+  // has said what this is.
+  redirect(user ? '/overview' : '/welcome');
 }

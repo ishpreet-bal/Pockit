@@ -22,6 +22,12 @@ export interface GoalInput {
   targetDate: IsoDate | null;
   priority: number;
   monthlyContributionMinor: bigint | null;
+  /**
+   * What sort of goal this is. Optional here because the arithmetic in this module
+   * does not depend on it — but the ANALYSIS does, and leaving it out of the type
+   * is how it stayed unread for so long.
+   */
+  kind?: string | null;
 }
 
 export interface GoalMath {
@@ -204,6 +210,19 @@ export interface GoalFeasibility {
   /** Concrete adjustments drawn from the user's own discretionary spending. */
   adjustments: GoalAdjustment[];
   adjustedAvailableMinor: bigint;
+  /**
+   * Do those adjustments actually close the gap?
+   *
+   * They frequently do NOT, and that case used to be invisible: the list was
+   * headed "one way to close the gap" whether it closed it or not. When the
+   * shortfall exceeds everything that can be cut, the loop simply cuts every
+   * discretionary category to its cap — which produces the SAME list for every
+   * goal, and the same list every month. Three goals showed identical advice for
+   * exactly this reason.
+   */
+  adjustmentsCoverGap: boolean;
+  /** What is still missing after every suggested cut. Zero when the cuts suffice. */
+  stillShortMinor: bigint;
   /** If not feasible at the target date, the date it IS achievable at current capacity. */
   achievableDate: IsoDate | null;
 }
@@ -273,6 +292,8 @@ export function assessFeasibility(
       ? projectCompletion(math.remainingMinor, available, today)?.date ?? null
       : null;
 
+  const stillShort = shortfall > 0n && recovered < shortfall ? shortfall - recovered : 0n;
+
   return {
     feasible,
     requiredMonthlyMinor: required,
@@ -282,6 +303,8 @@ export function assessFeasibility(
     explanation: buildExplanation(feasible, shortfall, basis, required, available),
     adjustments,
     adjustedAvailableMinor: available + recovered,
+    adjustmentsCoverGap: shortfall <= 0n || recovered >= shortfall,
+    stillShortMinor: stillShort,
     achievableDate,
   };
 }

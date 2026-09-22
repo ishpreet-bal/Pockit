@@ -1,10 +1,9 @@
 'use client';
 
-import { useActionState } from 'react';
+import { useActionState, useState } from 'react';
 import { useFormStatus } from 'react-dom';
 import Link from 'next/link';
-import { Card, CardBody, Field, Input, Select, Button } from '@/components/ui/primitives';
-import { SUPPORTED_CURRENCIES } from '@/lib/money';
+import { Card, CardBody, Field, Input, Button } from '@/components/ui/primitives';
 import type { AuthFormState } from '@/lib/auth/actions';
 
 function SubmitButton({ label }: { label: string }) {
@@ -28,6 +27,17 @@ export function AuthForm({
   const [state, formAction] = useActionState(action, {} as AuthFormState);
   const isSignUp = mode === 'sign-up';
 
+  /**
+   * Sign-up asks for a name first, on its own screen.
+   *
+   * Not decoration: the second screen can then greet them by name, which is the
+   * difference between a form and a conversation. It also means the first thing
+   * anyone is asked for is the easiest possible question, rather than a password
+   * policy.
+   */
+  const [firstName, setFirstName] = useState('');
+  const [namePassed, setNamePassed] = useState(false);
+
   // The password was accepted and a code is now required. Rendered as its own step
   // rather than a field that appears beneath the password, because leaving the
   // password on screen invites people to change it and try again, which cannot work.
@@ -35,20 +45,32 @@ export function AuthForm({
     return <SecondFactorStep action={secondFactorAction} />;
   }
 
+  if (isSignUp && !namePassed) {
+    return (
+      <NameStep
+        value={firstName}
+        onChange={setFirstName}
+        onContinue={() => setNamePassed(true)}
+      />
+    );
+  }
+
   return (
     <Card>
       <CardBody className="pt-5">
-        <h1 className="text-lg font-semibold">{isSignUp ? 'Create your account' : 'Welcome back'}</h1>
+        <h1 className="text-lg font-semibold">
+          {isSignUp
+            ? firstName.trim()
+              ? `Nice to meet you, ${firstName.trim()}.`
+              : 'Create your account'
+            : 'Welcome back'}
+        </h1>
         <p className="mt-1 text-sm text-[var(--text-muted)]">
-          {isSignUp ? 'Your financial data stays private to your account.' : 'Sign in to continue.'}
+          {isSignUp ? "Let's get your account set up." : 'Sign in to continue.'}
         </p>
 
         <form action={formAction} className="mt-5 flex flex-col gap-3.5">
-          {isSignUp ? (
-            <Field label="Name" htmlFor="displayName" hint="Optional.">
-              <Input id="displayName" name="displayName" autoComplete="name" placeholder="Your name" />
-            </Field>
-          ) : null}
+          {isSignUp ? <input type="hidden" name="displayName" value={firstName.trim()} /> : null}
 
           <Field label="Email" htmlFor="email" error={state.fieldErrors?.email}>
             <Input id="email" name="email" type="email" required autoComplete="email" placeholder="you@example.com" />
@@ -69,20 +91,11 @@ export function AuthForm({
 
           {isSignUp ? (
             <>
-              <Field label="What will you track?" htmlFor="useCase">
-                <Select id="useCase" name="useCase" defaultValue="personal">
-                  <option value="personal">Personal finances</option>
-                  <option value="business">Business finances</option>
-                  <option value="both">Both — separate workspaces</option>
-                </Select>
-              </Field>
-              <Field label="Base currency" htmlFor="baseCurrency" hint="Original currencies are always preserved on each transaction.">
-                <Select id="baseCurrency" name="baseCurrency" defaultValue="CAD">
-                  {SUPPORTED_CURRENCIES.map((c) => (
-                    <option key={c.code} value={c.code}>{c.code} — {c.name}</option>
-                  ))}
-                </Select>
-              </Field>
+              {/* What they track and which currency used to sit here, turning the
+                  account form into a five-field wall. Both are asked later, in the
+                  financial setup, where they have context. */}
+              <input type="hidden" name="useCase" value="personal" />
+              <input type="hidden" name="baseCurrency" value="CAD" />
               <input type="hidden" name="timezone" value="America/Toronto" />
             </>
           ) : null}
@@ -100,6 +113,16 @@ export function AuthForm({
 
           <SubmitButton label={isSignUp ? 'Create account' : 'Sign in'} />
         </form>
+
+        {isSignUp ? (
+          <button
+            type="button"
+            onClick={() => setNamePassed(false)}
+            className="mt-3 w-full text-center text-sm text-[var(--text-subtle)] hover:text-[var(--text)]"
+          >
+            ← Back
+          </button>
+        ) : null}
 
         <p className="mt-4 text-center text-sm text-[var(--text-muted)]">
           {isSignUp ? (
@@ -163,6 +186,51 @@ function SecondFactorStep({
           <Link href="/sign-in" className="font-medium text-[var(--accent)] hover:underline">
             Start over
           </Link>
+        </p>
+      </CardBody>
+    </Card>
+  );
+}
+
+
+/**
+ * "First things first — what should we call you?"
+ *
+ * One question, one input, one button. It is skippable by simply continuing with
+ * it blank: a name is a courtesy, not a credential, and blocking on it would make
+ * the very first screen of the product a validation error.
+ */
+function NameStep({
+  value, onChange, onContinue,
+}: { value: string; onChange: (v: string) => void; onContinue: () => void }) {
+  return (
+    <Card>
+      <CardBody className="pt-5">
+        <h1 className="text-lg font-semibold">First things first — what should we call you?</h1>
+        <p className="mt-1 text-sm text-[var(--text-muted)]">Just a first name is fine.</p>
+
+        <form
+          className="mt-5 flex flex-col gap-3.5"
+          onSubmit={(e) => { e.preventDefault(); onContinue(); }}
+        >
+          <Field label="First name" htmlFor="firstName">
+            <Input
+              id="firstName"
+              value={value}
+              autoFocus
+              autoComplete="given-name"
+              maxLength={60}
+              placeholder="Ishpreet"
+              onChange={(e) => onChange(e.target.value)}
+            />
+          </Field>
+
+          <Button type="submit" variant="primary" className="w-full">Continue</Button>
+        </form>
+
+        <p className="mt-4 text-center text-sm text-[var(--text-muted)]">
+          Already have an account?{' '}
+          <Link href="/sign-in" className="font-medium text-[var(--accent)] hover:underline">Sign in</Link>
         </p>
       </CardBody>
     </Card>

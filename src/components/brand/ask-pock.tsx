@@ -9,11 +9,16 @@ import { cn } from '@/lib/ui/cn';
 interface Thread { id: string; title: string; symbol: string | null; updatedAt: string }
 interface Message { id?: string; role: string; body: string }
 
+/**
+ * Openers, chosen to show both halves of what Pock can do: how the app works, and
+ * what the person's own numbers say. A list of purely financial questions would
+ * hide the half people actually get stuck on.
+ */
 const STARTERS = [
-  'What actually is an ETF?',
-  'Should I pay off debt before investing?',
-  'What does an expense ratio cost me?',
-  'How much risk am I taking?',
+  'How do I create a budget?',
+  'Why is my available monthly negative?',
+  'Where did I spend the most this month?',
+  'Where do I add recurring bills?',
 ];
 
 /**
@@ -27,12 +32,26 @@ const STARTERS = [
  * `symbol` comes from the page it was opened on, so "is this expensive?" has a
  * subject without the person having to name it.
  */
-export function AskPock({ symbol, onClose }: { symbol?: string; onClose?: () => void }) {
+export interface PockAnchor {
+  kind: 'goal' | 'symbol' | 'budget' | 'spending';
+  id?: string;
+  label?: string;
+}
+
+export function AskPock({
+  symbol, anchor, initialPrompt, onClose,
+}: {
+  symbol?: string;
+  /** What the person was looking at when they asked. Sent with every turn. */
+  anchor?: PockAnchor | null;
+  initialPrompt?: string;
+  onClose?: () => void;
+}) {
   const [view, setView] = useState<'chat' | 'history'>('chat');
   const [threads, setThreads] = useState<Thread[]>([]);
   const [threadId, setThreadId] = useState<string | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
-  const [draft, setDraft] = useState('');
+  const [draft, setDraft] = useState(initialPrompt ?? '');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const bottom = useRef<HTMLDivElement>(null);
@@ -79,7 +98,12 @@ export function AskPock({ symbol, onClose }: { symbol?: string; onClose?: () => 
       const response = await fetch('/api/pock', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ question: text, threadId: threadId ?? undefined, symbol }),
+        body: JSON.stringify({
+          question: text,
+          threadId: threadId ?? undefined,
+          symbol,
+          anchor: anchor ?? undefined,
+        }),
       });
       const json = (await response.json().catch(() => null)) as
         { answer?: string; threadId?: string; error?: string } | null;
@@ -155,8 +179,9 @@ export function AskPock({ symbol, onClose }: { symbol?: string; onClose?: () => 
         {messages.length === 0 ? (
           <>
             <p className="text-sm text-[var(--text-muted)]">
-              Confused by something? Ask. Pock answers using your own position and prices fetched
-              now — and will tell you when it does not know rather than guessing.
+              {anchor?.label
+                ? `Ask anything about ${anchor.label}. Pock already knows which one you mean.`
+                : 'Confused by something? Ask. Pock knows how Pockit works and can see your own numbers — and will say when it does not know rather than guessing.'}
             </p>
             <ul className="space-y-1.5">
               {STARTERS.map((s) => (
@@ -216,7 +241,11 @@ export function AskPock({ symbol, onClose }: { symbol?: string; onClose?: () => 
             }}
             rows={1}
             maxLength={2000}
-            placeholder={symbol ? `Ask about ${symbol}…` : 'Ask anything about investing…'}
+            placeholder={
+              anchor?.label ? `Ask about ${anchor.label}…`
+                : symbol ? `Ask about ${symbol}…`
+                : 'Ask anything…'
+            }
             className="max-h-28 min-h-[38px] w-full min-w-0 resize-y rounded-[var(--radius-control)] border border-[var(--border-strong)] bg-[var(--surface)] px-3 py-2 text-sm focus:border-[var(--accent)] focus:outline-none"
           />
           <Button

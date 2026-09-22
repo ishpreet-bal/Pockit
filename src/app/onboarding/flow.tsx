@@ -1,397 +1,728 @@
 'use client';
 
-import { useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Card, CardBody, Field, Input, Select, Button } from '@/components/ui/primitives';
+import { ArrowLeft, Check, Plus, Trash2 } from 'lucide-react';
+import { Button, Card, CardBody, Field, Input, Select } from '@/components/ui/primitives';
 import { StepTransition } from '@/components/ui/motion';
-import { Mascot, type Mood } from '@/components/brand/mascot';
-import { BUDGET_INTENTS, type BudgetIntent } from '@/lib/finance/budget-plan';
+import { Mascot } from '@/components/brand/mascot';
+import {
+  CADENCES, CADENCE_LABELS, GOAL_CHOICES, buildPicture, toMonthlyMinor,
+  type Answers, type Cadence,
+} from '@/lib/onboarding/state';
+import { formatMoney } from '@/lib/money';
 import { cn } from '@/lib/ui/cn';
 
 /**
- * Onboarding is short and every step is skippable (spec §39): nothing blocks reaching
- * the dashboard. Progress is only used to prefill, never to gate.
+ * Financial setup, one idea per screen.
  *
- * What makes it feel personal is not the number of questions — it is that the answers
- * visibly change what happens next. The goal chosen on the first screen renames the
- * goal step, seeds it, and decides which single next step is recommended at the end.
- * Asking and then ignoring the answer is worse than not asking.
+ * Three things make this a conversation rather than a form:
+ *
+ *  - One question is on screen at a time, and every one of them can be skipped.
+ *    Skip is a visible button, not a hidden escape hatch, because the moment
+ *    someone feels trapped they close the tab instead of finishing.
+ *  - Every screen saves to the server before moving on. Closing the browser at
+ *    question four and coming back tomorrow resumes at question four with the first
+ *    three intact. Frontend state alone cannot do that.
+ *  - The answers visibly become something. The last screen is their own numbers,
+ *    not "setup complete".
  */
-const ACCOUNT_TYPES = [
-  { value: 'chequing', label: 'Chequing' },
-  { value: 'savings', label: 'Savings' },
-  { value: 'credit_card', label: 'Credit card' },
-  { value: 'cash', label: 'Cash' },
-  { value: 'investment', label: 'Investment' },
+
+type StepId = 'intro' | 'income' | 'source' | 'recurring' | 'spending' | 'savings' | 'goals' | 'summary';
+
+const STEPS: StepId[] = ['intro', 'income', 'source', 'recurring', 'spending', 'savings', 'goals', 'summary'];
+/** The intro and the summary are not questions, so they are not counted in the progress. */
+const QUESTION_STEPS: StepId[] = STEPS.filter((s) => s !== 'intro' && s !== 'summary');
+
+const SPEND_CATEGORIES = [
+  'Housing', 'Food', 'Transportation', 'Insurance',
+  'Subscriptions', 'Debt', 'Entertainment', 'Other',
 ];
 
-interface AccountDraft { name: string; type: string; balance: string }
-
-/**
- * The goal step, worded for what they actually said they were here for.
- *
- * "What are you saving for?" is the wrong question for someone whose answer was
- * "pay down debt" — they are not saving, and being asked as if they were is how an
- * onboarding flow proves it was not listening.
- */
-function goalPrompt(intent: BudgetIntent | null): { title: string; body: string; pockLine: string } {
-  switch (intent) {
-    case 'pay_down_debt':
-      return {
-        title: 'What are you trying to clear?',
-        body: 'Set the total you owe as the target. Pockit tracks it downward and shows what each month takes off it.',
-        pockLine: 'Set the balance you want gone as the target — watching it fall is the whole point.',
-      };
-    case 'emergency_fund':
-      return {
-        title: 'How big should your safety net be?',
-        body: 'Three months of expenses is the usual first target. Pockit works out the monthly amount and whether your cash flow supports it.',
-        pockLine: 'Three months of expenses is a good first number if you are not sure.',
-      };
-    case 'big_purchase':
-      return {
-        title: 'What are you saving for?',
-        body: 'Name it and give it a date. Pockit turns that into a monthly amount and tells you if it is realistic.',
-        pockLine: 'Name the actual thing. It makes a surprising difference to whether it happens.',
-      };
-    case 'invest_more':
-      return {
-        title: 'What are you investing towards?',
-        body: 'Optional, but a target and a date let Pockit check the monthly amount against what you actually have spare.',
-        pockLine: 'Even for investing, a number and a date beat "as much as I can".',
-      };
-    case 'save_more':
-      return {
-        title: 'What is the saving for?',
-        body: 'Optional. A named target is markedly easier to keep to than a vague intention to save more.',
-        pockLine: 'Saving with a name attached tends to survive a bad month. Saving in general does not.',
-      };
-    default:
-      return {
-        title: 'Anything you are working towards?',
-        body: 'Optional. Pockit will work out what to put aside each month and whether your cash flow supports it.',
-        pockLine: 'Skip this if nothing springs to mind — you can add one any time.',
-      };
-  }
-}
-
-/**
- * The single next action, chosen from their answer.
- *
- * One recommendation, not a menu. A fresh account with no data cannot use five
- * suggestions, and offering them is how people end up doing none.
- */
-function nextStepFor(intent: BudgetIntent | null): { title: string; why: string; cta: string; href: string } {
-  switch (intent) {
-    case 'pay_down_debt':
-      return {
-        title: 'Add what you owe',
-        why: 'With balances and rates in, Pockit can compare payoff strategies and tell you what each one costs in interest and time.',
-        cta: 'Add my debts',
-        href: '/debts',
-      };
-    case 'control_spending':
-      return {
-        title: 'Bring in a bank statement',
-        why: 'You said you want to see where it goes. One CSV or PDF gives you months of that immediately, instead of waiting for it to accumulate.',
-        cta: 'Import a statement',
-        href: '/imports/new',
-      };
-    case 'emergency_fund':
-    case 'save_more':
-    case 'big_purchase':
-    case 'invest_more':
-      return {
-        title: 'Add the bills you already know about',
-        why: 'Saving only means something once the bills are accounted for. With them in, Pockit can tell you what is genuinely spare.',
-        cta: 'Add my bills',
-        href: '/recurring',
-      };
-    default:
-      return {
-        title: 'Add the bills you already know about',
-        why: 'Rent, phone, subscriptions. It takes a minute and immediately makes the dashboard honest.',
-        cta: 'Add my bills',
-        href: '/recurring',
-      };
-  }
-}
-
 export function OnboardingFlow({
-  displayName, baseCurrency, workspaceName,
-}: { displayName: string | null; baseCurrency: string; workspaceName: string }) {
+  displayName, baseCurrency, initialStage, initialAnswers,
+}: {
+  displayName: string | null;
+  baseCurrency: string;
+  initialStage: string;
+  initialAnswers: Answers;
+}) {
   const router = useRouter();
-  const [step, setStep] = useState(0);
-  const [saving, setSaving] = useState(false);
+
+  // Someone returning mid-flow lands on the first question they have not answered,
+  // rather than at the beginning being asked things they already told us.
+  const [step, setStep] = useState<StepId>(() => resumeAt(initialStage, initialAnswers));
+  /** Which way the last move went, so the transition slides the way the flow reads. */
+  const [direction, setDirection] = useState<1 | -1>(1);
+  const [answers, setAnswers] = useState<Answers>(initialAnswers);
+  const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const heading = useRef<HTMLHeadingElement>(null);
 
-  const [incomeSchedule, setIncomeSchedule] = useState('biweekly');
-  const [incomeAmount, setIncomeAmount] = useState('');
-  const [accounts, setAccounts] = useState<AccountDraft[]>([
-    { name: 'Chequing', type: 'chequing', balance: '' },
-  ]);
-  const [goalName, setGoalName] = useState('Emergency fund');
-  const [goalTarget, setGoalTarget] = useState('');
-  const [goalDate, setGoalDate] = useState('');
-  const [intent, setIntent] = useState<BudgetIntent | null>(null);
-  const [goalEdited, setGoalEdited] = useState(false);
-  const [experience, setExperience] = useState<'simple' | 'detailed'>('simple');
+  // Focus moves to the new question each time. Without this a keyboard or screen
+  // reader user stays where the last button was and never hears the new question.
+  useEffect(() => { heading.current?.focus(); }, [step]);
 
-  /**
-   * Seeds the goal name from the chosen intent, unless the person has already typed
-   * their own. Overwriting what someone typed because they went back a step is the
-   * kind of small betrayal that makes a form feel hostile.
-   */
-  function seedGoalFor(picked: BudgetIntent) {
-    if (goalEdited) return;
-    const seed = picked === 'pay_down_debt' ? 'Clear my debt'
-      : picked === 'emergency_fund' ? 'Emergency fund'
-      : picked === 'big_purchase' ? ''
-      : picked === 'invest_more' ? 'Investments'
-      : 'Savings';
-    setGoalName(seed);
+  const save = useCallback(async (patch: Partial<Answers>, stage?: string) => {
+    setError(null);
+    const next = { ...answers, ...patch };
+    setAnswers(next);
+    try {
+      const response = await fetch('/api/onboarding/state', {
+        method: 'PATCH',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ answers: patch, ...(stage ? { stage } : {}) }),
+      });
+      if (!response.ok) setError('That did not save. Your answers so far are still here — try again.');
+    } catch {
+      setError('Could not reach the server. Your answers so far are still here.');
+    }
+  }, [answers]);
+
+  function go(to: StepId, dir: 1 | -1) { setDirection(dir); setStep(to); }
+  function next() { go(STEPS[Math.min(STEPS.indexOf(step) + 1, STEPS.length - 1)]!, 1); }
+  function back() { go(STEPS[Math.max(STEPS.indexOf(step) - 1, 0)]!, -1); }
+
+  async function skip(name: string) {
+    await save({ skipped: [...(answers.skipped ?? []), name] });
+    next();
   }
 
-  async function finish(withDemo: boolean, destination = '/overview') {
-    setSaving(true);
+  async function finish() {
+    setBusy(true);
     setError(null);
     try {
-      const res = await fetch('/api/onboarding', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({
-          incomeSchedule,
-          incomeAmount: incomeAmount || null,
-          accounts: accounts.filter((a) => a.name.trim()),
-          goal: goalTarget ? { name: goalName, target: goalTarget, targetDate: goalDate || null } : null,
-          loadDemo: withDemo,
-          primaryIntent: intent,
-          experienceLevel: experience,
-        }),
-      });
-      if (!res.ok) {
-        const body = (await res.json().catch(() => null)) as { error?: string } | null;
-        throw new Error(body?.error ?? 'Could not save your setup.');
+      const response = await fetch('/api/onboarding/apply', { method: 'POST' });
+      if (!response.ok) {
+        setError('Setting things up did not finish. Nothing was lost — try again.');
+        return;
       }
-      router.push(destination);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Something went wrong.');
-      setSaving(false);
+      router.push('/overview?tour=offer');
+      router.refresh();
+    } catch {
+      setError('Could not reach the server.');
+    } finally {
+      setBusy(false);
     }
   }
 
-  const steps = ['About you', 'Income', 'Accounts', 'A goal', 'Ready'];
-
-  const firstName = displayName?.split(' ')[0] ?? null;
-
-  /** What Pock says on each step, and how it looks while saying it. */
-  const NARRATION: { mood: Mood; line: string }[] = [
-    {
-      mood: 'happy',
-      line: firstName
-        ? `Hi ${firstName} — I'm Pock. Tell me what you're here for and I'll set the rest up around it.`
-        : "I'm Pock. Tell me what you're here for and I'll set the rest up around it.",
-    },
-    { mood: 'thinking', line: 'Knowing roughly what comes in is what lets me tell you what is safe to spend.' },
-    { mood: 'thinking', line: 'Rough balances are fine. Every transaction you add from here adjusts them.' },
-    { mood: 'happy', line: goalPrompt(intent).pockLine },
-    { mood: 'celebrating', line: 'That is everything I need. You can change any of it later.' },
-  ];
+  const questionIndex = QUESTION_STEPS.indexOf(step);
+  const picture = buildPicture(answers);
+  const money = (minor: number) => formatMoney(BigInt(Math.round(minor)), baseCurrency);
 
   return (
-    <Card>
-      <CardBody className="pt-5">
-        <div className="mb-5 flex items-center gap-1.5" aria-label={`Step ${step + 1} of ${steps.length}`}>
-          {steps.map((s, i) => (
-            <div key={s} className="flex-1">
-              <div className={`h-1 rounded-full ${i <= step ? 'bg-[var(--accent)]' : 'bg-[var(--surface-3)]'}`} />
-              <p className={`mt-1 text-2xs ${i === step ? 'font-medium text-[var(--text)]' : 'text-[var(--text-subtle)]'}`}>{s}</p>
-            </div>
-          ))}
-        </div>
+    <div>
+      {questionIndex >= 0 ? (
+        <Progress current={questionIndex + 1} total={QUESTION_STEPS.length} onBack={back} />
+      ) : null}
 
-        <div className="mb-5 flex items-start gap-3 rounded-[var(--radius-card)] bg-[var(--surface-2)] p-3">
-          <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-[var(--accent-fill)] text-[var(--accent-fill-fg)]">
-            <Mascot mood={NARRATION[step]?.mood ?? 'idle'} className="h-7 w-7" />
-          </span>
-          <p className="pt-1 text-sm leading-relaxed text-[var(--text-muted)]">{NARRATION[step]?.line}</p>
-        </div>
-
-        <StepTransition stepKey={step} direction={1}>
-        {step === 0 ? (
-          <div className="flex flex-col gap-4">
-            <h1 className="text-lg font-semibold">What brings you here?</h1>
-            <p className="text-sm text-[var(--text-muted)]">
-              This is the only answer that changes what Pockit does next, so it is worth a moment.
-            </p>
-            <div role="radiogroup" aria-label="What brings you here" className="space-y-1.5">
-              {BUDGET_INTENTS.filter((i) => i.id !== 'custom' && i.id !== 'balanced').map((option) => (
-                <button
-                  key={option.id}
-                  type="button"
-                  role="radio"
-                  aria-checked={intent === option.id}
-                  onClick={() => { setIntent(option.id); seedGoalFor(option.id); }}
-                  className={cn(
-                    'w-full rounded-[var(--radius-control)] border p-3 text-left transition-colors',
-                    intent === option.id
-                      ? 'border-[var(--accent)] bg-[var(--accent-soft)]'
-                      : 'border-[var(--border)] hover:bg-[var(--surface-2)]',
-                  )}
-                >
-                  <span className="block text-sm font-medium">{option.label}</span>
-                  <span className="mt-0.5 block text-xs text-[var(--text-muted)]">{option.blurb}</span>
-                </button>
-              ))}
-            </div>
-
-            <div>
-              <p className="text-sm font-medium">How much detail do you want?</p>
-              <div role="radiogroup" aria-label="Level of detail" className="mt-2 grid grid-cols-2 gap-2">
-                {([
-                  ['simple', 'Keep it simple', 'The essentials, nothing more.'],
-                  ['detailed', 'Show me everything', 'Forecasts, analytics, the lot.'],
-                ] as const).map(([value, label, blurb]) => (
-                  <button
-                    key={value}
-                    type="button"
-                    role="radio"
-                    aria-checked={experience === value}
-                    onClick={() => setExperience(value)}
-                    className={cn(
-                      'rounded-[var(--radius-control)] border p-3 text-left transition-colors',
-                      experience === value
-                        ? 'border-[var(--accent)] bg-[var(--accent-soft)]'
-                        : 'border-[var(--border)] hover:bg-[var(--surface-2)]',
-                    )}
+      <StepTransition stepKey={step} direction={direction}>
+        <Card>
+          <CardBody className="pt-5">
+            {step === 'intro' ? (
+              <Step
+                heading={heading}
+                title="Let's make Pockit yours."
+                body="We'll ask a few quick questions so your dashboard, budgets and goals have somewhere useful to start. It takes about two minutes, and you can skip anything."
+                mascot
+              >
+                <div className="mt-5 flex flex-col gap-2">
+                  <Button
+                    variant="primary"
+                    className="w-full"
+                    onClick={() => { void save({}, 'financial_setup_started'); next(); }}
                   >
-                    <span className="block text-sm font-medium">{label}</span>
-                    <span className="mt-0.5 block text-xs text-[var(--text-muted)]">{blurb}</span>
-                  </button>
-                ))}
-              </div>
-            </div>
-          </div>
-        ) : null}
+                    Continue
+                  </Button>
+                  <Button variant="ghost" className="w-full" onClick={() => void finish()}>
+                    Skip for now
+                  </Button>
+                </div>
+              </Step>
+            ) : null}
 
-        {step === 1 ? (
-          <div className="flex flex-col gap-3.5">
-            <h1 className="text-lg font-semibold">How does money come in?</h1>
-            <p className="text-sm text-[var(--text-muted)]">
-              An estimate is fine — it only seeds the first dashboard, and real transactions correct it.
-            </p>
-            <Field label="How often are you paid?" htmlFor="schedule">
-              <Select id="schedule" value={incomeSchedule} onChange={(e) => setIncomeSchedule(e.target.value)}>
-                <option value="weekly">Weekly</option>
-                <option value="biweekly">Every 2 weeks</option>
-                <option value="semimonthly">Twice a month</option>
-                <option value="monthly">Monthly</option>
-                <option value="irregular">Irregular</option>
-              </Select>
-            </Field>
-            <Field label="Roughly how much per paycheque?" htmlFor="income" hint={`In ${baseCurrency}. An estimate is fine.`}>
-              <Input id="income" inputMode="decimal" value={incomeAmount} onChange={(e) => setIncomeAmount(e.target.value)} placeholder="2,400" />
-            </Field>
-          </div>
-        ) : null}
-
-        {step === 2 ? (
-          <div className="flex flex-col gap-3.5">
-            <h1 className="text-lg font-semibold">Your accounts</h1>
-            <p className="text-sm text-[var(--text-muted)]">
-              Balances are a starting point — every later transaction adjusts them. Credit cards are tracked as
-              what you owe, so paying one off is never counted as new spending.
-            </p>
-            {accounts.map((account, i) => (
-              <div key={i} className="grid grid-cols-[1fr_auto] gap-2 rounded-[var(--radius-control)] border border-[var(--border)] p-3">
-                <Input
-                  aria-label={`Account ${i + 1} name`} value={account.name}
-                  onChange={(e) => setAccounts((prev) => prev.map((a, j) => (j === i ? { ...a, name: e.target.value } : a)))}
-                  placeholder="Account name"
-                />
-                <Select
-                  aria-label={`Account ${i + 1} type`} value={account.type} className="w-36"
-                  onChange={(e) => setAccounts((prev) => prev.map((a, j) => (j === i ? { ...a, type: e.target.value } : a)))}
-                >
-                  {ACCOUNT_TYPES.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
-                </Select>
-                <Input
-                  aria-label={`Account ${i + 1} balance`} inputMode="decimal" value={account.balance} className="col-span-2"
-                  onChange={(e) => setAccounts((prev) => prev.map((a, j) => (j === i ? { ...a, balance: e.target.value } : a)))}
-                  placeholder={account.type === 'credit_card' ? 'Amount owed (e.g. 850.00)' : 'Current balance (e.g. 4,125.00)'}
-                />
-              </div>
-            ))}
-            <Button type="button" onClick={() => setAccounts((p) => [...p, { name: '', type: 'chequing', balance: '' }])}>
-              + Add another account
-            </Button>
-          </div>
-        ) : null}
-
-        {step === 3 ? (
-          <div className="flex flex-col gap-3.5">
-            <h1 className="text-lg font-semibold">{goalPrompt(intent).title}</h1>
-            <p className="text-sm text-[var(--text-muted)]">{goalPrompt(intent).body}</p>
-            <Field label="Goal" htmlFor="goalName">
-              <Input
-                id="goalName"
-                value={goalName}
-                onChange={(e) => { setGoalName(e.target.value); setGoalEdited(true); }}
-                placeholder={intent === 'big_purchase' ? 'A trip to Japan' : undefined}
+            {step === 'income' ? (
+              <IncomeStep
+                heading={heading}
+                currency={baseCurrency}
+                initial={{ amountMinor: answers.incomeMinor, cadence: answers.incomeCadence }}
+                onDone={async (amountMinor, cadence) => {
+                  await save({ incomeMinor: amountMinor, incomeCadence: cadence });
+                  next();
+                }}
+                onSkip={() => void skip('income')}
               />
-            </Field>
-            <Field label="Target amount" htmlFor="goalTarget">
-              <Input id="goalTarget" inputMode="decimal" value={goalTarget} onChange={(e) => setGoalTarget(e.target.value)} placeholder="15,000" />
-            </Field>
-            <Field label="Target date" htmlFor="goalDate" hint="Optional — without one we show progress but no monthly requirement.">
-              <Input id="goalDate" type="date" value={goalDate} onChange={(e) => setGoalDate(e.target.value)} />
-            </Field>
-          </div>
-        ) : null}
+            ) : null}
 
-        {step === 4 ? (
-          <div className="flex flex-col gap-3.5">
-            <h1 className="text-lg font-semibold">
-              {firstName ? `You're set up, ${firstName}` : 'You are set up'}
-            </h1>
-            <p className="text-sm text-[var(--text-muted)]">
-              {workspaceName} is ready. Based on what you told me, here is the one thing worth doing first —
-              everything else can wait.
-            </p>
-            <div className="rounded-[var(--radius-card)] bg-[var(--accent-soft)] p-3.5">
-              <p className="text-sm font-semibold">{nextStepFor(intent).title}</p>
-              <p className="mt-1 text-sm text-[var(--text-muted)]">{nextStepFor(intent).why}</p>
-            </div>
-            {error ? <p role="alert" className="rounded-[var(--radius-control)] bg-[var(--negative-soft)] px-3 py-2 text-sm text-[var(--negative)]">{error}</p> : null}
-            <Button variant="primary" onClick={() => void finish(false, nextStepFor(intent).href)} disabled={saving}>
-              {saving ? 'Setting up…' : nextStepFor(intent).cta}
-            </Button>
-            <Button onClick={() => void finish(false)} disabled={saving}>
-              Just take me to the dashboard
-            </Button>
-            <Button onClick={() => void finish(true)} disabled={saving}>
-              Load demo data first
-            </Button>
-          </div>
-        ) : null}
+            {step === 'source' ? (
+              <ChoiceStep
+                heading={heading}
+                title="Where does most of it come from?"
+                body="This helps Pockit expect the right rhythm. It changes nothing you cannot change later."
+                choices={[
+                  ['employment', 'A job'],
+                  ['self_employment', 'Self-employed'],
+                  ['business', 'A business I own'],
+                  ['multiple', 'A few different places'],
+                  ['other', 'Something else'],
+                ]}
+                selected={answers.incomeSource ?? null}
+                onPick={async (value) => {
+                  await save({ incomeSource: value as Answers['incomeSource'] });
+                  next();
+                }}
+                onSkip={() => void skip('source')}
+              />
+            ) : null}
 
-        </StepTransition>
+            {step === 'recurring' ? (
+              <RecurringStep
+                heading={heading}
+                currency={baseCurrency}
+                initial={answers.recurring ?? []}
+                onDone={async (list) => { await save({ recurring: list }); next(); }}
+                onSkip={() => void skip('recurring')}
+              />
+            ) : null}
 
-        {step < 4 ? (
-          <div className="mt-5 flex gap-2">
-            {step > 0 ? <Button className="flex-1" onClick={() => setStep((s) => s - 1)}>Back</Button> : null}
-            <Button variant="ghost" className="flex-1" onClick={() => setStep(4)}>Skip the rest</Button>
-            <Button
-              variant="primary"
-              className="flex-1"
-              disabled={step === 0 && intent === null}
-              onClick={() => setStep((s) => s + 1)}
-            >
-              Continue
-            </Button>
-          </div>
-        ) : null}
-      </CardBody>
-    </Card>
+            {step === 'spending' ? (
+              <SpendingStep
+                heading={heading}
+                currency={baseCurrency}
+                initial={answers.spendingByCategory ?? {}}
+                onDone={async (map) => { await save({ spendingByCategory: map }); next(); }}
+                onSkip={() => void skip('spending')}
+              />
+            ) : null}
+
+            {step === 'savings' ? (
+              <AmountStep
+                heading={heading}
+                title="Do you have money set aside?"
+                body="A rough number is fine. This becomes your savings balance — you can correct it any time."
+                currency={baseCurrency}
+                initialMinor={answers.savingsMinor}
+                onDone={async (minor) => { await save({ savingsMinor: minor }); next(); }}
+                onSkip={() => void skip('savings')}
+              />
+            ) : null}
+
+            {step === 'goals' ? (
+              <GoalsStep
+                heading={heading}
+                initial={answers.goals ?? []}
+                onDone={async (list) => {
+                  await save({ goals: list }, 'financial_setup_completed');
+                  next();
+                }}
+                onSkip={() => void skip('goals')}
+              />
+            ) : null}
+
+            {step === 'summary' ? (
+              <Step heading={heading} title="You're ready." body={summaryLine(picture.missing)} mascot>
+                <dl className="mt-5 space-y-2.5">
+                  <Row label="Monthly income" value={picture.monthlyIncomeMinor === null ? null : money(picture.monthlyIncomeMinor)} />
+                  <Row label="Recurring commitments" value={picture.monthlyCommitmentsMinor === null ? null : money(picture.monthlyCommitmentsMinor)} />
+                  <Row
+                    label="Flexible each month"
+                    value={picture.flexibleMinor === null ? null : money(picture.flexibleMinor)}
+                    emphasis
+                  />
+                  {picture.savingsMinor !== null ? <Row label="Set aside" value={money(picture.savingsMinor)} /> : null}
+                  <Row label="Goals" value={String(picture.goalCount)} />
+                </dl>
+
+                {picture.missing.length > 0 ? (
+                  <p className="mt-4 rounded-[var(--radius-control)] bg-[var(--surface-2)] px-3 py-2 text-xs text-[var(--text-muted)]">
+                    Add your {listWords(picture.missing)} later and these figures get sharper.
+                    Nothing here is guessed — anything you skipped is simply left out.
+                  </p>
+                ) : null}
+
+                <Button variant="primary" className="mt-5 w-full" disabled={busy} onClick={() => void finish()}>
+                  {busy ? 'Setting things up…' : "Let's see your Pockit"}
+                </Button>
+              </Step>
+            ) : null}
+
+            {error ? (
+              <p role="alert" className="mt-3 text-sm text-[var(--negative)]">{error}</p>
+            ) : null}
+          </CardBody>
+        </Card>
+      </StepTransition>
+
+      {displayName && step === 'intro' ? (
+        <p className="mt-4 text-center text-xs text-[var(--text-subtle)]">Signed in as {displayName}</p>
+      ) : null}
+    </div>
   );
+}
+
+/* ---------------- shared pieces ---------------- */
+
+function Progress({ current, total, onBack }: { current: number; total: number; onBack: () => void }) {
+  return (
+    <div className="mb-4 flex items-center gap-3">
+      <button
+        type="button"
+        onClick={onBack}
+        aria-label="Back to the previous question"
+        className="grid h-8 w-8 shrink-0 place-items-center rounded-[var(--radius-control)] text-[var(--text-subtle)] hover:bg-[var(--surface-2)] hover:text-[var(--text)]"
+      >
+        <ArrowLeft className="h-4 w-4" />
+      </button>
+      <div
+        className="flex flex-1 items-center gap-1.5"
+        role="progressbar"
+        aria-valuenow={current}
+        aria-valuemin={1}
+        aria-valuemax={total}
+        aria-label={`Question ${current} of ${total}`}
+      >
+        {Array.from({ length: total }, (_, i) => (
+          <span
+            key={i}
+            className={cn(
+              'h-1 flex-1 rounded-full transition-colors',
+              i < current ? 'bg-[var(--accent)]' : 'bg-[var(--surface-3)]',
+            )}
+          />
+        ))}
+      </div>
+      {/* Stated in words as well as bars: a row of dots is not information to a
+          screen reader, and "3 of 6" is what people actually want to know. */}
+      <span className="shrink-0 text-xs tabular text-[var(--text-subtle)]">{current} of {total}</span>
+    </div>
+  );
+}
+
+function Step({
+  heading, title, body, mascot, children,
+}: {
+  heading: React.RefObject<HTMLHeadingElement | null>;
+  title: string;
+  body?: string;
+  mascot?: boolean;
+  children: React.ReactNode;
+}) {
+  return (
+    <div>
+      {mascot ? <Mascot mood="idle" className="mb-3 h-12 w-12 text-[var(--accent)]" /> : null}
+      <h1 ref={heading} tabIndex={-1} className="text-xl font-semibold leading-snug outline-none">
+        {title}
+      </h1>
+      {body ? <p className="mt-1.5 text-sm leading-relaxed text-[var(--text-muted)]">{body}</p> : null}
+      {children}
+    </div>
+  );
+}
+
+function SkipButton({ onSkip, label = 'Skip for now' }: { onSkip: () => void; label?: string }) {
+  return (
+    <Button variant="ghost" className="w-full" onClick={onSkip}>{label}</Button>
+  );
+}
+
+function Row({ label, value, emphasis }: { label: string; value: string | null; emphasis?: boolean }) {
+  return (
+    <div className="flex items-baseline justify-between gap-3 border-b border-[var(--border)] pb-2 last:border-0">
+      <dt className="text-sm text-[var(--text-muted)]">{label}</dt>
+      <dd className={cn('tabular', emphasis ? 'text-lg font-semibold' : 'text-sm')}>
+        {/* Not "$0". A figure nobody gave us is unknown, and saying zero would be
+            the app's first lie about their life. */}
+        {value ?? <span className="text-sm font-normal text-[var(--text-subtle)]">Not set yet</span>}
+      </dd>
+    </div>
+  );
+}
+
+/* ---------------- the questions ---------------- */
+
+function IncomeStep({
+  heading, currency, initial, onDone, onSkip,
+}: {
+  heading: React.RefObject<HTMLHeadingElement | null>;
+  currency: string;
+  initial: { amountMinor?: number; cadence?: Cadence };
+  onDone: (amountMinor: number, cadence: Cadence) => void;
+  onSkip: () => void;
+}) {
+  const [amount, setAmount] = useState(initial.amountMinor ? (initial.amountMinor / 100).toString() : '');
+  const [cadence, setCadence] = useState<Cadence>(initial.cadence ?? 'biweekly');
+  const minor = Math.round((Number(amount.replace(/[^0-9.]/g, '')) || 0) * 100);
+  const monthly = minor > 0 ? toMonthlyMinor(minor, cadence) : 0;
+
+  return (
+    <Step heading={heading} title="How much money do you usually bring in?" body="Before tax or after — whichever you know. You can change it later.">
+      <form
+        className="mt-5 space-y-3.5"
+        onSubmit={(e) => { e.preventDefault(); if (minor > 0) onDone(minor, cadence); }}
+      >
+        <Field label="Amount" htmlFor="income-amount">
+          <Input
+            id="income-amount"
+            value={amount}
+            autoFocus
+            // The numeric keyboard on a phone, and a decimal point on it. Without
+            // `inputMode` people get the full QWERTY keyboard for a number.
+            inputMode="decimal"
+            placeholder="0.00"
+            className="h-12 text-lg"
+            onChange={(e) => setAmount(e.target.value)}
+          />
+        </Field>
+
+        <Field label="How often?" htmlFor="income-cadence">
+          <Select id="income-cadence" value={cadence} onChange={(e) => setCadence(e.target.value as Cadence)}>
+            {CADENCES.map((c) => <option key={c} value={c}>{CADENCE_LABELS[c]}</option>)}
+          </Select>
+        </Field>
+
+        {monthly > 0 ? (
+          // The arithmetic nobody should have to do themselves, shown as it is done.
+          <p aria-live="polite" className="rounded-[var(--radius-control)] bg-[var(--surface-2)] px-3 py-2 text-sm text-[var(--text-muted)]">
+            That works out to about <strong className="text-[var(--text)]">{formatMoney(BigInt(monthly), currency)}</strong> a month.
+          </p>
+        ) : null}
+
+        <Button type="submit" variant="primary" className="w-full" disabled={minor <= 0}>Continue</Button>
+        <SkipButton onSkip={onSkip} label="I'd rather not say" />
+      </form>
+    </Step>
+  );
+}
+
+function ChoiceStep({
+  heading, title, body, choices, selected, onPick, onSkip,
+}: {
+  heading: React.RefObject<HTMLHeadingElement | null>;
+  title: string;
+  body?: string;
+  choices: readonly (readonly [string, string])[];
+  selected: string | null;
+  onPick: (value: string) => void;
+  onSkip: () => void;
+}) {
+  return (
+    <Step heading={heading} title={title} body={body}>
+      <div className="mt-5 space-y-2">
+        {choices.map(([value, label]) => (
+          <button
+            key={value}
+            type="button"
+            onClick={() => onPick(value)}
+            aria-pressed={selected === value}
+            className={cn(
+              'flex w-full items-center justify-between rounded-[var(--radius-control)] border px-4 py-3 text-left text-sm transition-colors',
+              selected === value
+                ? 'border-[var(--accent)] bg-[var(--accent-soft)] font-medium'
+                : 'border-[var(--border)] hover:border-[var(--border-strong)] hover:bg-[var(--surface-2)]',
+            )}
+          >
+            {label}
+            {selected === value ? <Check className="h-4 w-4 text-[var(--accent)]" /> : null}
+          </button>
+        ))}
+        <SkipButton onSkip={onSkip} />
+      </div>
+    </Step>
+  );
+}
+
+function AmountStep({
+  heading, title, body, currency, initialMinor, onDone, onSkip,
+}: {
+  heading: React.RefObject<HTMLHeadingElement | null>;
+  title: string;
+  body?: string;
+  currency: string;
+  initialMinor?: number;
+  onDone: (minor: number) => void;
+  onSkip: () => void;
+}) {
+  const [amount, setAmount] = useState(initialMinor ? (initialMinor / 100).toString() : '');
+  const minor = Math.round((Number(amount.replace(/[^0-9.]/g, '')) || 0) * 100);
+
+  return (
+    <Step heading={heading} title={title} body={body}>
+      <form className="mt-5 space-y-3.5" onSubmit={(e) => { e.preventDefault(); onDone(minor); }}>
+        <Field label={`Roughly how much (${currency})`} htmlFor="amount">
+          <Input
+            id="amount" value={amount} autoFocus inputMode="decimal" placeholder="0.00"
+            className="h-12 text-lg" onChange={(e) => setAmount(e.target.value)}
+          />
+        </Field>
+        <Button type="submit" variant="primary" className="w-full" disabled={minor <= 0}>Continue</Button>
+        <SkipButton onSkip={onSkip} label="Nothing yet" />
+      </form>
+    </Step>
+  );
+}
+
+interface BillDraft { name: string; amount: string; cadence: Cadence }
+
+function RecurringStep({
+  heading, currency, initial, onDone, onSkip,
+}: {
+  heading: React.RefObject<HTMLHeadingElement | null>;
+  currency: string;
+  initial: NonNullable<Answers['recurring']>;
+  onDone: (list: NonNullable<Answers['recurring']>) => void;
+  onSkip: () => void;
+}) {
+  const [asked, setAsked] = useState(initial.length > 0);
+  const [bills, setBills] = useState<BillDraft[]>(
+    initial.length > 0
+      ? initial.map((b) => ({ name: b.name, amount: (b.amountMinor / 100).toString(), cadence: b.cadence }))
+      : [{ name: '', amount: '', cadence: 'monthly' }],
+  );
+
+  const valid = bills.filter((b) => b.name.trim() !== '' && Number(b.amount) > 0);
+
+  if (!asked) {
+    return (
+      <Step
+        heading={heading}
+        title="Have any bills that come around regularly?"
+        body="Things like rent, insurance, subscriptions, phone bills or loan payments."
+      >
+        <div className="mt-5 space-y-2">
+          <Button variant="primary" className="w-full" onClick={() => setAsked(true)}>Yes, let&rsquo;s add them</Button>
+          <SkipButton onSkip={onSkip} label="Not right now" />
+        </div>
+      </Step>
+    );
+  }
+
+  return (
+    <Step heading={heading} title="What comes out regularly?" body="Add as many as you like. You can always add more later.">
+      <div className="mt-4 space-y-3">
+        {bills.map((bill, index) => (
+          <div key={index} className="rounded-[var(--radius-control)] border border-[var(--border)] p-3">
+            <div className="flex items-start gap-2">
+              <div className="min-w-0 flex-1 space-y-2">
+                <Input
+                  value={bill.name}
+                  placeholder="Rent, Netflix, car insurance…"
+                  aria-label={`Bill ${index + 1} name`}
+                  onChange={(e) => setBills((b) => b.map((x, i) => i === index ? { ...x, name: e.target.value } : x))}
+                />
+                <div className="flex gap-2">
+                  <Input
+                    value={bill.amount}
+                    inputMode="decimal"
+                    placeholder="0.00"
+                    aria-label={`Bill ${index + 1} amount`}
+                    className="flex-1"
+                    onChange={(e) => setBills((b) => b.map((x, i) => i === index ? { ...x, amount: e.target.value } : x))}
+                  />
+                  <Select
+                    value={bill.cadence}
+                    aria-label={`Bill ${index + 1} frequency`}
+                    className="flex-1"
+                    onChange={(e) => setBills((b) => b.map((x, i) => i === index ? { ...x, cadence: e.target.value as Cadence } : x))}
+                  >
+                    {CADENCES.map((c) => <option key={c} value={c}>{CADENCE_LABELS[c]}</option>)}
+                  </Select>
+                </div>
+              </div>
+              {bills.length > 1 ? (
+                <button
+                  type="button"
+                  onClick={() => setBills((b) => b.filter((_, i) => i !== index))}
+                  aria-label={`Remove bill ${index + 1}`}
+                  className="grid h-8 w-8 shrink-0 place-items-center rounded text-[var(--text-subtle)] hover:bg-[var(--surface-2)] hover:text-[var(--negative)]"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </button>
+              ) : null}
+            </div>
+          </div>
+        ))}
+
+        <Button
+          variant="ghost"
+          className="w-full"
+          onClick={() => setBills((b) => [...b, { name: '', amount: '', cadence: 'monthly' }])}
+        >
+          <Plus className="h-3.5 w-3.5" />
+          Add another
+        </Button>
+
+        {valid.length > 0 ? (
+          <p aria-live="polite" className="rounded-[var(--radius-control)] bg-[var(--surface-2)] px-3 py-2 text-sm text-[var(--text-muted)]">
+            About{' '}
+            <strong className="text-[var(--text)]">
+              {formatMoney(
+                BigInt(valid.reduce((sum, b) => sum + toMonthlyMinor(Math.round(Number(b.amount) * 100), b.cadence), 0)),
+                currency,
+              )}
+            </strong>{' '}
+            a month committed.
+          </p>
+        ) : null}
+
+        <Button
+          variant="primary"
+          className="w-full"
+          disabled={valid.length === 0}
+          onClick={() => onDone(valid.map((b) => ({
+            name: b.name.trim(),
+            amountMinor: Math.round(Number(b.amount) * 100),
+            cadence: b.cadence,
+          })))}
+        >
+          Done
+        </Button>
+        <SkipButton onSkip={onSkip} label="Actually, not right now" />
+      </div>
+    </Step>
+  );
+}
+
+function SpendingStep({
+  heading, currency, initial, onDone, onSkip,
+}: {
+  heading: React.RefObject<HTMLHeadingElement | null>;
+  currency: string;
+  initial: Record<string, number>;
+  onDone: (map: Record<string, number>) => void;
+  onSkip: () => void;
+}) {
+  const [values, setValues] = useState<Record<string, string>>(
+    Object.fromEntries(Object.entries(initial).map(([k, v]) => [k, (v / 100).toString()])),
+  );
+
+  const filled = Object.entries(values)
+    .map(([k, v]) => [k, Math.round((Number(v) || 0) * 100)] as const)
+    .filter(([, v]) => v > 0);
+
+  return (
+    <Step
+      heading={heading}
+      title="Roughly what do you spend each month?"
+      body="Estimates are completely fine — nothing here needs to be exact, and blanks are fine too."
+    >
+      <div className="mt-4 space-y-2">
+        {SPEND_CATEGORIES.map((name) => (
+          <div key={name} className="flex items-center gap-3">
+            <label htmlFor={`spend-${name}`} className="min-w-0 flex-1 truncate text-sm">{name}</label>
+            <Input
+              id={`spend-${name}`}
+              value={values[name] ?? ''}
+              inputMode="decimal"
+              placeholder="—"
+              className="h-9 w-28 text-right"
+              onChange={(e) => setValues((v) => ({ ...v, [name]: e.target.value }))}
+            />
+          </div>
+        ))}
+
+        {filled.length > 0 ? (
+          <p aria-live="polite" className="rounded-[var(--radius-control)] bg-[var(--surface-2)] px-3 py-2 text-sm text-[var(--text-muted)]">
+            About{' '}
+            <strong className="text-[var(--text)]">
+              {formatMoney(BigInt(filled.reduce((s, [, v]) => s + v, 0)), currency)}
+            </strong>{' '}
+            a month across what you filled in.
+          </p>
+        ) : null}
+
+        <Button variant="primary" className="w-full" onClick={() => onDone(Object.fromEntries(filled))}>
+          Continue
+        </Button>
+        <SkipButton onSkip={onSkip} />
+      </div>
+    </Step>
+  );
+}
+
+function GoalsStep({
+  heading, initial, onDone, onSkip,
+}: {
+  heading: React.RefObject<HTMLHeadingElement | null>;
+  initial: NonNullable<Answers['goals']>;
+  onDone: (list: NonNullable<Answers['goals']>) => void;
+  onSkip: () => void;
+}) {
+  const [picked, setPicked] = useState<string[]>(initial.map((g) => g.kind));
+
+  function toggle(kind: string) {
+    setPicked((p) => p.includes(kind) ? p.filter((k) => k !== kind) : [...p, kind]);
+  }
+
+  return (
+    <Step
+      heading={heading}
+      title="Anything you're working toward?"
+      body="Pick as many as apply. You can add the amounts and dates once you're in — Pockit will ask."
+    >
+      <div className="mt-4 grid gap-2 sm:grid-cols-2">
+        {GOAL_CHOICES.map((choice) => {
+          const on = picked.includes(choice.kind);
+          return (
+            <button
+              key={choice.kind}
+              type="button"
+              onClick={() => toggle(choice.kind)}
+              aria-pressed={on}
+              className={cn(
+                'flex items-center justify-between gap-2 rounded-[var(--radius-control)] border px-3.5 py-3 text-left text-sm transition-colors',
+                on
+                  ? 'border-[var(--accent)] bg-[var(--accent-soft)] font-medium'
+                  : 'border-[var(--border)] hover:border-[var(--border-strong)] hover:bg-[var(--surface-2)]',
+              )}
+            >
+              {choice.label}
+              {on ? <Check className="h-4 w-4 shrink-0 text-[var(--accent)]" /> : null}
+            </button>
+          );
+        })}
+      </div>
+
+      <div className="mt-4 space-y-2">
+        <Button
+          variant="primary"
+          className="w-full"
+          disabled={picked.length === 0}
+          onClick={() => onDone(picked.map((kind) => ({
+            kind,
+            name: GOAL_CHOICES.find((c) => c.kind === kind)?.label.replace(/^(Build an?|Buy an?|Pay off) /i, '') ?? kind,
+          })))}
+        >
+          Continue
+        </Button>
+        <SkipButton onSkip={onSkip} label="Not sure yet" />
+      </div>
+    </Step>
+  );
+}
+
+/* ---------------- helpers ---------------- */
+
+/** Where a returning person picks up. */
+function resumeAt(stage: string, answers: Answers): StepId {
+  if (stage === 'not_started' || stage === 'account_created') return 'intro';
+  if (stage === 'financial_setup_completed' || stage === 'done') return 'summary';
+  // Mid-flow: the first question they have neither answered nor skipped.
+  const skipped = new Set(answers.skipped ?? []);
+  if (answers.incomeMinor === undefined && !skipped.has('income')) return 'income';
+  if (answers.incomeSource === undefined && !skipped.has('source')) return 'source';
+  if (answers.recurring === undefined && !skipped.has('recurring')) return 'recurring';
+  if (answers.spendingByCategory === undefined && !skipped.has('spending')) return 'spending';
+  if (answers.savingsMinor === undefined && !skipped.has('savings')) return 'savings';
+  if (answers.goals === undefined && !skipped.has('goals')) return 'goals';
+  return 'summary';
+}
+
+function summaryLine(missing: string[]): string {
+  if (missing.length === 0) return "Here's where you're starting from.";
+  return "Here's what we have so far. It gets sharper as you use Pockit.";
+}
+
+function listWords(items: string[]): string {
+  if (items.length === 1) return items[0]!;
+  return `${items.slice(0, -1).join(', ')} and ${items[items.length - 1]}`;
 }

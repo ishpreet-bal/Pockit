@@ -102,6 +102,9 @@ export function Sidebar({ workspaces, activeId }: { workspaces: NavWorkspace[]; 
         key={item.href}
         href={item.href}
         aria-current={active ? 'page' : undefined}
+        // A stable hook for the guided tour, independent of styling. Classes get
+        // rewritten every design pass; this does not.
+        data-tour={`nav-${item.href.replace('/', '')}`}
         title={collapsed ? item.label : undefined}
         className={cn(
           'group relative flex items-center gap-3 rounded-[var(--radius-control)] py-2 text-sm transition-colors',
@@ -364,6 +367,7 @@ export function MobileTabs() {
               key={tab.href}
               href={tab.href}
               aria-current={active ? 'page' : undefined}
+              data-tour={`nav-${tab.href.replace('/', '')}`}
               className={cn(
                 'relative flex min-h-[58px] flex-1 flex-col items-center justify-center gap-1 text-2xs transition-colors',
                 active ? 'font-semibold text-[var(--accent)]' : 'text-[var(--text-subtle)]',

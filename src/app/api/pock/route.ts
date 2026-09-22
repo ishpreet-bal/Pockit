@@ -7,7 +7,11 @@ import { pockThreads, pockMessages } from '@/lib/db/schema';
 import { getAiProvider } from '@/lib/ai';
 import { AiUnavailableError } from '@/lib/ai/types';
 import { checkRateLimit } from '@/lib/auth/rate-limit';
-import { POCK_BRIEF, buildContext } from '@/lib/investing/pock';
+import { POCK_BRIEF, composeTurn } from '@/lib/pock/brief';
+import { relevantTo, renderHelp } from '@/lib/pock/knowledge';
+import { buildUserContext } from '@/lib/pock/context';
+import { buildContext as buildMarketContext } from '@/lib/investing/pock';
+import { todayIn } from '@/lib/finance/period';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
@@ -50,6 +54,18 @@ const askSchema = z.object({
   threadId: z.string().uuid().optional(),
   /** Set when asking from an asset page, so "is this expensive?" has a subject. */
   symbol: z.string().trim().max(12).optional(),
+  /**
+   * What the person was looking at when they asked.
+   *
+   * This is what makes "Ask Pock about this goal" work without them re-explaining
+   * which goal. It is a subject, not an instruction — the anchor widens which data
+   * is fetched, and never tells the model what to conclude.
+   */
+  anchor: z.object({
+    kind: z.enum(['goal', 'symbol', 'budget', 'spending']),
+    id: z.string().max(64).optional(),
+    label: z.string().max(120).optional(),
+  }).optional(),
 });
 
 /**
@@ -76,7 +92,7 @@ export async function POST(request: Request) {
   if (!parsed.success) {
     return NextResponse.json({ error: parsed.error.issues[0]?.message ?? 'Ask a question.' }, { status: 400 });
   }
-  const { question, symbol } = parsed.data;
+  const { question, symbol, anchor } = parsed.data;
 
   const provider = getAiProvider();
 
@@ -96,7 +112,7 @@ export async function POST(request: Request) {
         // The first question is the title. It is what the person will recognise the
         // conversation by, which a generated summary rarely is.
         title: question.slice(0, 80),
-        symbol: symbol?.toUpperCase() ?? null,
+        symbol: (symbol ?? (anchor?.kind === 'symbol' ? anchor.id : null))?.toUpperCase() ?? null,
       }).returning({ id: pockThreads.id });
       threadId = created[0]!.id;
     }
@@ -107,7 +123,34 @@ export async function POST(request: Request) {
       .orderBy(asc(pockMessages.createdAt))
       .limit(HISTORY_TURNS);
 
-    const context = await buildContext(tx, ctx.workspace.id, question, symbol);
+    // Three separate retrievals, assembled rather than concatenated blindly:
+    // how the app works, what this person's figures are, and — only when an
+    // instrument is involved — live market data.
+    const help = renderHelp(relevantTo(question));
+    const user = await buildUserContext(tx, {
+      userId: ctx.user.id,
+      workspaceId: ctx.workspace.id,
+      currency: ctx.workspace.baseCurrency,
+      timezone: 'UTC',
+      today: todayIn('UTC'),
+      question,
+      anchor: anchor ?? (symbol ? { kind: 'symbol' as const, id: symbol } : null),
+    });
+
+    const wantsMarket = user.slices.includes('investments') || Boolean(symbol);
+    const market = wantsMarket
+      ? await buildMarketContext(tx, ctx.workspace.id, question, symbol ?? anchor?.id ?? null)
+      : null;
+
+    const context = {
+      factSheet: composeTurn({
+        help,
+        userContext: [user.text, market?.factSheet ?? ''].filter(Boolean).join('\n\n'),
+        question,
+      }),
+      facts: { ...user.facts, ...(market?.facts ?? {}), slices: user.slices, helpUsed: relevantTo(question).map((h) => h.id) },
+      symbols: market?.symbols ?? [],
+    };
 
     await tx.insert(pockMessages).values({
       threadId, workspaceId: ctx.workspace.id, role: 'user', body: question,
@@ -124,7 +167,7 @@ export async function POST(request: Request) {
       role: m.role === 'assistant' ? ('assistant' as const) : ('user' as const),
       content: m.body,
     })),
-    { role: 'user', content: `${prepared.context.factSheet}\n\nQUESTION\n${question}` },
+    { role: 'user', content: prepared.context.factSheet },
   ];
 
   let answer: string;

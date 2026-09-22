@@ -238,6 +238,65 @@ The risk questionnaire lives at `/investing/profile` and suggests a broad asset 
 never a security to buy, and never for money needed inside three years. High-interest
 debt and a missing cash buffer stop the process rather than adjusting a percentage.
 
+## First run
+
+A new visitor meets `/welcome` — a greeting, the character, and two doors. Not the
+dashboard, and not a marketing page either; feature cards are just a different way of
+asking someone to read before they can start.
+
+Sign-up asks for a name on its own screen, then credentials. Everything else moved
+into `/onboarding`, which asks one idea per screen and can be skipped at every one.
+
+**State lives on the server.** `user_profiles.onboarding_stage` is a named stage
+(`not_started` → `account_created` → `financial_setup_started` →
+`financial_setup_completed` → `done`) and `onboarding_answers` is the answers so far,
+written after every screen and merged rather than replaced. Closing the browser at
+question four and returning tomorrow resumes at question four with the first three
+intact — which `localStorage` cannot do, because the tab took it with it.
+
+Stages are named rather than numbered because the questions will be reordered, and a
+stored `4` silently means something else the moment they are.
+
+What the answers become, in `/api/onboarding/apply`: income and bills become
+recurring series (which is what every cash-flow calculation actually reads), goals
+become goals with their `kind` set, savings becomes an account balance. The summary
+screen shows the person's own figures, and anything they skipped reads *"Not set
+yet"* rather than `$0` — a figure nobody gave is unknown, and zero would be the app's
+first lie about their life.
+
+Migration `0006` marks every pre-existing profile `done`, so the gate can only ever
+catch accounts created after it shipped. An existing user is never pulled backwards
+through a flow they have no need for.
+
+The tour (`components/tour`) measures the real element from the live DOM at each
+step. The navigation exists twice — a sidebar hidden below `md`, a tab bar hidden
+above it — so it resolves to the *visible* one; `querySelector` returns the first
+match regardless of whether it is displayed, which parked the card in the corner of
+every phone.
+
+## Pock
+
+Pock answers two kinds of question, and the architecture separates them:
+
+| Module | What it is |
+|---|---|
+| `lib/pock/brief.ts` | Who Pock is and what it may not do. No data. |
+| `lib/pock/knowledge.ts` | How Pockit itself works — routes, terminology, where things live |
+| `lib/pock/context.ts` | The person's own figures, retrieved per question |
+
+**The knowledge does not rot.** Each entry names the route it describes, and
+`knowledge.test.ts` asserts every one of those routes exists under `src/app`. Moving
+or deleting a page fails the test rather than leaving Pock confidently sending people
+to a 404.
+
+**Neither layer is sent wholesale.** `relevantTo()` picks the few help entries a
+question is about; `slicesFor()` decides which slices of the person's data to fetch —
+a question about a goal does not need a watchlist. Each slice states what it does
+*not* know, because a silent gap is what a model fills in from imagination.
+
+Contextual "Ask Pock about this goal" buttons carry an anchor, so clicking one on a
+goal does not lead to Pock asking which goal.
+
 ## Security
 
 Two-step verification is TOTP (RFC 6238), implemented in `lib/auth/totp.ts` and
@@ -290,6 +349,65 @@ See [.env.example](.env.example). Only `DATABASE_URL` and `AUTH_SECRET` are
 required. Without an AI key the app falls back to the `heuristic` provider, which
 genuinely parses CSV, Excel and text PDFs and categorises from the merchant lexicon
 plus your own rules — images and video frames are what need a vision model.
+
+## First run
+
+A new visitor meets `/welcome` — a greeting, the character, and two doors. Not the
+dashboard, and not a marketing page either; feature cards are just a different way of
+asking someone to read before they can start.
+
+Sign-up asks for a name on its own screen, then credentials. Everything else moved
+into `/onboarding`, which asks one idea per screen and can be skipped at every one.
+
+**State lives on the server.** `user_profiles.onboarding_stage` is a named stage
+(`not_started` → `account_created` → `financial_setup_started` →
+`financial_setup_completed` → `done`) and `onboarding_answers` is the answers so far,
+written after every screen and merged rather than replaced. Closing the browser at
+question four and returning tomorrow resumes at question four with the first three
+intact — which `localStorage` cannot do, because the tab took it with it.
+
+Stages are named rather than numbered because the questions will be reordered, and a
+stored `4` silently means something else the moment they are.
+
+What the answers become, in `/api/onboarding/apply`: income and bills become
+recurring series (which is what every cash-flow calculation actually reads), goals
+become goals with their `kind` set, savings becomes an account balance. The summary
+screen shows the person's own figures, and anything they skipped reads *"Not set
+yet"* rather than `$0` — a figure nobody gave is unknown, and zero would be the app's
+first lie about their life.
+
+Migration `0006` marks every pre-existing profile `done`, so the gate can only ever
+catch accounts created after it shipped. An existing user is never pulled backwards
+through a flow they have no need for.
+
+The tour (`components/tour`) measures the real element from the live DOM at each
+step. The navigation exists twice — a sidebar hidden below `md`, a tab bar hidden
+above it — so it resolves to the *visible* one; `querySelector` returns the first
+match regardless of whether it is displayed, which parked the card in the corner of
+every phone.
+
+## Pock
+
+Pock answers two kinds of question, and the architecture separates them:
+
+| Module | What it is |
+|---|---|
+| `lib/pock/brief.ts` | Who Pock is and what it may not do. No data. |
+| `lib/pock/knowledge.ts` | How Pockit itself works — routes, terminology, where things live |
+| `lib/pock/context.ts` | The person's own figures, retrieved per question |
+
+**The knowledge does not rot.** Each entry names the route it describes, and
+`knowledge.test.ts` asserts every one of those routes exists under `src/app`. Moving
+or deleting a page fails the test rather than leaving Pock confidently sending people
+to a 404.
+
+**Neither layer is sent wholesale.** `relevantTo()` picks the few help entries a
+question is about; `slicesFor()` decides which slices of the person's data to fetch —
+a question about a goal does not need a watchlist. Each slice states what it does
+*not* know, because a silent gap is what a model fills in from imagination.
+
+Contextual "Ask Pock about this goal" buttons carry an anchor, so clicking one on a
+goal does not lead to Pock asking which goal.
 
 ## Security posture
 

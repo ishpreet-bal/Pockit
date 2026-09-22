@@ -1,11 +1,16 @@
 import { requireAuth } from '@/lib/auth/guard';
+import { requireOnboarded } from './onboarding-gate';
 import { Sidebar, MobileTabs, MobileHeader } from './nav';
 import { QuickAdd } from './quick-add';
 import { PageTransition } from '@/components/ui/page-transition';
 import { CompanionHost } from './companion-host';
+import { TourHost } from './tour-host';
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
-  const { workspace, workspaces } = await requireAuth();
+  const { user, workspace, workspaces } = await requireAuth();
+  // Runs before anything renders, so a new account never sees the shell flash past
+  // on its way to the setup flow.
+  await requireOnboarded(user.id);
   const navWorkspaces = workspaces.map((w) => ({ id: w.id, name: w.name, kind: w.kind, isDemo: w.isDemo }));
 
   return (
@@ -25,6 +30,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       <MobileTabs />
       <QuickAdd />
       <CompanionHost />
+      <TourHost userId={user.id} />
     </div>
   );
 }

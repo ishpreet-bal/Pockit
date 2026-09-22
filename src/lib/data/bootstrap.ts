@@ -37,6 +37,10 @@ export async function createUserWithWorkspace(input: {
     await tx.insert(userProfiles).values({
       userId,
       displayName: input.displayName ?? null,
+      // The account exists; the financial questions have not been asked yet. This
+      // is the ONLY place that stage is set, so it can only ever describe a genuinely
+      // new account — every profile that predates the stage machine is 'done'.
+      onboardingStage: 'account_created',
       baseCurrency: currency,
       timezone,
     });

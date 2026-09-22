@@ -13,6 +13,7 @@ import { Provenance } from '@/components/market/provenance';
 import { formatMoney } from '@/lib/money';
 import { ChartPanel } from './chart-panel';
 import { WatchButton } from './watch-button';
+import { AskPockButton } from '@/components/brand/ask-pock-button';
 import { listsFor } from '@/lib/investing/lists';
 import { AiAnalysis } from './ai-analysis';
 
@@ -81,6 +82,11 @@ export default async function AssetPage({ params }: { params: Promise<{ symbol: 
           </div>
           <p className="mt-1 text-sm text-[var(--text-muted)]">{profile?.name ?? entry?.name ?? symbol}</p>
         </div>
+        <AskPockButton
+          anchor={{ kind: 'symbol', id: symbol, label: symbol }}
+          label={`Ask Pock about ${symbol}`}
+          prompt={`What should I understand about ${symbol}?`}
+        />
         <WatchButton
           symbol={symbol}
           name={profile?.name ?? symbol}

@@ -163,9 +163,11 @@ await p.click('button[aria-label="Pock"], button[aria-label="Pock has something 
 await p.waitForTimeout(600);
 await p.click('button:has-text("Confused? Ask Pock")');
 await p.waitForTimeout(900);
-ok('Pock offers starting questions', /What actually is an ETF/.test(await p.textContent('body')));
+// The openers deliberately cover both halves of what Pock does: how the app works,
+// and what the person's own figures say.
+ok('Pock offers starting questions', /How do I create a budget/.test(await p.textContent('body')));
 
-await p.click('button:has-text("What actually is an ETF?")');
+await p.click('button:has-text("How do I create a budget?")');
 await p.waitForTimeout(4000);
 const chat = await p.textContent('body');
 // With no AI key this must SAY so. Without a key there is nothing to answer with,
@@ -175,7 +177,7 @@ ok(
   answered ? 'Pock answered' : 'Pock states plainly that no AI provider is configured',
   true,
 );
-ok('the question is not lost either way', /What actually is an ETF/.test(chat));
+ok('the question is not lost either way', /How do I create a budget/.test(chat));
 
 const threads = await p.evaluate(async () => (await fetch('/api/pock')).json());
 ok('the conversation is remembered', threads.threads.length >= 1);

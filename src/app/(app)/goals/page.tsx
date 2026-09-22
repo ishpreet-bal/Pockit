@@ -11,6 +11,9 @@ import {
   computeGoalPace, type GoalInput,
 } from '@/lib/finance/goals';
 import { todayIn, startOfMonth, addMonths } from '@/lib/finance/period';
+import { inferKind, kindFindings } from '@/lib/finance/goal-kinds';
+import { AskPockButton } from '@/components/brand/ask-pock-button';
+import { cn } from '@/lib/ui/cn';
 import { formatMoney } from '@/lib/money';
 
 export const metadata: Metadata = { title: 'Goals' };
@@ -98,6 +101,22 @@ export default async function GoalsPage() {
               .reduce((sum, g) => sum + (g.monthlyContributionMinor ?? 0n), 0n);
             const feasibility = assessFeasibility(goal, math, basis, txns, categories, today, otherCommitments);
 
+            // The per-goal analysis. `kind` has been in the schema since the start
+            // and was never read, which is precisely why every goal produced the
+            // same commentary — nothing in the pipeline asked what it was looking at.
+            const kind = inferKind(goal.name, goal.kind ?? null);
+            const findings = kindFindings({
+              kind,
+              name: goal.name,
+              targetMinor: goal.targetMinor,
+              currentMinor: goal.currentMinor,
+              targetDate: goal.targetDate ?? null,
+              monthlyOutgoingsMinor: basis.averageExpensesMinor > 0n ? basis.averageExpensesMinor : null,
+              requiredMonthlyMinor: math.requiredMonthlyMinor,
+              availableMonthlyMinor: feasibility.availableMinor,
+              today,
+            });
+
             return (
               <Card key={goal.id}>
                 <CardHeader
@@ -158,6 +177,14 @@ export default async function GoalsPage() {
                     </p>
                   ) : null}
 
+                  {/* Opens Pock already knowing which goal — no "which one?" round trip. */}
+                  <AskPockButton
+                    className="mt-2"
+                    anchor={{ kind: 'goal', id: goal.id, label: goal.name }}
+                    label="Ask Pock about this goal"
+                    prompt={`How am I doing on ${goal.name}?`}
+                  />
+
                   {!math.isAchieved ? (
                     <TimelineSlider
                       remainingMinor={Number(math.remainingMinor)}
@@ -168,14 +195,53 @@ export default async function GoalsPage() {
                     />
                   ) : null}
 
+                  {findings.length > 0 ? (
+                    <ul className="mt-3 space-y-1.5">
+                      {findings.map((finding) => (
+                        <li
+                          key={finding.text}
+                          className={cn(
+                            'rounded-[var(--radius-control)] px-3 py-2 text-sm',
+                            finding.tone === 'caution'
+                              ? 'bg-[var(--warning-soft)] text-[var(--text)]'
+                              : finding.tone === 'good'
+                                ? 'bg-[var(--positive-soft)] text-[var(--text)]'
+                                : 'bg-[var(--surface-2)] text-[var(--text-muted)]',
+                          )}
+                        >
+                          {finding.text}
+                        </li>
+                      ))}
+                    </ul>
+                  ) : null}
+
                   {!math.isAchieved ? (
                     <div className="mt-3 rounded-[var(--radius-control)] bg-[var(--surface-2)] p-3">
                       <p className="text-sm">{feasibility.explanation}</p>
 
-                      {feasibility.adjustments.length > 0 ? (
+                      {/*
+                        The list of cuts is shown ONLY when it would actually work.
+                        When it would not, every goal produces the same eight rows —
+                        same categories, same amounts, because it is simply every
+                        discretionary category at its cap — and repeating that
+                        identical block under three different goals is the noise
+                        that made them all read alike. The sentence below says the
+                        useful thing instead.
+                      */}
+                      {feasibility.adjustments.length > 0 && feasibility.adjustmentsCoverGap ? (
                         <>
+                          {/*
+                            The heading tells the truth about its own list.
+                            When the shortfall is bigger than everything that can be
+                            cut, the algorithm cuts every discretionary category to
+                            its cap — producing the SAME list for every goal, headed
+                            "one way to close the gap" while closing nothing. Three
+                            goals showed byte-identical advice for exactly this reason.
+                          */}
                           <p className="mt-2.5 text-xs font-medium uppercase tracking-[0.05em] text-[var(--text-subtle)]">
-                            One way to close the gap
+                            {feasibility.adjustmentsCoverGap
+                              ? 'One way to close the gap'
+                              : 'Cutting everything discretionary still is not enough'}
                           </p>
                           <ul className="mt-1.5 space-y-1">
                             {feasibility.adjustments.map((adj) => (
@@ -191,7 +257,25 @@ export default async function GoalsPage() {
                             <span>Available after these changes</span>
                             <Money minor={feasibility.adjustedAvailableMinor} currency={cur} size="sm" tone="plain" />
                           </p>
+
                         </>
+                      ) : null}
+
+                      {!feasibility.adjustmentsCoverGap && feasibility.shortfallMinor > 0n ? (
+                        <p className="mt-2 rounded-[var(--radius-control)] bg-[var(--warning-soft)] px-3 py-2 text-sm text-[var(--text)]">
+                          Trimming every discretionary category by the most this suggests would recover
+                          about{' '}
+                          <Money
+                            minor={feasibility.shortfallMinor - feasibility.stillShortMinor}
+                            currency={cur}
+                            size="sm"
+                            tone="plain"
+                          />{' '}
+                          a month and still leave you{' '}
+                          <Money minor={feasibility.stillShortMinor} currency={cur} size="sm" tone="plain" /> short.
+                          Spending is not the lever for this one — the target amount or the date is. The slider
+                          above shows what a later date would cost.
+                        </p>
                       ) : null}
 
                       {feasibility.achievableDate ? (

@@ -7,11 +7,25 @@
  * bare `waitForURL` timeout that looks like a broken app. This reads the form's own
  * error and says what actually happened.
  */
-export async function signUp(page, base, { email, password = 'correcthorse1', displayName } = {}) {
+export async function signUp(
+  page,
+  base,
+  { email, password = 'correcthorse1', displayName, skipOnboarding = true } = {},
+) {
   const address = email ?? `e2e-${Date.now()}-${Math.random().toString(36).slice(2, 8)}@example.com`;
 
   await page.goto(`${base}/sign-up`, { waitUntil: 'domcontentloaded' });
-  if (displayName) await page.fill('#displayName', displayName);
+
+  // Sign-up opens on the name question now, and the email field does not exist
+  // until that screen is passed. Handled here rather than in each suite, because
+  // every suite that registers an account goes through this helper.
+  await page.waitForSelector('#firstName, #email', { timeout: 30000 });
+  if (await page.locator('#firstName').count()) {
+    if (displayName) await page.fill('#firstName', displayName);
+    await page.click('button:has-text("Continue")');
+    await page.waitForSelector('#email', { timeout: 30000 });
+  }
+
   await page.fill('#email', address);
   await page.fill('#password', password);
   await page.click('button[type=submit]');
@@ -29,6 +43,15 @@ export async function signUp(page, base, { email, password = 'correcthorse1', di
       );
     }
     throw new Error(`Registration did not redirect.${alert ? ` The form said: ${alert}` : ''}`);
+  }
+
+  // A new account now lands in first-run setup rather than the dashboard. Suites
+  // that only need AN ACCOUNT should not each re-implement stepping through it, and
+  // a suite about imports has no business asserting onboarding copy.
+  if (skipOnboarding && /onboarding/.test(page.url())) {
+    await page.waitForSelector('button:has-text("Skip for now")', { timeout: 30000 });
+    await page.click('button:has-text("Skip for now")');
+    await page.waitForURL(/overview/, { timeout: 40000 });
   }
 
   return address;

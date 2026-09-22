@@ -77,9 +77,18 @@ const BUTTON_VARIANTS: Record<NonNullable<ButtonProps['variant']>, string> = {
   danger: 'bg-[var(--negative)] text-white hover:opacity-90 border-transparent',
 };
 
-export function Button({ className, variant = 'secondary', size = 'md', ...props }: ButtonProps) {
+/**
+ * `type` defaults to "button", not the HTML default of "submit".
+ *
+ * An unmarked <button> inside a <form> submits it. That turned "Nothing yet" — a
+ * skip control sitting inside the savings form — into a skip AND a submission of
+ * zero, so onboarding recorded savings of $0 for someone who had explicitly
+ * declined to say. Submitting is the rarer intent and should be the one spelled out.
+ */
+export function Button({ className, variant = 'secondary', size = 'md', type = 'button', ...props }: ButtonProps) {
   return (
     <button
+      type={type}
       className={cn(
         'inline-flex items-center justify-center gap-1.5 rounded-[var(--radius-control)] border font-medium',
         'transition-all duration-150 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50 disabled:active:scale-100',

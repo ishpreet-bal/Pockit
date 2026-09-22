@@ -102,6 +102,7 @@ export function AddTransaction({
       type="button"
       onClick={() => setOpen(true)}
       aria-label="Add transaction"
+      data-tour="quick-add"
       className={cn(
         'fixed right-4 z-40 grid h-14 w-14 place-items-center rounded-full bg-[var(--accent-fill)] text-[var(--accent-fill-fg)]',
         'shadow-[var(--shadow-lg)] transition-transform duration-200 hover:scale-105 active:scale-95',

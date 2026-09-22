@@ -4,6 +4,16 @@ import { useState } from 'react';
 import { CheckCircle2, AlertTriangle, Activity } from 'lucide-react';
 import { Button, Card, CardBody, CardHeader } from '@/components/ui/primitives';
 
+interface PockHealth {
+  ok: boolean;
+  configured: boolean;
+  provider: string;
+  model: string | null;
+  ms: number;
+  reply: string | null;
+  problems: string[];
+}
+
 interface Health {
   provider: { id: string; label: string; live: boolean };
   configured: { twelvedata: boolean; finnhub: boolean };
@@ -23,15 +33,27 @@ interface Health {
 export function MarketHealth() {
   const [state, setState] = useState<'idle' | 'checking'>('idle');
   const [health, setHealth] = useState<Health | null>(null);
+  const [pock, setPock] = useState<PockHealth | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  /**
+   * Both integrations at once.
+   *
+   * They fail the same invisible way — a wrong key and no key both leave the app
+   * quietly degraded — so they are worth checking together, from the one screen
+   * someone goes to when "I set the variable and nothing changed".
+   */
   async function check() {
     setState('checking');
     setError(null);
     try {
-      const response = await fetch('/api/market/health');
-      if (!response.ok) throw new Error(String(response.status));
-      setHealth((await response.json()) as Health);
+      const [market, ai] = await Promise.all([
+        fetch('/api/market/health').then((r) => (r.ok ? r.json() : null)),
+        fetch('/api/pock/health').then((r) => (r.ok ? r.json() : null)),
+      ]);
+      if (market) setHealth(market as Health);
+      if (ai) setPock(ai as PockHealth);
+      if (!market && !ai) setError('The checks did not run. Try again.');
     } catch {
       setError('Could not reach the server to run the check.');
     } finally {
@@ -42,8 +64,8 @@ export function MarketHealth() {
   return (
     <Card>
       <CardHeader
-        title="Market data"
-        description="Which provider the investing section is using, and whether it is answering"
+        title="Integrations"
+        description="Market data and AI — which providers are configured, and whether they answer"
       />
       <CardBody className="space-y-3">
         <div className="flex flex-wrap items-center gap-2 text-sm">
@@ -81,9 +103,36 @@ export function MarketHealth() {
           </p>
         )}
 
+        <div className="border-t border-[var(--border)] pt-3">
+          <p className="flex flex-wrap items-center gap-2 text-sm">
+            <span className="text-[var(--text-muted)]">Pock (AI):</span>
+            <strong>{pock ? pock.provider : 'Run the check to find out'}</strong>
+            {pock?.model ? <span className="text-2xs text-[var(--text-subtle)]">{pock.model}</span> : null}
+          </p>
+          {pock ? (
+            <div className="mt-2 space-y-2">
+              <p className="flex items-start gap-2 text-sm">
+                {pock.ok
+                  ? <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-[var(--positive)]" />
+                  : <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-[var(--warning)]" />}
+                <span>
+                  {pock.ok
+                    ? `The model replied in ${pock.ms}ms, so Pock can answer questions.`
+                    : 'Pock cannot answer questions.'}
+                </span>
+              </p>
+              {pock.problems.map((problem) => (
+                <p key={problem} className="rounded-[var(--radius-control)] bg-[var(--surface-2)] px-3 py-2 text-sm text-[var(--text-muted)]">
+                  {problem}
+                </p>
+              ))}
+            </div>
+          ) : null}
+        </div>
+
         <Button size="sm" onClick={() => void check()} disabled={state === 'checking'}>
           <Activity className="h-3.5 w-3.5" />
-          {state === 'checking' ? 'Checking…' : 'Check market data'}
+          {state === 'checking' ? 'Checking…' : 'Check integrations'}
         </Button>
 
         {error ? <p role="alert" className="text-sm text-[var(--negative)]">{error}</p> : null}

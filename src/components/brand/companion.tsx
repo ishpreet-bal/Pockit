@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { AnimatePresence, motion } from 'framer-motion';
 import { X, MessageCircleQuestion, MessageSquarePlus } from 'lucide-react';
 import { Mascot, type Mood } from './mascot';
-import { AskPock } from './ask-pock';
+import { AskPock, type PockAnchor } from './ask-pock';
 import { FeedbackForm } from '@/components/feedback/feedback-form';
 import { cn } from '@/lib/ui/cn';
 
@@ -36,11 +36,28 @@ export function Companion({ tip }: { tip: CompanionTip | null }) {
   const [open, setOpen] = useState(false);
   /** Which panel is showing: the tip bubble, the assistant, or the feedback form. */
   const [panel, setPanel] = useState<'tip' | 'ask' | 'feedback'>('tip');
+  /** Set by an "Ask Pock about this…" button elsewhere on the page. */
+  const [ask, setAsk] = useState<{ anchor: PockAnchor | null; prompt?: string }>({ anchor: null });
   const [hidden, setHidden] = useState(true);
   const [dismissedIds, setDismissedIds] = useState<string[]>([]);
 
   // Rendered hidden on the server and revealed after mount, so the stored
   // preferences decide what appears rather than a flash of the default.
+  // Contextual "Ask Pock about this goal" buttons open the panel here, carrying
+  // their subject. An event rather than a route, so the person stays on the page
+  // they were reading.
+  useEffect(() => {
+    function onAsk(event: Event) {
+      const detail = (event as CustomEvent<{ anchor: PockAnchor; prompt?: string }>).detail;
+      setAsk({ anchor: detail?.anchor ?? null, prompt: detail?.prompt });
+      setHidden(false);
+      setPanel('ask');
+      setOpen(true);
+    }
+    window.addEventListener('pock:ask', onAsk);
+    return () => window.removeEventListener('pock:ask', onAsk);
+  }, []);
+
   useEffect(() => {
     try {
       setHidden(sessionStorage.getItem('pockit-companion') === 'off');
@@ -60,6 +77,7 @@ export function Companion({ tip }: { tip: CompanionTip | null }) {
 
   function close() {
     setOpen(false);
+    setAsk({ anchor: null });
     // Back to the bubble, so the next tap is the small thing rather than resuming a
     // conversation the person had already finished with.
     setPanel('tip');
@@ -97,7 +115,12 @@ export function Companion({ tip }: { tip: CompanionTip | null }) {
             )}
           >
             {panel === 'ask' ? (
-              <AskPock onClose={close} />
+              <AskPock
+                key={`${ask.anchor?.kind ?? 'none'}:${ask.anchor?.id ?? ''}`}
+                anchor={ask.anchor}
+                initialPrompt={ask.prompt}
+                onClose={close}
+              />
             ) : panel === 'feedback' ? (
               <div className="flex h-full flex-col">
                 <div className="flex items-center gap-2 border-b border-[var(--border)] px-3 py-2.5">
@@ -180,6 +203,7 @@ export function Companion({ tip }: { tip: CompanionTip | null }) {
         type="button"
         onClick={() => setOpen((v) => !v)}
         aria-expanded={open}
+        data-tour="pock"
         aria-label={activeTip ? 'Pock has something to say' : 'Pock'}
         className={cn(
           'pointer-events-auto relative grid h-12 w-12 place-items-center rounded-full',

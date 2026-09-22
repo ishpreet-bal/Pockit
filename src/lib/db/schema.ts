@@ -127,6 +127,11 @@ export const userProfiles = pockit.table('user_profiles', {
   nextPaydayDate: date('next_payday_date'),
   onboardingStep: integer('onboarding_step').notNull().default(0),
   onboardingCompletedAt: timestamp('onboarding_completed_at', { withTimezone: true }),
+  /** Named stage, so resuming knows WHERE rather than just how far. */
+  onboardingStage: text('onboarding_stage').notNull().default('not_started'),
+  /** What they have told us so far, written after each screen rather than at the end. */
+  onboardingAnswers: jsonb('onboarding_answers').$type<Record<string, unknown>>().notNull().default({}),
+  tourCompletedAt: timestamp('tour_completed_at', { withTimezone: true }),
   // Privacy (spec §30): what happens to an uploaded file after extraction.
   fileRetention: fileRetention('file_retention').notNull().default('ask'),
   aiEnabled: boolean('ai_enabled').notNull().default(true),
