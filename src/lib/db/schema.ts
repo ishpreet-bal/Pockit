@@ -1022,6 +1022,68 @@ export const investorProfiles = pockit.table('investor_profiles', {
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 });
 
+/* ---------------- security, feedback, and Pock ---------------- */
+
+/**
+ * A user's TOTP enrolment.
+ *
+ * `secretEncrypted` is exactly that — AES-256-GCM, not a hash, because verifying a
+ * code needs the original value back. `confirmedAt` stays null until a correct code
+ * proves the authenticator works, so nobody enrols themselves out of their account.
+ */
+export const userTotp = pockit.table('user_totp', {
+  userId: uuid('user_id').primaryKey().references(() => users.id, { onDelete: 'cascade' }),
+  secretEncrypted: text('secret_encrypted').notNull(),
+  confirmedAt: timestamp('confirmed_at', { withTimezone: true }),
+  lastUsedStep: bigint('last_used_step', { mode: 'number' }),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
+/** Recovery codes, hashed like passwords because they are password-equivalent. */
+export const recoveryCodes = pockit.table('recovery_codes', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  codeHash: text('code_hash').notNull(),
+  usedAt: timestamp('used_at', { withTimezone: true }),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [index('recovery_codes_user_idx').on(t.userId)]);
+
+/** What people tell us is wrong. Survives the account that reported it. */
+export const feedback = pockit.table('feedback', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  userId: uuid('user_id').references(() => users.id, { onDelete: 'set null' }),
+  workspaceId: uuid('workspace_id').references(() => workspaces.id, { onDelete: 'set null' }),
+  kind: text('kind').notNull(),
+  message: text('message').notNull(),
+  page: text('page'),
+  contactOk: boolean('contact_ok').notNull().default(false),
+  status: text('status').notNull().default('new'),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
+/** One conversation with Pock. */
+export const pockThreads = pockit.table('pock_threads', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  workspaceId: uuid('workspace_id').notNull().references(() => workspaces.id, { onDelete: 'cascade' }),
+  userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  title: text('title').notNull(),
+  symbol: text('symbol'),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [index('pock_threads_workspace_idx').on(t.workspaceId, t.updatedAt)]);
+
+/** One turn in it. `facts` records what the answer was grounded in, for auditing. */
+export const pockMessages = pockit.table('pock_messages', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  threadId: uuid('thread_id').notNull().references(() => pockThreads.id, { onDelete: 'cascade' }),
+  workspaceId: uuid('workspace_id').notNull().references(() => workspaces.id, { onDelete: 'cascade' }),
+  role: text('role').notNull(),
+  body: text('body').notNull(),
+  facts: jsonb('facts'),
+  model: text('model'),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [index('pock_messages_thread_idx').on(t.threadId, t.createdAt)]);
+
 /**
  * A named watchlist. A table rather than a name on each item, so a list someone
  * creates and has not filled yet still exists when they come back to it.

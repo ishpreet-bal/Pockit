@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { Plus, X } from 'lucide-react';
 import { Button, Input, Select } from '@/components/ui/primitives';
 import { Sheet } from '@/components/ui/motion';
+import { DescriptionInput } from '@/components/finance/description-input';
 import { cn } from '@/lib/ui/cn';
 import type { CategoryChoice } from './transaction-actions';
 
@@ -157,7 +158,15 @@ export function AddTransaction({
 
           <label className="text-sm font-medium">
             What was it?
-            <Input name="description" required placeholder={direction === 'in' ? 'e.g. Payday' : 'e.g. Shell'} className="mt-1" />
+            {/* Picking a past entry fills the category too — the typing was never
+                the slow part of adding a transaction. */}
+            <DescriptionInput
+              name="description"
+              required
+              placeholder={direction === 'in' ? 'e.g. Payday' : 'e.g. Shell'}
+              className="mt-1"
+              onPick={(s) => { if (s.categoryId) setCategoryId(s.categoryId); }}
+            />
           </label>
 
           <div>

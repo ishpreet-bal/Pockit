@@ -134,6 +134,19 @@ export interface AiProvider {
    * facts it is handed and may not import anything it thinks it remembers.
    */
   research(input: { brief: string; factSheet: string; maxTokens?: number }): Promise<ProviderResponse<string>>;
+
+  /**
+   * A grounded conversation with turns.
+   *
+   * Separate from `research` because a conversation needs the earlier turns, and
+   * flattening them into one string loses who said what — which is how a model
+   * starts attributing its own previous guesses to the user as established fact.
+   */
+  converse(input: {
+    brief: string;
+    messages: { role: 'user' | 'assistant'; content: string }[];
+    maxTokens?: number;
+  }): Promise<ProviderResponse<string>>;
 }
 
 export class AiUnavailableError extends Error {

@@ -5,6 +5,7 @@ import { WorkspaceRepo } from '@/lib/data/repository';
 import { PageHeader } from '../page-header';
 import { Card, EmptyState, Badge, LinkButton } from '@/components/ui/primitives';
 import { Money } from '@/components/finance/money';
+import { TransactionFilters } from './filters';
 import { AddTransaction } from './add-transaction';
 import { TransactionActions } from './transaction-actions';
 import { todayIn, startOfMonth, endOfMonth } from '@/lib/finance/period';
@@ -117,6 +118,10 @@ export default async function TransactionsPage({
       </PageHeader>
 
       <div className="space-y-5 px-4 py-4 sm:px-6">
+        {/* Hidden when there is nothing to filter — an empty list with a search box
+            above it just looks like the search already failed. */}
+        {empty ? null : <TransactionFilters categories={choices} accounts={accountChoices} />}
+
         {empty ? (
           <Card>
             <EmptyState

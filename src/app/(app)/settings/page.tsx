@@ -3,6 +3,7 @@ import { requireAuth } from '@/lib/auth/guard';
 import { WorkspaceRepo } from '@/lib/data/repository';
 import { PageHeader } from '../page-header';
 import { MarketHealth } from './market-health';
+import { TwoFactor } from './two-factor';
 import { ResetWorkspace } from './reset-workspace';
 import { DemoBanner } from '../demo-banner';
 import { Card, CardHeader, CardBody } from '@/components/ui/primitives';
@@ -107,6 +108,8 @@ export default async function SettingsPage() {
             </p>
           </CardBody>
         </Card>
+
+        <TwoFactor />
 
         <MarketHealth />
 

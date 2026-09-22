@@ -18,13 +18,22 @@ function SubmitButton({ label }: { label: string }) {
 }
 
 export function AuthForm({
-  mode, action,
+  mode, action, secondFactorAction,
 }: {
   mode: 'sign-in' | 'sign-up';
   action: (prev: AuthFormState, formData: FormData) => Promise<AuthFormState>;
+  /** Only passed on sign-in. Present so the code step is a real form action, not a fetch. */
+  secondFactorAction?: (prev: AuthFormState, formData: FormData) => Promise<AuthFormState>;
 }) {
   const [state, formAction] = useActionState(action, {} as AuthFormState);
   const isSignUp = mode === 'sign-up';
+
+  // The password was accepted and a code is now required. Rendered as its own step
+  // rather than a field that appears beneath the password, because leaving the
+  // password on screen invites people to change it and try again, which cannot work.
+  if (state.needsSecondFactor && secondFactorAction) {
+    return <SecondFactorStep action={secondFactorAction} />;
+  }
 
   return (
     <Card>
@@ -98,6 +107,62 @@ export function AuthForm({
           ) : (
             <>New here? <Link href="/sign-up" className="font-medium text-[var(--accent)] hover:underline">Create an account</Link></>
           )}
+        </p>
+      </CardBody>
+    </Card>
+  );
+}
+
+
+/**
+ * The second step of signing in.
+ *
+ * `inputMode="numeric"` and `autoComplete="one-time-code"` matter more than they
+ * look: together they give a phone the number pad and let iOS and Android offer the
+ * code from the authenticator app or an SMS, which is most of the difference between
+ * 2FA people keep and 2FA people turn off.
+ */
+function SecondFactorStep({
+  action,
+}: {
+  action: (prev: AuthFormState, formData: FormData) => Promise<AuthFormState>;
+}) {
+  const [state, formAction] = useActionState(action, { needsSecondFactor: true } as AuthFormState);
+
+  return (
+    <Card>
+      <CardBody className="pt-5">
+        <h1 className="text-lg font-semibold">Enter your code</h1>
+        <p className="mt-1 text-sm text-[var(--text-muted)]">
+          Open your authenticator app and type the six digits for Pockit.
+        </p>
+
+        <form action={formAction} className="mt-5 flex flex-col gap-3.5">
+          <Field label="Six-digit code" htmlFor="code">
+            <Input
+              id="code" name="code" required autoFocus
+              inputMode="numeric" autoComplete="one-time-code"
+              placeholder="000000" maxLength={20}
+              className="text-center text-lg tracking-[0.3em]"
+            />
+          </Field>
+
+          {state.error ? (
+            <div role="alert" className="rounded-[var(--radius-control)] bg-[var(--negative-soft)] px-3 py-2 text-sm text-[var(--negative)]">
+              {state.error}
+            </div>
+          ) : null}
+
+          <SubmitButton label="Continue" />
+        </form>
+
+        <p className="mt-4 text-center text-sm text-[var(--text-muted)]">
+          Lost your phone? Type one of your recovery codes in the same box.
+        </p>
+        <p className="mt-2 text-center text-sm">
+          <Link href="/sign-in" className="font-medium text-[var(--accent)] hover:underline">
+            Start over
+          </Link>
         </p>
       </CardBody>
     </Card>

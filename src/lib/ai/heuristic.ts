@@ -71,6 +71,12 @@ export class HeuristicProvider implements AiProvider {
     );
   }
 
+  async converse(): Promise<ProviderResponse<string>> {
+    throw new AiUnavailableError(
+      'Pock needs an AI provider to answer questions. Add ANTHROPIC_API_KEY and it will.',
+    );
+  }
+
   async narrate(input: { instruction: string; facts: Record<string, unknown> }): Promise<ProviderResponse<string>> {
     // Without a model there is nothing to phrase the figures with, so the caller
     // falls back to the deterministic headline the insights engine already produced.

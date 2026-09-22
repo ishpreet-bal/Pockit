@@ -3,8 +3,10 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { AnimatePresence, motion } from 'framer-motion';
-import { X } from 'lucide-react';
+import { X, MessageCircleQuestion, MessageSquarePlus } from 'lucide-react';
 import { Mascot, type Mood } from './mascot';
+import { AskPock } from './ask-pock';
+import { FeedbackForm } from '@/components/feedback/feedback-form';
 import { cn } from '@/lib/ui/cn';
 
 export interface CompanionTip {
@@ -32,6 +34,8 @@ export interface CompanionTip {
  */
 export function Companion({ tip }: { tip: CompanionTip | null }) {
   const [open, setOpen] = useState(false);
+  /** Which panel is showing: the tip bubble, the assistant, or the feedback form. */
+  const [panel, setPanel] = useState<'tip' | 'ask' | 'feedback'>('tip');
   const [hidden, setHidden] = useState(true);
   const [dismissedIds, setDismissedIds] = useState<string[]>([]);
 
@@ -52,6 +56,13 @@ export function Companion({ tip }: { tip: CompanionTip | null }) {
     setDismissedIds(next);
     setOpen(false);
     try { localStorage.setItem('pockit-tips-dismissed', JSON.stringify(next.slice(-50))); } catch { /* private mode */ }
+  }
+
+  function close() {
+    setOpen(false);
+    // Back to the bubble, so the next tap is the small thing rather than resuming a
+    // conversation the person had already finished with.
+    setPanel('tip');
   }
 
   function hideCompanion() {
@@ -77,15 +88,40 @@ export function Companion({ tip }: { tip: CompanionTip | null }) {
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 8, scale: 0.97 }}
             transition={{ duration: 0.18 }}
-            className="pointer-events-auto mb-2 w-[min(280px,calc(100vw-2rem))] origin-bottom-right rounded-[var(--radius-card)] border border-[var(--border)] bg-[var(--surface)] p-3.5 shadow-[var(--shadow-lg)]"
+            className={cn(
+              'pointer-events-auto mb-2 origin-bottom-right overflow-hidden rounded-[var(--radius-card)]',
+              'border border-[var(--border)] bg-[var(--surface)] shadow-[var(--shadow-lg)]',
+              panel === 'tip'
+                ? 'w-[min(280px,calc(100vw-2rem))] p-3.5'
+                : 'flex h-[min(560px,calc(100vh-13rem))] w-[min(380px,calc(100vw-2rem))] flex-col',
+            )}
           >
+            {panel === 'ask' ? (
+              <AskPock onClose={close} />
+            ) : panel === 'feedback' ? (
+              <div className="flex h-full flex-col">
+                <div className="flex items-center gap-2 border-b border-[var(--border)] px-3 py-2.5">
+                  <h2 className="flex-1 text-sm font-semibold">Tell us what is wrong</h2>
+                  <button
+                    type="button" onClick={close} aria-label="Close"
+                    className="grid h-7 w-7 place-items-center rounded text-[var(--text-subtle)] hover:bg-[var(--surface-2)]"
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+                <div className="min-h-0 flex-1 overflow-y-auto p-3">
+                  <FeedbackForm onDone={close} />
+                </div>
+              </div>
+            ) : (
+            <>
             <div className="flex items-start justify-between gap-2">
               <p className="text-sm leading-relaxed">
                 {activeTip?.text ?? 'Nothing needs you right now. Everything is where you left it.'}
               </p>
               <button
                 type="button"
-                onClick={() => setOpen(false)}
+                onClick={close}
                 aria-label="Close"
                 className="grid h-6 w-6 shrink-0 place-items-center rounded-full text-[var(--text-subtle)] hover:bg-[var(--surface-2)]"
               >
@@ -103,7 +139,28 @@ export function Companion({ tip }: { tip: CompanionTip | null }) {
               </Link>
             ) : null}
 
-            <div className="mt-2.5 flex gap-3 border-t border-[var(--border)] pt-2 text-2xs text-[var(--text-subtle)]">
+            {/* The two things people actually want from a character in the corner:
+                somewhere to ask, and somewhere to complain. */}
+            <div className="mt-2.5 space-y-1 border-t border-[var(--border)] pt-2">
+              <button
+                type="button"
+                onClick={() => setPanel('ask')}
+                className="flex w-full items-center gap-1.5 rounded-[var(--radius-control)] px-2 py-1.5 text-left text-sm font-medium text-[var(--accent)] hover:bg-[var(--surface-2)]"
+              >
+                <MessageCircleQuestion className="h-4 w-4" />
+                Confused? Ask Pock
+              </button>
+              <button
+                type="button"
+                onClick={() => setPanel('feedback')}
+                className="flex w-full items-center gap-1.5 rounded-[var(--radius-control)] px-2 py-1.5 text-left text-sm hover:bg-[var(--surface-2)]"
+              >
+                <MessageSquarePlus className="h-4 w-4 text-[var(--text-subtle)]" />
+                Don&rsquo;t like something?
+              </button>
+            </div>
+
+            <div className="mt-2 flex gap-3 border-t border-[var(--border)] pt-2 text-2xs text-[var(--text-subtle)]">
               {activeTip ? (
                 <button type="button" onClick={dismissTip} className="hover:text-[var(--text)]">
                   Don&rsquo;t show this again
@@ -113,6 +170,8 @@ export function Companion({ tip }: { tip: CompanionTip | null }) {
                 Hide Pock
               </button>
             </div>
+            </>
+            )}
           </motion.div>
         ) : null}
       </AnimatePresence>

@@ -9,6 +9,10 @@ import { createUserWithWorkspace, findUserByEmail } from '@/lib/data/bootstrap';
 import { verifyPassword } from './password';
 import { createSession, destroySession, audit, requestContext } from './session';
 import { checkRateLimit } from './rate-limit';
+import {
+  startPendingTwoFactor, readPendingTwoFactor, clearPendingTwoFactor,
+  twoFactorEnabled, verifySecondFactor, consumeRecoveryCode,
+} from './two-factor';
 
 const credentials = z.object({
   email: z.string().trim().email('Enter a valid email address').max(254),
@@ -20,6 +24,8 @@ export interface AuthFormState {
   fieldErrors?: Record<string, string>;
   /** Set when the failure is the deployment's, not the person's — offers a link to /setup. */
   setupRequired?: boolean;
+  /** The password was right and a second factor is now required. */
+  needsSecondFactor?: boolean;
 }
 
 /**
@@ -139,9 +145,80 @@ async function signIn(_prev: AuthFormState, formData: FormData): Promise<AuthFor
       .where(eq(users.id, user.id)),
   );
 
+  // The password was right. If a second factor is enrolled, that is not yet a
+  // session — it is permission to be ASKED for the code. No session row exists
+  // until the second factor passes, so a half-finished login cannot be mistaken
+  // for a finished one anywhere else in the app.
+  if (await twoFactorEnabled(user.id)) {
+    await startPendingTwoFactor(user.id);
+    return { needsSecondFactor: true };
+  }
+
   const ctx = await requestContext();
   await createSession(user.id, ctx.ip, ctx.userAgent);
   await audit({ actorUserId: user.id, action: 'auth.sign_in', entity: 'user', entityId: user.id });
+
+  redirect('/overview');
+}
+
+export async function secondFactorAction(prev: AuthFormState, formData: FormData): Promise<AuthFormState> {
+  return guarded(() => secondFactor(prev, formData));
+}
+
+/**
+ * The second step of signing in.
+ *
+ * Rate limited separately and harder than the password step: a six-digit code has a
+ * million possibilities, which is a number you can work through if nobody is
+ * counting. Ten attempts per fifteen minutes makes that hopeless.
+ */
+async function secondFactor(_prev: AuthFormState, formData: FormData): Promise<AuthFormState> {
+  const userId = await readPendingTwoFactor();
+  if (!userId) {
+    return { error: 'That took too long. Enter your email and password again.' };
+  }
+
+  const { ip } = await requestContext();
+  const limit = await checkRateLimit(`2fa:${userId}:${ip ?? 'unknown'}`, 10, 15 * 60);
+  if (!limit.allowed) {
+    await clearPendingTwoFactor();
+    return { error: 'Too many codes tried. Sign in again in a few minutes.' };
+  }
+
+  const code = String(formData.get('code') ?? '').trim();
+  if (code === '') return { needsSecondFactor: true, error: 'Enter the code from your authenticator app.' };
+
+  // A recovery code is longer than six digits and contains letters, so the two are
+  // told apart by shape rather than by asking the person which kind they are using.
+  const looksLikeRecovery = /[a-z]/i.test(code);
+  const outcome = looksLikeRecovery
+    ? ((await consumeRecoveryCode(userId, code)) ? 'ok' : 'invalid')
+    : await verifySecondFactor(userId, code);
+
+  if (outcome !== 'ok') {
+    await audit({ actorUserId: userId, action: 'auth.second_factor_failed', entity: 'user', entityId: userId });
+    return {
+      needsSecondFactor: true,
+      error:
+        outcome === 'already-used'
+          // Right code, spent step. Says what to do instead of implying the phone
+          // is wrong, which is where people go looking otherwise.
+          ? 'That code has already been used. Wait for your app to show the next one.'
+          : looksLikeRecovery
+            ? 'That recovery code is not valid, or it has already been used.'
+            : 'That code is not right. Codes change every 30 seconds — try the current one.',
+    };
+  }
+
+  await clearPendingTwoFactor();
+  const ctx = await requestContext();
+  await createSession(userId, ctx.ip, ctx.userAgent);
+  await audit({
+    actorUserId: userId,
+    action: looksLikeRecovery ? 'auth.sign_in_recovery_code' : 'auth.sign_in_second_factor',
+    entity: 'user',
+    entityId: userId,
+  });
 
   redirect('/overview');
 }

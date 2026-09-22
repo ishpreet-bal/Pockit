@@ -238,6 +238,37 @@ The risk questionnaire lives at `/investing/profile` and suggests a broad asset 
 never a security to buy, and never for money needed inside three years. High-interest
 debt and a missing cash buffer stop the process rather than adjusting a percentage.
 
+## Security
+
+Two-step verification is TOTP (RFC 6238), implemented in `lib/auth/totp.ts` and
+tested against the RFC's published vectors rather than against its own output.
+
+Three decisions there are load-bearing:
+
+- **The shared secret is encrypted, not hashed.** Verifying a code needs the original
+  value back, so hashing is not available. AES-256-GCM keyed from `AUTH_SECRET` means
+  a leaked database is not by itself a leaked second factor.
+- **A code works once.** The accepted 30-second step is recorded, so a code read over
+  someone's shoulder is refused for the rest of its own validity window. A reused
+  code says so, rather than "that code is not right" — the second message sends
+  people to check a phone clock that is fine.
+- **Recovery codes are hashed like passwords,** shown exactly once, and marked used
+  rather than deleted so "you have 7 left" stays true.
+
+Turning 2FA off requires the account password, so an unlocked laptop is not enough
+to strip it. `npm run e2e:security` exercises all of it in a browser, generating
+codes from an independent TOTP implementation.
+
+## Ask Pock
+
+`lib/investing/pock.ts` builds a fact sheet from the workspace's real position and
+any market figures fetched for the question, and the brief forbids naming a buy or
+sell, stating a figure not in the sheet, and predicting a price. Conversations are
+stored per workspace under row-level security; each answer keeps the facts it was
+given, so a claim made months ago can still be audited against what was known then.
+
+Without `ANTHROPIC_API_KEY` Pock says it cannot answer. It does not improvise.
+
 ## Deployment
 
 The app targets Vercel with any Postgres. See **Environment** below, then after the
