@@ -254,11 +254,13 @@ const THEMES: { value: 'system' | 'light' | 'dark'; icon: Icon; label: string }[
 ];
 
 export function ThemeToggle() {
-  const [theme, setTheme] = useState<'system' | 'light' | 'dark'>('system');
+  // Unset means dark — the toggle must show what the page actually looks like,
+  // not highlight "System" over a dark screen on someone whose OS is light.
+  const [theme, setTheme] = useState<'system' | 'light' | 'dark'>('dark');
 
   useEffect(() => {
     try {
-      setTheme((localStorage.getItem('pockit-theme') as 'system' | 'light' | 'dark' | null) ?? 'system');
+      setTheme((localStorage.getItem('pockit-theme') as 'system' | 'light' | 'dark' | null) ?? 'dark');
     } catch { /* private mode */ }
   }, []);
 

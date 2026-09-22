@@ -206,3 +206,75 @@ h1, h2, h3, .pk-display {
 .pk-range:active::-webkit-slider-thumb { transform: scale(1.12); }
 .pk-range:focus-visible::-webkit-slider-thumb { box-shadow: 0 0 0 4px var(--accent-ring); }
 .pk-range:focus-visible::-moz-range-thumb { box-shadow: 0 0 0 4px var(--accent-ring); }
+
+/* ------------------------------------------------------------------
+   Arrival motion
+
+   Pages used to appear in one 260ms block, which read as a cut rather than a
+   transition. Content now assembles: each section rises and sharpens into place a
+   beat after the one before it. The blur matters as much as the movement — it is
+   what makes an arrival feel soft rather than snapped.
+
+   Pure CSS rather than a JS animation library for the stagger, so it costs nothing
+   on navigation and cannot delay the page becoming interactive: the content is
+   already there and clickable, it just finishes arriving.
+   ------------------------------------------------------------------ */
+
+@keyframes pk-arrive {
+  from { opacity: 0; transform: translateY(14px); filter: blur(6px); }
+  /* `none`, not blur(0): any filter value — even a zero blur — makes the element a
+     containing block for position:fixed descendants, which would pin every sheet
+     and dropdown inside the page to the page instead of the viewport. */
+  to   { opacity: 1; transform: none; filter: none; }
+}
+
+.pk-assemble > * {
+  animation: pk-arrive 620ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+.pk-assemble > *:nth-child(1) { animation-delay: 0ms; }
+.pk-assemble > *:nth-child(2) { animation-delay: 70ms; }
+.pk-assemble > *:nth-child(3) { animation-delay: 140ms; }
+.pk-assemble > *:nth-child(4) { animation-delay: 210ms; }
+.pk-assemble > *:nth-child(5) { animation-delay: 280ms; }
+.pk-assemble > *:nth-child(6) { animation-delay: 340ms; }
+.pk-assemble > *:nth-child(n+7) { animation-delay: 400ms; }
+
+/* One level deeper, so a page's sections arrive one after another rather than the
+   whole body landing as one block after the header. */
+.pk-assemble > * > section,
+.pk-assemble > * > .grid > *,
+.pk-assemble > * > [class*='space-y'] > * {
+  animation: pk-arrive 620ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+.pk-assemble > * > :nth-child(2) { animation-delay: 140ms; }
+.pk-assemble > * > :nth-child(3) { animation-delay: 220ms; }
+.pk-assemble > * > :nth-child(4) { animation-delay: 300ms; }
+.pk-assemble > * > :nth-child(n+5) { animation-delay: 360ms; }
+
+/* Floating background light, for the welcome and setup screens. Slow enough that
+   you notice the page is alive without anything competing with the text. */
+@keyframes pk-drift {
+  0%   { transform: translate(0, 0) scale(1); }
+  50%  { transform: translate(4%, -3%) scale(1.08); }
+  100% { transform: translate(0, 0) scale(1); }
+}
+.pk-orb {
+  position: absolute;
+  border-radius: 9999px;
+  filter: blur(70px);
+  opacity: 0.45;
+  animation: pk-drift 18s ease-in-out infinite;
+  pointer-events: none;
+}
+
+/* Interactive surfaces respond instead of snapping. */
+a, button, [role='button'] {
+  transition-property: color, background-color, border-color, box-shadow, transform, opacity;
+  transition-duration: 180ms;
+  transition-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pk-assemble > *, .pk-assemble > * > * { animation: none !important; }
+  .pk-orb { animation: none; }
+}

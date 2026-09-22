@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { requireAuthApi } from '@/lib/auth/api';
 import { getAiProvider } from '@/lib/ai';
 import { AiUnavailableError } from '@/lib/ai/types';
+import { describeProviderError } from '@/lib/ai/errors';
 import { POCK_BRIEF } from '@/lib/pock/brief';
 
 export const dynamic = 'force-dynamic';
@@ -45,7 +46,6 @@ export async function GET() {
     });
   } catch (error) {
     const unavailable = error instanceof AiUnavailableError;
-    const message = error instanceof Error ? error.message : String(error);
 
     return NextResponse.json({
       ok: false,
@@ -61,7 +61,7 @@ export async function GET() {
             ? 'ANTHROPIC_API_KEY is set on this deployment but the app is still falling back to on-device parsing. Check AI_PROVIDER is "auto" or "anthropic", and that the variable is not saved with quotes around it.'
             // The provider's own message is the most useful thing here — it
             // distinguishes an invalid key from a spent quota from a wrong model id.
-            : `The provider rejected the call: ${message.slice(0, 300)}`,
+            : describeProviderError(error).detail,
       ],
     });
   }

@@ -66,7 +66,7 @@ export default async function GoalsPage() {
       />
 
       <div className="space-y-4 px-4 py-4 sm:px-6">
-        <section className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <section data-tour="goals-summary" className="grid grid-cols-2 gap-3 lg:grid-cols-4">
           <Stat label="Saved so far" minor={portfolio.totalSavedMinor} currency={cur} />
           <Stat label="Total target" minor={portfolio.totalTargetMinor} currency={cur} />
           <Stat label="Needed monthly" minor={portfolio.totalRequiredMonthlyMinor} currency={cur}
@@ -91,7 +91,7 @@ export default async function GoalsPage() {
           </Card>
         ) : null}
 
-        <div className="grid gap-4 lg:grid-cols-2">
+        <div data-tour="goals-list" className="grid gap-4 lg:grid-cols-2">
           {goals.map((goal) => {
             const math = computeGoalMath(goal, today);
             // Pace uses what is actually going in, not what was planned.

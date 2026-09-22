@@ -9,6 +9,7 @@ import { Callout } from '@/components/ui/callout';
 import { Money } from '@/components/finance/money';
 import { SeedDemoButton } from './seed-demo';
 import { DemoBanner } from '../demo-banner';
+import { isDemoTour } from '@/lib/data/demo-workspace';
 import { Hero } from './hero';
 import { StatGrid, type Stat } from './stat-grid';
 import { SpendingDonut } from './spending-donut';
@@ -137,7 +138,9 @@ export default async function OverviewPage() {
 
   return (
     <div className={cn('space-y-8 py-6 sm:py-8', GUTTER)}>
-      {workspace.isDemo ? <DemoBanner /> : null}
+      {/* The demo sandbox has its own bar with an Exit; this banner's "clear it" would
+              empty the sandbox, which is never what someone exploring it wants. */}
+          {workspace.isDemo && !isDemoTour(workspace) ? <DemoBanner /> : null}
 
       <section aria-label="Where you stand">
         <Hero

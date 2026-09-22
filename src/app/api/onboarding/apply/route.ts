@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { eq } from 'drizzle-orm';
+import { and, eq, ne } from 'drizzle-orm';
 import { requireAuthApi } from '@/lib/auth/api';
 import { withUser, withoutUser } from '@/lib/db/client';
 import { userProfiles, recurringSeries, goals, accounts } from '@/lib/db/schema';
@@ -47,6 +47,19 @@ export async function POST() {
     return NextResponse.json({ ok: true, alreadyApplied: true, picture: buildPicture(answers) });
   }
 
+  // Claim the work atomically BEFORE doing it. Reading the stage and writing it
+  // afterwards left a window in which a double-click, or "Skip" followed by the
+  // final button, ran this twice and created every bill and income twice over.
+  const claimed = await withoutUser((tx) =>
+    tx.update(userProfiles)
+      .set({ onboardingStage: 'done', onboardingCompletedAt: new Date() })
+      .where(and(eq(userProfiles.userId, ctx.user.id), ne(userProfiles.onboardingStage, 'done')))
+      .returning({ userId: userProfiles.userId }),
+  );
+  if (claimed.length === 0) {
+    return NextResponse.json({ ok: true, alreadyApplied: true, picture: buildPicture(answers) });
+  }
+
   const created = await withUser(ctx.user.id, async (tx) => {
     const counts = { recurring: 0, goals: 0, accounts: 0 };
 
@@ -87,6 +100,11 @@ export async function POST() {
         name: 'Income',
         kind: 'income',
         type: 'income',
+        // The column defaults to 'outflow'. Leaving it unset is how income showed
+        // up as a negative expense.
+        direction: 'inflow',
+        startDate: answers.incomeNextDate ?? null,
+        nextExpectedDate: answers.incomeNextDate ?? null,
         amountMinor: BigInt(answers.incomeMinor),
         currency: ctx.workspace.baseCurrency,
         cadence: toDbCadence(answers.incomeCadence),
@@ -110,6 +128,8 @@ export async function POST() {
         cadence: toDbCadence(bill.cadence),
         categoryId: bill.categoryId ?? null,
         accountId: chequingId,
+        direction: 'outflow',
+        startDate: bill.nextDate ?? null,
         nextExpectedDate: bill.nextDate ?? null,
         status: 'active',
         isManual: true,

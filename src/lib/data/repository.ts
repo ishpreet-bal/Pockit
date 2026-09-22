@@ -260,7 +260,10 @@ export class WorkspaceRepo {
         eq(recurringSeries.isManual, true),
       )).orderBy(recurringSeries.name),
     );
-    return rows.map((r) => ({
+    // A schedule with no date is not projected. Assuming TODAY for it is what made
+    // every income and bill from setup read "due today"; it still appears on the
+    // Recurring page, where the missing date can be filled in.
+    return rows.filter((r) => r.startDate || r.nextExpectedDate).map((r) => ({
       id: r.id,
       name: r.name,
       amountMinor: minorFromDb(r.amountMinor as unknown as string),
@@ -268,7 +271,7 @@ export class WorkspaceRepo {
       cadence: r.cadence,
       interval: r.intervalCount,
       dayOfMonth: r.dayOfMonth,
-      startDate: r.startDate ?? r.nextExpectedDate ?? new Date().toISOString().slice(0, 10),
+      startDate: (r.startDate ?? r.nextExpectedDate)!,
       endDate: r.endDate,
       type: r.type,
       categoryId: r.categoryId,

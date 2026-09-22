@@ -22,12 +22,16 @@ export function PageTransition({ children }: { children: ReactNode }) {
 
   if (reduced) return <>{children}</>;
 
+  // The wrapper fades the page in softly; `pk-assemble` then staggers the page's
+  // own sections so it builds up rather than appearing in one block. Longer and
+  // softer than before (it was 260ms with no blur), which is what read as choppy.
   return (
     <motion.div
       key={pathname}
-      initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.26, ease: [0.22, 1, 0.36, 1] }}
+      className="pk-assemble"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.45, ease: [0.16, 1, 0.3, 1] }}
     >
       {children}
     </motion.div>

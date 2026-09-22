@@ -97,7 +97,7 @@ export default async function BudgetPage() {
 
       <div className="mx-auto max-w-3xl space-y-6 px-4 py-6 sm:px-6">
         {/* One sentence, not a wall of numbers. */}
-        <section>
+        <section data-tour="budget-pace">
           <p className="text-sm text-[var(--text-muted)]">
             {onPace ? 'You’re on pace' : 'You’re spending faster than the month is passing'}
           </p>
@@ -137,7 +137,7 @@ export default async function BudgetPage() {
           </Link>
         ) : null}
 
-        <section>
+        <section data-tour="budget-plan">
           <h2 className="mb-2 text-base font-semibold">Your plan</h2>
           <Card>
             <CardBody className="space-y-4 pt-4">
@@ -171,7 +171,7 @@ export default async function BudgetPage() {
 
         {/* Contextual actions, only when there is something to act on. */}
         {status.warnings.length > 0 ? (
-          <section>
+          <section data-tour="budget-warnings">
             <h2 className="mb-2 text-base font-semibold">Worth a look</h2>
             <ul className="space-y-2">
               {status.warnings.slice(0, 3).map((w) => (

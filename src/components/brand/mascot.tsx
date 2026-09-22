@@ -1,19 +1,24 @@
 'use client';
 
+import { useEffect, useState } from 'react';
 import { motion, useReducedMotion } from 'framer-motion';
 
 export type Mood = 'idle' | 'happy' | 'thinking' | 'concerned' | 'celebrating';
 
 /**
- * Pock — the guide.
+ * Pock — a sea otter.
  *
- * It is the logo's pocket with a face, on purpose: one drawn form serving as both
- * brand and character means they can never drift apart, and every appearance of the
- * mascot also reinforces the mark.
+ * Floating on its back and holding a coin to its chest, because that is what sea
+ * otters actually do with things they value (they keep a favourite stone), and a
+ * money app's guide holding onto a coin reads instantly without a word of copy.
  *
- * The moods are drawn with eyes and a mouth only. Resisting the urge to give it arms
- * and props keeps it legible at 32px and keeps it from looking like a different
- * character in every state.
+ * It is drawn in fixed otter colours rather than `currentColor`. The previous
+ * mascot inherited the brand colour, which made it a logo with a face; this one is
+ * meant to be a character, and a character should look the same on every surface.
+ *
+ * Motion is layered and slow — a float on the water, a blink every few seconds,
+ * a whisker twitch — because constant fast movement next to a bank balance reads
+ * as anxiety. Everything stops under `prefers-reduced-motion`.
  */
 export function Mascot({
   mood = 'idle',
@@ -26,43 +31,139 @@ export function Mascot({
 }) {
   const reduced = useReducedMotion();
   const moving = animate && !reduced;
+  const blink = useBlink(moving);
 
-  const eyes = EYES[mood];
+  const float = moving
+    ? mood === 'celebrating'
+      ? { y: [0, -5, 0], rotate: [-4, 4, -4] }
+      : { y: [0, -1.6, 0], rotate: [-2.5, 2.5, -2.5] }
+    : undefined;
 
   return (
     <motion.svg
-      viewBox="0 0 32 32"
+      viewBox="0 0 64 64"
       className={className}
       role="img"
-      aria-label={`Pock looks ${MOOD_WORDS[mood]}`}
-      // A slow, small breath. Anything faster reads as agitation, which is the
-      // last thing a character standing next to your bank balance should convey.
-      animate={moving ? { y: [0, -1.2, 0] } : undefined}
-      transition={moving ? { duration: 3.6, repeat: Infinity, ease: 'easeInOut' } : undefined}
+      aria-label={`Pock the sea otter looks ${MOOD_WORDS[mood]}`}
+      animate={float}
+      transition={moving ? { duration: mood === 'celebrating' ? 0.9 : 4.2, repeat: Infinity, ease: 'easeInOut' } : undefined}
+      style={{ overflow: 'visible' }}
     >
-      <rect x="3" y="8" width="26" height="21" rx="6" fill="currentColor" />
+      {/* Water line — only a hint, so the otter reads as floating, not swimming. */}
+      <path d="M6 52 Q16 48 26 52 T46 52 T58 52" fill="none" stroke="#5ed3f0" strokeOpacity="0.45" strokeWidth="2" strokeLinecap="round" />
+
+      {/* Body */}
+      <ellipse cx="32" cy="42" rx="17" ry="12" fill="#7a4e33" />
+      <ellipse cx="32" cy="44" rx="11" ry="8" fill="#c79d7a" />
+
+      {/* Tail peeking out */}
+      <path d="M47 46 Q56 47 58 42" fill="none" stroke="#6a4229" strokeWidth="4" strokeLinecap="round" />
+
+      {/* Head */}
+      <circle cx="32" cy="24" r="15" fill="#8a5a3c" />
+      {/* Ears */}
+      <circle cx="19.5" cy="13.5" r="3.4" fill="#7a4e33" />
+      <circle cx="44.5" cy="13.5" r="3.4" fill="#7a4e33" />
+      <circle cx="19.5" cy="13.5" r="1.6" fill="#c79d7a" />
+      <circle cx="44.5" cy="13.5" r="1.6" fill="#c79d7a" />
+      {/* Pale face mask — the thing that makes it read as a sea otter at 32px */}
+      <ellipse cx="32" cy="27" rx="11.5" ry="9.5" fill="#e8cfb4" />
+
+      {/* Eyes */}
+      <g>
+        {mood === 'happy' || mood === 'celebrating' ? (
+          <>
+            <path d="M22.5 22.5 Q25 19.5 27.5 22.5" fill="none" stroke="#1a1210" strokeWidth="2" strokeLinecap="round" />
+            <path d="M36.5 22.5 Q39 19.5 41.5 22.5" fill="none" stroke="#1a1210" strokeWidth="2" strokeLinecap="round" />
+          </>
+        ) : (
+          <>
+            <ellipse cx="25" cy={mood === 'thinking' ? 20.5 : 22} rx="2.4" ry={blink ? 0.3 : 2.6} fill="#1a1210" />
+            <ellipse cx="39" cy={mood === 'thinking' ? 20.5 : 22} rx="2.4" ry={blink ? 0.3 : 2.6} fill="#1a1210" />
+            {!blink ? (
+              <>
+                <circle cx="25.8" cy={mood === 'thinking' ? 19.6 : 21} r="0.8" fill="#fff" />
+                <circle cx="39.8" cy={mood === 'thinking' ? 19.6 : 21} r="0.8" fill="#fff" />
+              </>
+            ) : null}
+          </>
+        )}
+        {/* A slight inward tilt of the brows, not a frown: "I noticed", not "I disapprove". */}
+        {mood === 'concerned' ? (
+          <>
+            <path d="M21.5 17.5 L27 18.8" stroke="#4a2e1d" strokeWidth="1.4" strokeLinecap="round" />
+            <path d="M42.5 17.5 L37 18.8" stroke="#4a2e1d" strokeWidth="1.4" strokeLinecap="round" />
+          </>
+        ) : null}
+      </g>
+
+      {/* Nose and mouth */}
+      <ellipse cx="32" cy="27.5" rx="2.6" ry="1.9" fill="#2b1d17" />
       <path
-        d="M3 14.5 C3 10.9 5.9 8 9.5 8 h13 C26.1 8 29 10.9 29 14.5 v1.5 H3 Z"
-        fill="currentColor"
-        opacity="0.55"
-      />
-      <motion.circle
-        cx="16" cy="5" r="3.4" fill="currentColor"
-        animate={moving && mood === 'celebrating' ? { cy: [5, 2.5, 5] } : undefined}
-        transition={moving ? { duration: 0.9, repeat: Infinity, ease: 'easeInOut' } : undefined}
+        d={mood === 'concerned' ? 'M29.5 32 Q32 31 34.5 32' : 'M29 30.5 Q32 33.5 35 30.5'}
+        fill="none" stroke="#2b1d17" strokeWidth="1.3" strokeLinecap="round"
       />
 
-      {/*
-        The face is drawn in the brand fill, which is the opposite of whatever the
-        body is drawn in. Inheriting `currentColor` here made it the same colour as
-        the pocket, so the character rendered as a blank shape.
-      */}
-      <g className="text-[var(--accent-fill)]" fill="currentColor">
-        {eyes}
-        {MOUTHS[mood]}
-      </g>
+      {/* Whiskers */}
+      <motion.g
+        stroke="#f7ecdf" strokeWidth="0.9" strokeLinecap="round" opacity="0.9"
+        animate={moving ? { rotate: [0, 2, 0, -1, 0] } : undefined}
+        transition={moving ? { duration: 5, repeat: Infinity, ease: 'easeInOut', times: [0, 0.1, 0.2, 0.3, 1] } : undefined}
+        style={{ originX: '32px', originY: '28px' }}
+      >
+        <path d="M24 28 L15 26.5" />
+        <path d="M24 29.5 L15 30.5" />
+        <path d="M40 28 L49 26.5" />
+        <path d="M40 29.5 L49 30.5" />
+      </motion.g>
+
+      {/* Paws holding the coin. `thinking` lifts one paw to the chin instead. */}
+      {mood === 'thinking' ? (
+        <>
+          <circle cx="38" cy="35" r="3.2" fill="#6a4229" />
+          <Coin cx={28} cy={41} moving={false} />
+          <circle cx="24" cy="41" r="3.2" fill="#6a4229" />
+        </>
+      ) : (
+        <>
+          <Coin cx={32} cy={mood === 'celebrating' ? 36 : 40} moving={moving && mood === 'celebrating'} />
+          <circle cx="25.5" cy="41" r="3.2" fill="#6a4229" />
+          <circle cx="38.5" cy="41" r="3.2" fill="#6a4229" />
+        </>
+      )}
     </motion.svg>
   );
+}
+
+function Coin({ cx, cy, moving }: { cx: number; cy: number; moving: boolean }) {
+  return (
+    <motion.g
+      animate={moving ? { y: [0, -6, 0], rotate: [0, 180, 360] } : undefined}
+      transition={moving ? { duration: 0.9, repeat: Infinity, ease: 'easeInOut' } : undefined}
+      style={{ originX: `${cx}px`, originY: `${cy}px` }}
+    >
+      <circle cx={cx} cy={cy} r="5" fill="#f5c451" stroke="#c8931f" strokeWidth="1" />
+      <circle cx={cx} cy={cy} r="2.6" fill="none" stroke="#c8931f" strokeWidth="0.9" />
+    </motion.g>
+  );
+}
+
+/** A blink every few seconds, at slightly irregular intervals so it feels alive. */
+function useBlink(active: boolean): boolean {
+  const [shut, setShut] = useState(false);
+  useEffect(() => {
+    if (!active) return;
+    let timer: ReturnType<typeof setTimeout>;
+    const schedule = () => {
+      timer = setTimeout(() => {
+        setShut(true);
+        timer = setTimeout(() => { setShut(false); schedule(); }, 140);
+      }, 2800 + Math.random() * 3200);
+    };
+    schedule();
+    return () => clearTimeout(timer);
+  }, [active]);
+  return shut;
 }
 
 const MOOD_WORDS: Record<Mood, string> = {
@@ -71,44 +172,4 @@ const MOOD_WORDS: Record<Mood, string> = {
   thinking: 'thoughtful',
   concerned: 'concerned',
   celebrating: 'delighted',
-};
-
-/**
- * Eyes as plain shapes rather than a sprite sheet.
- *
- * `concerned` uses a slight downward tilt rather than a frown, because a frowning
- * character next to a real shortfall reads as judgement. The aim is "I noticed",
- * not "you have failed".
- */
-const EYES: Record<Mood, React.ReactNode> = {
-  idle: <><circle cx="12" cy="19" r="1.7" /><circle cx="20" cy="19" r="1.7" /></>,
-  happy: <><circle cx="12" cy="19" r="1.7" /><circle cx="20" cy="19" r="1.7" /></>,
-  thinking: (
-    <>
-      <circle cx="12" cy="19" r="1.7" />
-      <rect x="18.3" y="18.3" width="3.4" height="1.5" rx="0.75" />
-    </>
-  ),
-  concerned: (
-    <>
-      <circle cx="12" cy="19.4" r="1.6" />
-      <circle cx="20" cy="19.4" r="1.6" />
-      <rect x="9.8" y="16.4" width="4.4" height="1.2" rx="0.6" transform="rotate(8 12 17)" opacity="0.8" />
-      <rect x="17.8" y="16.4" width="4.4" height="1.2" rx="0.6" transform="rotate(-8 20 17)" opacity="0.8" />
-    </>
-  ),
-  celebrating: (
-    <>
-      <path d="M10.3 19.6 Q12 17.4 13.7 19.6" stroke="currentColor" strokeWidth="1.5" fill="none" strokeLinecap="round" />
-      <path d="M18.3 19.6 Q20 17.4 21.7 19.6" stroke="currentColor" strokeWidth="1.5" fill="none" strokeLinecap="round" />
-    </>
-  ),
-};
-
-const MOUTHS: Record<Mood, React.ReactNode> = {
-  idle: <rect x="14" y="23.4" width="4" height="1.4" rx="0.7" opacity="0.85" />,
-  happy: <path d="M13 23 Q16 25.6 19 23" stroke="currentColor" strokeWidth="1.5" fill="none" strokeLinecap="round" />,
-  thinking: <rect x="14.5" y="23.4" width="3" height="1.4" rx="0.7" opacity="0.85" />,
-  concerned: <path d="M13.4 24.6 Q16 22.9 18.6 24.6" stroke="currentColor" strokeWidth="1.4" fill="none" strokeLinecap="round" />,
-  celebrating: <ellipse cx="16" cy="23.8" rx="2.2" ry="1.8" />,
 };

@@ -6,6 +6,7 @@ import { MarketHealth } from './market-health';
 import { TwoFactor } from './two-factor';
 import { ResetWorkspace } from './reset-workspace';
 import { DemoBanner } from '../demo-banner';
+import { isDemoTour } from '@/lib/data/demo-workspace';
 import { Card, CardHeader, CardBody } from '@/components/ui/primitives';
 import { SettingsForms } from './forms';
 import { getAiProvider } from '@/lib/ai';
@@ -36,7 +37,9 @@ export default async function SettingsPage() {
       */}
       <div className="grid gap-4 px-4 py-5 sm:px-6 lg:grid-cols-2 lg:px-8 xl:gap-5 [&>*]:min-w-0">
         <div className="space-y-4 lg:col-span-2">
-          {workspace.isDemo ? <DemoBanner /> : null}
+          {/* The demo sandbox has its own bar with an Exit; this banner's "clear it" would
+              empty the sandbox, which is never what someone exploring it wants. */}
+          {workspace.isDemo && !isDemoTour(workspace) ? <DemoBanner /> : null}
         </div>
 
         <div className="space-y-4 lg:col-span-2">

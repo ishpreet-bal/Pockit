@@ -107,6 +107,12 @@ export const answersSchema = z.object({
   incomeMinor: z.number().int().nonnegative().optional(),
   incomeCadence: z.enum(CADENCES).optional(),
   incomeSource: z.enum(['employment', 'self_employment', 'business', 'multiple', 'other']).optional(),
+  /**
+   * When the next pay lands. Without it a schedule has no anchor, and the only
+   * date left to assume is today — which made every income and bill created in
+   * setup read "due today" when nothing was.
+   */
+  incomeNextDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
   recurring: z.array(recurringAnswer).max(30).optional(),
   spendingByCategory: z.record(z.string(), z.number().int().nonnegative()).optional(),
   savingsMinor: z.number().int().nonnegative().optional(),

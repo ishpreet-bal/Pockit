@@ -15,13 +15,13 @@ import { ProductTour } from '@/components/tour/product-tour';
  */
 export async function TourHost({ userId }: { userId: string }) {
   const rows = await withoutUser((tx) =>
-    tx.select({ tourCompletedAt: userProfiles.tourCompletedAt })
+    tx.select({ tourCompletedAt: userProfiles.tourCompletedAt, name: userProfiles.displayName })
       .from(userProfiles).where(eq(userProfiles.userId, userId)).limit(1),
   );
 
   return (
     <Suspense fallback={null}>
-      <ProductTour alreadyDone={Boolean(rows[0]?.tourCompletedAt)} />
+      <ProductTour alreadyDone={Boolean(rows[0]?.tourCompletedAt)} name={rows[0]?.name?.split(' ')[0] ?? null} />
     </Suspense>
   );
 }

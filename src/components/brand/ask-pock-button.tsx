@@ -26,6 +26,7 @@ export function AskPockButton({
   return (
     <button
       type="button"
+      data-tour="ask-pock-context"
       onClick={() => {
         window.dispatchEvent(new CustomEvent('pock:ask', { detail: { anchor, prompt } }));
       }}

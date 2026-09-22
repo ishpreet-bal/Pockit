@@ -18,10 +18,10 @@ export default function InvestingLayout({ children }: { children: React.ReactNod
       <header className="flex flex-col gap-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <h1 className="pk-display text-2xl font-bold tracking-tight">Investing</h1>
-          <SearchCommand className="w-full sm:w-[340px]" />
+          <div data-tour="invest-search" className="w-full sm:w-auto"><SearchCommand className="w-full sm:w-[340px]" /></div>
         </div>
         <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[var(--border)] pb-3">
-          <SectionNav />
+          <div data-tour="invest-sections" className="min-w-0"><SectionNav /></div>
           {!source.live ? (
             <span className="rounded-full bg-[var(--warning-soft)] px-2.5 py-1 text-2xs font-semibold text-[var(--warning)]">
               Sample prices — no market key connected

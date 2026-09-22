@@ -105,7 +105,7 @@ const DEFAULT_NOTIFICATIONS = [
   'goal_achieved', 'large_expense', 'subscription_renewal',
 ];
 
-async function seedNotificationRules(tx: Tx, workspaceId: string): Promise<void> {
+export async function seedNotificationRules(tx: Tx, workspaceId: string): Promise<void> {
   for (const kind of DEFAULT_NOTIFICATIONS) {
     await tx.insert(notificationRules).values({ workspaceId, kind, enabled: true }).onConflictDoNothing();
   }

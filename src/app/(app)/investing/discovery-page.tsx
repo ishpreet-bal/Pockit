@@ -16,20 +16,28 @@ export async function DiscoveryPage({ kind, methodology }: { kind: AssetKind; me
   const { user, workspace } = await requireAuth();
 
   const collections = collectionsFor(kind);
-  const [groups, watched] = await Promise.all([
-    Promise.all(
-      collections.map(async (c): Promise<CollectionGroup> => ({
-        id: c.id,
-        label: c.label,
-        blurb: c.blurb,
-        assets: await summarise(entriesIn(c.id)),
-      })),
-    ),
+
+  // One batch for the whole page, not one per collection. The same fund sits in
+  // several collections, and summarising each separately priced it several times
+  // over — on a plan that allows eight lookups a minute.
+  const unique = new Map<string, ReturnType<typeof entriesIn>[number]>();
+  for (const c of collections) for (const e of entriesIn(c.id)) unique.set(e.symbol, e);
+
+  const [summaries, watched] = await Promise.all([
+    summarise([...unique.values()]),
     withUser(user.id, (tx) =>
       tx.select({ symbol: watchlistItems.symbol }).from(watchlistItems)
         .where(eq(watchlistItems.workspaceId, workspace.id)),
     ),
   ]);
+
+  const bySymbol = new Map(summaries.map((a) => [a.symbol, a]));
+  const groups: CollectionGroup[] = collections.map((c) => ({
+    id: c.id,
+    label: c.label,
+    blurb: c.blurb,
+    assets: entriesIn(c.id).map((e) => bySymbol.get(e.symbol)).filter((a): a is NonNullable<typeof a> => Boolean(a)),
+  }));
 
   const source = sourceInfo();
 

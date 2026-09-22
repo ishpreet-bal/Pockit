@@ -52,7 +52,21 @@ export async function signUp(
     await page.waitForSelector('button:has-text("Skip for now")', { timeout: 30000 });
     await page.click('button:has-text("Skip for now")');
     await page.waitForURL(/overview/, { timeout: 40000 });
+    // The tour now opens by itself after setup. A suite about imports should not
+    // have to know that, so it is dismissed here — with Escape, as a person could.
+    await page.waitForSelector('[role=dialog]', { timeout: 8000 }).catch(() => {});
+    await page.keyboard.press('Escape');
+    await page.waitForTimeout(400);
   }
+  // Mark every section's walkthrough as seen, so the "Explore this page" pill never
+  // floats over the button a test is about to click.
+  await page.evaluate(() => {
+    try {
+      localStorage.setItem('pockit-explored', JSON.stringify(
+        ['/overview', '/transactions', '/budget', '/goals', '/calendar', '/investing'],
+      ));
+    } catch { /* ignore */ }
+  });
 
   return address;
 }

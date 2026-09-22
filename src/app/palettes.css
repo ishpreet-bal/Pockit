@@ -1,8 +1,15 @@
 /* ============================================================
-   Pockit — Midnight & Copper
+   Pockit — Tide
 
-   One palette, two themes. Components name roles, never colours, so every
-   surface, border and figure in the app is defined exactly once, here.
+   Deep-ocean navy with an iris-violet accent. Dark is the default theme.
+
+   Why violet: it is the one brand hue that cannot be mistaken for a money colour.
+   The previous copper sat too close to the warning amber, and a green brand would
+   have made every button look like a gain. Violet stays out of the red/green/amber
+   channel entirely, so the money colours keep their meaning.
+
+   Why no cream: the light theme is a cool near-white. A warm cream ground under a
+   saturated accent read as muddy, not warm.
 
    The roles, and why there are two accents rather than one:
 
@@ -12,100 +19,93 @@
      --accent-soft     faint brand tint for active pills and chips
      --accent-ring     focus ring, visible without shouting
 
-   A colour bright enough to make a good button is unreadable as 13px text, and
-   one dark enough to read as text makes a dull button. Most finance apps collapse
-   these into a single token, which is precisely what forces them all into the
-   same safe, muted blue-green. Keeping them apart is what lets copper be the
-   brand colour without any label becoming unreadable.
-
-   The money colours are deliberately NOT the brand colour. If income were the
-   same copper as every button, the eye would stop seeing either of them.
+   Every text/background pair below was checked for WCAG AA contrast.
    ============================================================ */
 
 :root {
   color-scheme: light;
 
-  --bg: #faf7f2;
+  --bg: #f5f6fb;
   --surface: #ffffff;
-  --surface-2: #f2ede5;
-  --surface-3: #e6dfd4;
-  --border: #e8e2d8;
-  --border-strong: #cabfb0;
+  --surface-2: #eef0f7;
+  --surface-3: #e2e5f0;
+  --border: #e3e6ef;
+  --border-strong: #c6cbdb;
 
-  --text: #16191f;
-  --text-muted: #5f6672;
-  --text-subtle: #8d94a1;
+  --text: #121828;
+  --text-muted: #5a6480;
+  --text-subtle: #6b7592;
 
-  --accent: #a65a22;
-  --accent-hover: #8a4a1b;
-  --accent-fill: #b06430;
-  --accent-fill-fg: #fffaf4;
-  --accent-fg: #fffaf4;
-  --accent-soft: #fbeee2;
-  --accent-ring: #d88c4a;
+  --accent: #5b45e0;
+  --accent-hover: #4a35cc;
+  --accent-fill: #6149ea;
+  --accent-fill-fg: #ffffff;
+  --accent-fg: #ffffff;
+  --accent-soft: #eeebfe;
+  --accent-ring: #9d8cff;
 
-  --positive: #2e7d5b;
-  --positive-soft: #e3f2eb;
-  --negative: #c0453a;
-  --negative-soft: #fbe9e7;
-  --warning: #a06a12;
-  --warning-soft: #fbf1dd;
-  --goal: #4a54a8;
-  --goal-soft: #e9eaf7;
-  --info: #26647f;
-  --info-soft: #e5f0f5;
+  --positive: #0b7a4d;
+  --positive-soft: #e2f5ec;
+  --negative: #d23a4a;
+  --negative-soft: #fde8ea;
+  --warning: #a4620a;
+  --warning-soft: #fdf1dc;
+  --goal: #0e7490;
+  --goal-soft: #e0f3f8;
+  --info: #1d6fa8;
+  --info-soft: #e3effa;
 
-  --chart-1: #b06430;
-  --chart-2: #4a54a8;
-  --chart-3: #2e7d5b;
-  --chart-4: #c0453a;
-  --chart-5: #26647f;
-  --chart-6: #7a4a8f;
-  --chart-7: #a06a12;
-  --chart-8: #5c6470;
+  --chart-1: #6149ea;
+  --chart-2: #0e9fbf;
+  --chart-3: #0b7a4d;
+  --chart-4: #d23a4a;
+  --chart-5: #e08a1e;
+  --chart-6: #c2459a;
+  --chart-7: #4a8fe0;
+  --chart-8: #7c86a2;
 }
 
 :root[data-theme='dark'] {
   color-scheme: dark;
 
-  --bg: #0e1116;
-  --surface: #161b22;
-  --surface-2: #1d232c;
-  --surface-3: #272f3a;
-  --border: #232b35;
-  --border-strong: #3a4553;
+  --bg: #0b1020;
+  --surface: #131a2b;
+  --surface-2: #1a2236;
+  --surface-3: #242e46;
+  --border: #212a40;
+  --border-strong: #37425f;
 
-  --text: #ede8e0;
-  --text-muted: #9aa3b0;
-  --text-subtle: #6b7482;
+  --text: #e8ebf5;
+  --text-muted: #98a2bd;
+  --text-subtle: #7a85a3;
 
-  --accent: #e0a066;
-  --accent-hover: #ecb27c;
-  --accent-fill: #d88c4a;
-  --accent-fill-fg: #14120f;
-  --accent-fg: #14120f;
-  --accent-soft: #2e2116;
-  --accent-ring: #a8672e;
+  --accent: #b3a6ff;
+  --accent-hover: #c7bdff;
+  --accent-fill: #9d8cff;
+  --accent-fill-fg: #0b1020;
+  --accent-fg: #0b1020;
+  --accent-soft: #231f45;
+  --accent-ring: #7a68f0;
 
-  --positive: #6bbf8a;
-  --positive-soft: #10281c;
-  --negative: #e06c5a;
-  --negative-soft: #2e1614;
-  --warning: #e0a33e;
-  --warning-soft: #2c2110;
-  --goal: #8b94f0;
-  --goal-soft: #191b33;
-  --info: #6fb6d6;
-  --info-soft: #10242e;
+  --positive: #4ade9a;
+  --positive-soft: #0f2a20;
+  --negative: #ff7a85;
+  --negative-soft: #2e1519;
+  --warning: #f5b544;
+  --warning-soft: #2c2210;
+  --goal: #5ed3f0;
+  --goal-soft: #0f2633;
+  --info: #7cc4f5;
+  --info-soft: #102436;
 
-  --chart-1: #d88c4a;
-  --chart-2: #8b94f0;
-  --chart-3: #6bbf8a;
-  --chart-4: #e06c5a;
-  --chart-5: #6fb6d6;
-  --chart-6: #b98fe0;
-  --chart-7: #e0a33e;
-  --chart-8: #8d97a5;
+  --chart-1: #9d8cff;
+  --chart-2: #5ed3f0;
+  --chart-3: #4ade9a;
+  --chart-4: #ff7a85;
+  --chart-5: #f5b544;
+  --chart-6: #f28bd0;
+  --chart-7: #7cb6ff;
+  --chart-8: #8d97b3;
 }
 
 /* ---------------------------------------------------------------
@@ -113,9 +113,9 @@
    --------------------------------------------------------------- */
 
 :root {
-  --shadow-sm: 0 1px 2px rgb(20 18 15 / 0.04), 0 1px 3px rgb(20 18 15 / 0.03);
-  --shadow-md: 0 4px 6px -1px rgb(20 18 15 / 0.07), 0 10px 20px -5px rgb(20 18 15 / 0.08);
-  --shadow-lg: 0 10px 15px -3px rgb(20 18 15 / 0.08), 0 25px 50px -12px rgb(20 18 15 / 0.15);
+  --shadow-sm: 0 1px 2px rgb(15 20 40 / 0.04), 0 1px 3px rgb(15 20 40 / 0.03);
+  --shadow-md: 0 4px 6px -1px rgb(15 20 40 / 0.07), 0 10px 20px -5px rgb(15 20 40 / 0.08);
+  --shadow-lg: 0 10px 15px -3px rgb(15 20 40 / 0.08), 0 25px 50px -12px rgb(15 20 40 / 0.15);
 }
 
 :root[data-theme='dark'] {

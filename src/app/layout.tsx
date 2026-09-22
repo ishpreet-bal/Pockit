@@ -43,8 +43,8 @@ export const viewport: Viewport = {
   initialScale: 1,
   viewportFit: 'cover',
   themeColor: [
-    { media: '(prefers-color-scheme: light)', color: '#faf7f2' },
-    { media: '(prefers-color-scheme: dark)', color: '#0e1116' },
+    { media: '(prefers-color-scheme: light)', color: '#0b1020' },
+    { media: '(prefers-color-scheme: dark)', color: '#0b1020' },
   ],
 };
 
@@ -56,8 +56,12 @@ export const viewport: Viewport = {
 const THEME_SCRIPT = `
 (function(){try{
   var stored = localStorage.getItem('pockit-theme');
-  var theme = stored && stored !== 'system' ? stored
-    : (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+  // Dark unless the person has chosen otherwise. First impressions happen in dark
+  // mode; light is one tap away in the sidebar, and that choice is remembered.
+  var theme = stored === 'light' || stored === 'dark' ? stored
+    : stored === 'system'
+      ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
+      : 'dark';
   document.documentElement.setAttribute('data-theme', theme);
 }catch(e){}})();
 `;

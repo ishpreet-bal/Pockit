@@ -14,9 +14,15 @@ export async function summarise(entries: CatalogEntry[], withSparkline = true): 
   const source = marketData();
   const symbols = entries.map((e) => e.symbol);
 
+  // A sparkline is one history call per card. On a rate-limited plan that is the
+  // difference between a page that prices its cards and one that spends the whole
+  // minute's quota drawing squiggles and prices nothing. The chart on the asset
+  // page — the one place history is the point — still gets it.
+  const constrained = (source as { constrained?: boolean }).constrained === true;
+
   const [quotes, sparks] = await Promise.all([
     source.quotes(symbols),
-    withSparkline
+    withSparkline && !constrained
       ? Promise.all(symbols.map(async (s) => [s, await source.history(s, '1M')] as const))
       : Promise.resolve([] as const),
   ]);

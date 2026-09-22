@@ -97,7 +97,7 @@ export function OnboardingFlow({
         setError('Setting things up did not finish. Nothing was lost — try again.');
         return;
       }
-      router.push('/overview?tour=offer');
+      router.push('/overview?tour=start');
       router.refresh();
     } catch {
       setError('Could not reach the server.');
@@ -122,8 +122,8 @@ export function OnboardingFlow({
             {step === 'intro' ? (
               <Step
                 heading={heading}
-                title="Let's make Pockit yours."
-                body="We'll ask a few quick questions so your dashboard, budgets and goals have somewhere useful to start. It takes about two minutes, and you can skip anything."
+                title="Let's set up your Pockit."
+                body="A few quick questions, so your dashboard starts from your real numbers instead of a blank page. About two minutes — and you can skip anything you'd rather not answer."
                 mascot
               >
                 <div className="mt-5 flex flex-col gap-2">
@@ -145,9 +145,9 @@ export function OnboardingFlow({
               <IncomeStep
                 heading={heading}
                 currency={baseCurrency}
-                initial={{ amountMinor: answers.incomeMinor, cadence: answers.incomeCadence }}
-                onDone={async (amountMinor, cadence) => {
-                  await save({ incomeMinor: amountMinor, incomeCadence: cadence });
+                initial={{ amountMinor: answers.incomeMinor, cadence: answers.incomeCadence, nextDate: answers.incomeNextDate }}
+                onDone={async (amountMinor, cadence, nextDate) => {
+                  await save({ incomeMinor: amountMinor, incomeCadence: cadence, ...(nextDate ? { incomeNextDate: nextDate } : {}) });
                   next();
                 }}
                 onSkip={() => void skip('income')}
@@ -157,13 +157,13 @@ export function OnboardingFlow({
             {step === 'source' ? (
               <ChoiceStep
                 heading={heading}
-                title="Where does most of it come from?"
-                body="This helps Pockit expect the right rhythm. It changes nothing you cannot change later."
+                title="What kind of work pays you?"
+                body="It helps Pockit expect the right rhythm — a salary arrives differently from freelance work."
                 choices={[
-                  ['employment', 'A job'],
-                  ['self_employment', 'Self-employed'],
-                  ['business', 'A business I own'],
-                  ['multiple', 'A few different places'],
+                  ['employment', 'A regular job'],
+                  ['self_employment', "I'm self-employed"],
+                  ['business', 'My own business'],
+                  ['multiple', 'A mix of things'],
                   ['other', 'Something else'],
                 ]}
                 selected={answers.incomeSource ?? null}
@@ -198,8 +198,8 @@ export function OnboardingFlow({
             {step === 'savings' ? (
               <AmountStep
                 heading={heading}
-                title="Do you have money set aside?"
-                body="A rough number is fine. This becomes your savings balance — you can correct it any time."
+                title="Do you have anything tucked away?"
+                body="Savings, an emergency fund, cash you're not planning to touch. A rough number is fine."
                 currency={baseCurrency}
                 initialMinor={answers.savingsMinor}
                 onDone={async (minor) => { await save({ savingsMinor: minor }); next(); }}
@@ -307,9 +307,12 @@ function Step({
   mascot?: boolean;
   children: React.ReactNode;
 }) {
+  // Each part of the question arrives a beat after the last — Pock, then the
+  // question, then the explanation, then the controls — so a new screen reads as
+  // someone speaking rather than a form being swapped in.
   return (
-    <div>
-      {mascot ? <Mascot mood="idle" className="mb-3 h-12 w-12 text-[var(--accent)]" /> : null}
+    <div className="pk-assemble">
+      {mascot ? <Mascot mood="happy" className="mb-3 h-16 w-16" /> : null}
       <h1 ref={heading} tabIndex={-1} className="text-xl font-semibold leading-snug outline-none">
         {title}
       </h1>
@@ -345,20 +348,25 @@ function IncomeStep({
 }: {
   heading: React.RefObject<HTMLHeadingElement | null>;
   currency: string;
-  initial: { amountMinor?: number; cadence?: Cadence };
-  onDone: (amountMinor: number, cadence: Cadence) => void;
+  initial: { amountMinor?: number; cadence?: Cadence; nextDate?: string };
+  onDone: (amountMinor: number, cadence: Cadence, nextDate: string | undefined) => void;
   onSkip: () => void;
 }) {
   const [amount, setAmount] = useState(initial.amountMinor ? (initial.amountMinor / 100).toString() : '');
   const [cadence, setCadence] = useState<Cadence>(initial.cadence ?? 'biweekly');
+  const [nextDate, setNextDate] = useState(initial.nextDate ?? '');
   const minor = Math.round((Number(amount.replace(/[^0-9.]/g, '')) || 0) * 100);
   const monthly = minor > 0 ? toMonthlyMinor(minor, cadence) : 0;
 
   return (
-    <Step heading={heading} title="How much money do you usually bring in?" body="Before tax or after — whichever you know. You can change it later.">
+    <Step
+      heading={heading}
+      title="What does a typical paycheque look like?"
+      body="The amount that actually lands in your account. If it changes from pay to pay, a rough average is perfect."
+    >
       <form
         className="mt-5 space-y-3.5"
-        onSubmit={(e) => { e.preventDefault(); if (minor > 0) onDone(minor, cadence); }}
+        onSubmit={(e) => { e.preventDefault(); if (minor > 0) onDone(minor, cadence, nextDate || undefined); }}
       >
         <Field label="Amount" htmlFor="income-amount">
           <Input
@@ -374,11 +382,18 @@ function IncomeStep({
           />
         </Field>
 
-        <Field label="How often?" htmlFor="income-cadence">
-          <Select id="income-cadence" value={cadence} onChange={(e) => setCadence(e.target.value as Cadence)}>
-            {CADENCES.map((c) => <option key={c} value={c}>{CADENCE_LABELS[c]}</option>)}
-          </Select>
-        </Field>
+        <div className="grid grid-cols-2 gap-3">
+          <Field label="How often?" htmlFor="income-cadence">
+            <Select id="income-cadence" value={cadence} onChange={(e) => setCadence(e.target.value as Cadence)}>
+              {CADENCES.map((c) => <option key={c} value={c}>{CADENCE_LABELS[c]}</option>)}
+            </Select>
+          </Field>
+          {/* Without this there is no anchor, and the only date left to assume is
+              today — which is how every paycheque read "due today". */}
+          <Field label="Next payday" htmlFor="income-next">
+            <Input id="income-next" type="date" value={nextDate} onChange={(e) => setNextDate(e.target.value)} />
+          </Field>
+        </div>
 
         {monthly > 0 ? (
           // The arithmetic nobody should have to do themselves, shown as it is done.
@@ -461,7 +476,7 @@ function AmountStep({
   );
 }
 
-interface BillDraft { name: string; amount: string; cadence: Cadence }
+interface BillDraft { name: string; amount: string; cadence: Cadence; nextDate: string }
 
 function RecurringStep({
   heading, currency, initial, onDone, onSkip,
@@ -475,8 +490,8 @@ function RecurringStep({
   const [asked, setAsked] = useState(initial.length > 0);
   const [bills, setBills] = useState<BillDraft[]>(
     initial.length > 0
-      ? initial.map((b) => ({ name: b.name, amount: (b.amountMinor / 100).toString(), cadence: b.cadence }))
-      : [{ name: '', amount: '', cadence: 'monthly' }],
+      ? initial.map((b) => ({ name: b.name, amount: (b.amountMinor / 100).toString(), cadence: b.cadence, nextDate: b.nextDate ?? '' }))
+      : [{ name: '', amount: '', cadence: 'monthly', nextDate: '' }],
   );
 
   const valid = bills.filter((b) => b.name.trim() !== '' && Number(b.amount) > 0);
@@ -485,19 +500,19 @@ function RecurringStep({
     return (
       <Step
         heading={heading}
-        title="Have any bills that come around regularly?"
-        body="Things like rent, insurance, subscriptions, phone bills or loan payments."
+        title="What gets paid without you thinking about it?"
+        body="Rent, your phone, streaming, insurance, loan payments — the things that come out on their own every month."
       >
         <div className="mt-5 space-y-2">
-          <Button variant="primary" className="w-full" onClick={() => setAsked(true)}>Yes, let&rsquo;s add them</Button>
-          <SkipButton onSkip={onSkip} label="Not right now" />
+          <Button variant="primary" className="w-full" onClick={() => setAsked(true)}>Add them now</Button>
+          <SkipButton onSkip={onSkip} label="I'll do this later" />
         </div>
       </Step>
     );
   }
 
   return (
-    <Step heading={heading} title="What comes out regularly?" body="Add as many as you like. You can always add more later.">
+    <Step heading={heading} title="Your regular bills" body="Add as many as you like, and when each one is next due — that's how Pockit knows what's coming.">
       <div className="mt-4 space-y-3">
         {bills.map((bill, index) => (
           <div key={index} className="rounded-[var(--radius-control)] border border-[var(--border)] p-3">
@@ -527,6 +542,16 @@ function RecurringStep({
                     {CADENCES.map((c) => <option key={c} value={c}>{CADENCE_LABELS[c]}</option>)}
                   </Select>
                 </div>
+                <label className="flex items-center gap-2 text-xs text-[var(--text-muted)]">
+                  <span className="shrink-0">Next due</span>
+                  <Input
+                    type="date"
+                    value={bill.nextDate}
+                    aria-label={`Bill ${index + 1} next due date`}
+                    className="h-8"
+                    onChange={(e) => setBills((b) => b.map((x, i) => i === index ? { ...x, nextDate: e.target.value } : x))}
+                  />
+                </label>
               </div>
               {bills.length > 1 ? (
                 <button
@@ -545,7 +570,7 @@ function RecurringStep({
         <Button
           variant="ghost"
           className="w-full"
-          onClick={() => setBills((b) => [...b, { name: '', amount: '', cadence: 'monthly' }])}
+          onClick={() => setBills((b) => [...b, { name: '', amount: '', cadence: 'monthly', nextDate: '' }])}
         >
           <Plus className="h-3.5 w-3.5" />
           Add another
@@ -572,11 +597,12 @@ function RecurringStep({
             name: b.name.trim(),
             amountMinor: Math.round(Number(b.amount) * 100),
             cadence: b.cadence,
+            nextDate: b.nextDate || null,
           })))}
         >
           Done
         </Button>
-        <SkipButton onSkip={onSkip} label="Actually, not right now" />
+        <SkipButton onSkip={onSkip} label="I'll do this later" />
       </div>
     </Step>
   );
@@ -602,8 +628,8 @@ function SpendingStep({
   return (
     <Step
       heading={heading}
-      title="Roughly what do you spend each month?"
-      body="Estimates are completely fine — nothing here needs to be exact, and blanks are fine too."
+      title="Roughly where does the rest go?"
+      body="Ballpark monthly numbers are perfect. Leave anything blank you're not sure about."
     >
       <div className="mt-4 space-y-2">
         {SPEND_CATEGORIES.map((name) => (
@@ -656,8 +682,8 @@ function GoalsStep({
   return (
     <Step
       heading={heading}
-      title="Anything you're working toward?"
-      body="Pick as many as apply. You can add the amounts and dates once you're in — Pockit will ask."
+      title="What are you working toward?"
+      body="Pick as many as you like. You'll set the amounts and dates once you're in."
     >
       <div className="mt-4 grid gap-2 sm:grid-cols-2">
         {GOAL_CHOICES.map((choice) => {

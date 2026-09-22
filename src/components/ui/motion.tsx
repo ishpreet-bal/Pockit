@@ -94,9 +94,9 @@ export function FadeIn({
   return (
     <motion.div
       className={className}
-      initial={{ opacity: 0, y: 8 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.32, delay, ease: EASE }}
+      initial={{ opacity: 0, y: 16, filter: 'blur(6px)' }}
+      animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
+      transition={{ duration: 0.7, delay, ease: [0.16, 1, 0.3, 1] }}
     >
       {children}
     </motion.div>
@@ -169,10 +169,10 @@ export function StepTransition({
       <motion.div
         key={stepKey}
         custom={direction}
-        initial={{ opacity: 0, x: direction * 24 }}
-        animate={{ opacity: 1, x: 0 }}
-        exit={{ opacity: 0, x: direction * -24 }}
-        transition={{ duration: 0.26, ease: EASE }}
+        initial={{ opacity: 0, x: direction * 40, filter: 'blur(6px)' }}
+        animate={{ opacity: 1, x: 0, filter: 'blur(0px)' }}
+        exit={{ opacity: 0, x: direction * -40, filter: 'blur(6px)' }}
+        transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
       >
         {children}
       </motion.div>

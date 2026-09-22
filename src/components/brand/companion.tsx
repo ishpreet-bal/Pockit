@@ -2,8 +2,9 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { AnimatePresence, motion } from 'framer-motion';
-import { X, MessageCircleQuestion, MessageSquarePlus } from 'lucide-react';
+import { usePathname } from 'next/navigation';
+import { AnimatePresence, motion, useAnimationControls, useReducedMotion } from 'framer-motion';
+import { X, MessageCircleQuestion, MessageSquarePlus, Compass, PlayCircle, Sparkles } from 'lucide-react';
 import { Mascot, type Mood } from './mascot';
 import { AskPock, type PockAnchor } from './ask-pock';
 import { FeedbackForm } from '@/components/feedback/feedback-form';
@@ -38,6 +39,25 @@ export function Companion({ tip }: { tip: CompanionTip | null }) {
   const [panel, setPanel] = useState<'tip' | 'ask' | 'feedback'>('tip');
   /** Set by an "Ask Pock about this…" button elsewhere on the page. */
   const [ask, setAsk] = useState<{ anchor: PockAnchor | null; prompt?: string }>({ anchor: null });
+
+  // Pock travels with you: each time the page changes it does a small swim-hop and
+  // looks pleased for a moment. Once per navigation, never on a timer — a
+  // character that fidgets on its own is the thing people reach to mute.
+  const pathname = usePathname();
+  const controls = useAnimationControls();
+  const reduced = useReducedMotion();
+  const [greeting, setGreeting] = useState(false);
+  useEffect(() => {
+    if (reduced) return;
+    setGreeting(true);
+    void controls.start({
+      y: [0, -14, 0, -4, 0],
+      rotate: [0, -12, 8, -3, 0],
+      transition: { duration: 0.9, ease: 'easeOut' },
+    });
+    const t = setTimeout(() => setGreeting(false), 1400);
+    return () => clearTimeout(t);
+  }, [pathname, controls, reduced]);
   const [hidden, setHidden] = useState(true);
   const [dismissedIds, setDismissedIds] = useState<string[]>([]);
 
@@ -92,7 +112,7 @@ export function Companion({ tip }: { tip: CompanionTip | null }) {
   if (hidden) return null;
 
   const activeTip = tip && !dismissedIds.includes(tip.id) ? tip : null;
-  const mood: Mood = activeTip?.mood ?? 'idle';
+  const mood: Mood = greeting ? 'happy' : activeTip?.mood ?? 'idle';
 
   return (
     // Stacked above the quick-add button rather than bottom-left: the sidebar's
@@ -175,6 +195,29 @@ export function Companion({ tip }: { tip: CompanionTip | null }) {
               </button>
               <button
                 type="button"
+                onClick={() => { close(); window.dispatchEvent(new Event('pock:explore')); }}
+                className="flex w-full items-center gap-1.5 rounded-[var(--radius-control)] px-2 py-1.5 text-left text-sm hover:bg-[var(--surface-2)]"
+              >
+                <Compass className="h-4 w-4 text-[var(--text-subtle)]" />
+                Explore this page
+              </button>
+              <button
+                type="button"
+                onClick={() => { close(); window.dispatchEvent(new Event('pock:tour')); }}
+                className="flex w-full items-center gap-1.5 rounded-[var(--radius-control)] px-2 py-1.5 text-left text-sm hover:bg-[var(--surface-2)]"
+              >
+                <PlayCircle className="h-4 w-4 text-[var(--text-subtle)]" />
+                Replay the 60-second tour
+              </button>
+              <a
+                href="/demo"
+                className="flex w-full items-center gap-1.5 rounded-[var(--radius-control)] px-2 py-1.5 text-left text-sm hover:bg-[var(--surface-2)]"
+              >
+                <Sparkles className="h-4 w-4 text-[var(--text-subtle)]" />
+                Still confused? Try the demo
+              </a>
+              <button
+                type="button"
                 onClick={() => setPanel('feedback')}
                 className="flex w-full items-center gap-1.5 rounded-[var(--radius-control)] px-2 py-1.5 text-left text-sm hover:bg-[var(--surface-2)]"
               >
@@ -199,19 +242,23 @@ export function Companion({ tip }: { tip: CompanionTip | null }) {
         ) : null}
       </AnimatePresence>
 
-      <button
+      <motion.button
+        animate={controls}
+        whileHover={reduced ? undefined : { scale: 1.08, rotate: -6 }}
+        whileTap={reduced ? undefined : { scale: 0.94 }}
         type="button"
         onClick={() => setOpen((v) => !v)}
         aria-expanded={open}
         data-tour="pock"
         aria-label={activeTip ? 'Pock has something to say' : 'Pock'}
         className={cn(
-          'pointer-events-auto relative grid h-12 w-12 place-items-center rounded-full',
-          'bg-[var(--accent-fill)] text-[var(--accent-fill-fg)] shadow-[var(--shadow-md)]',
-          'transition-transform hover:scale-105 active:scale-95',
+          'pointer-events-auto relative grid h-14 w-14 place-items-center rounded-full',
+          // A little pool for the otter to float in, rather than a flat brand disc.
+          'bg-[radial-gradient(circle_at_50%_70%,color-mix(in_srgb,var(--goal)_35%,var(--surface))_0%,var(--surface)_70%)]',
+          'border border-[var(--border-strong)] shadow-[var(--shadow-md)]',
         )}
       >
-        <Mascot mood={mood} className="h-8 w-8" />
+        <Mascot mood={mood} className="h-12 w-12" />
         {activeTip && !open ? (
           // One quiet dot, not a bouncing badge. It says "there is something here"
           // without demanding the screen.
@@ -220,7 +267,7 @@ export function Companion({ tip }: { tip: CompanionTip | null }) {
             className="absolute -right-0.5 -top-0.5 h-3 w-3 rounded-full border-2 border-[var(--bg)] bg-[var(--negative)]"
           />
         ) : null}
-      </button>
+      </motion.button>
     </div>
   );
 }

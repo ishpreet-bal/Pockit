@@ -150,13 +150,14 @@ export default async function CalendarPage({
         title="Calendar"
         description={summaries.join(' ') || 'Everything going in and out this month.'}
         action={
-          <div className="flex items-center gap-1">
+          <div data-tour="calendar-nav" className="flex items-center gap-1">
             <LinkButton href={`/calendar?month=${offset - 1}`} size="sm">←</LinkButton>
             <LinkButton href="/calendar?month=0" size="sm">Today</LinkButton>
             <LinkButton href={`/calendar?month=${offset + 1}`} size="sm">→</LinkButton>
           </div>
         }
       />
+      <div data-tour="calendar-grid">
       <CalendarView
         monthLabel={monthLabel}
         cells={cells}
@@ -165,6 +166,7 @@ export default async function CalendarPage({
         currency={cur}
         locale={user.locale}
       />
+      </div>
     </>
   );
 }

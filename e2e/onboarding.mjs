@@ -29,7 +29,7 @@ console.log('\nThe first screen');
 await p.goto(`${B}/`, { waitUntil: 'networkidle' });
 ok('a stranger meets a welcome, not a password field', /\/welcome/.test(p.url()), p.url());
 const welcome = await body();
-ok('it welcomes', /Welcome to Pockit/.test(welcome));
+ok('it welcomes', /Hi, I.m Pock/.test(welcome));
 ok('with one clear way in', /Get started/.test(welcome) && /Sign in/.test(welcome));
 ok('and none of the application', !/Transactions/.test(welcome) && !/Budget/.test(welcome) && !/Investing/.test(welcome));
 
@@ -52,7 +52,7 @@ ok('a new account lands in setup, never the dashboard', /onboarding/.test(p.url(
 
 console.log('\nThe financial questions');
 await p.waitForTimeout(1000);
-ok('it says why before it asks', /make Pockit yours/i.test(await body()));
+ok('it says why before it asks', /set up your Pockit/i.test(await body()));
 ok('and offers a way out immediately', /Skip for now/.test(await body()));
 
 await p.click('button:has-text("Continue")');
@@ -61,6 +61,8 @@ ok('progress is stated in words, not only dots', /1 of 6/.test(await body()));
 
 await p.fill('#income-amount', '2400');
 await p.selectOption('#income-cadence', 'biweekly');
+const nextPay = new Date(Date.now() + 9 * 864e5).toISOString().slice(0, 10);
+await p.fill('#income-next', nextPay);
 await p.waitForTimeout(400);
 // The arithmetic nobody should be asked to do: 26 fortnights a year, not 24.
 ok('it converts the cadence for them', /\$5,200 a month/.test(await body()), (await body()).match(/works out to about[^.]*/)?.[0] ?? '');
@@ -70,12 +72,13 @@ await p.waitForTimeout(1200);
 const afterIncome = await p.evaluate(async () => (await fetch('/api/onboarding/state')).json());
 ok('every screen saves before the next one', afterIncome.answers.incomeMinor === 240000, JSON.stringify(afterIncome.answers));
 
-await p.click('button:has-text("A job")');
+await p.click('button:has-text("A regular job")');
 await p.waitForTimeout(1200);
-await p.click('button:has-text("Yes")');
+await p.click('button:has-text("Add them now")');
 await p.waitForTimeout(700);
 await p.fill('input[aria-label="Bill 1 name"]', 'Rent');
 await p.fill('input[aria-label="Bill 1 amount"]', '1800');
+await p.fill('input[aria-label="Bill 1 next due date"]', new Date(Date.now() + 16 * 864e5).toISOString().slice(0, 10));
 ok('a recurring bill can be created with no import history', true);
 await p.click('button:has-text("Done")');
 await p.waitForTimeout(1300);
@@ -118,7 +121,16 @@ await p2.waitForURL(/overview/, { timeout: 40000 });
 await p2.waitForTimeout(2500);
 
 console.log('\nWhat the answers became');
-ok('the tour is offered on arrival', /60-second tour/i.test(await body(p2)));
+// The tour starts by itself now, with a welcome card, rather than waiting in a corner.
+ok('the tour starts on arrival', await p2.locator('[role=dialog]').count() > 0);
+await p2.keyboard.press('Escape');
+await p2.waitForTimeout(800);
+
+// The bugs from the first real sign-up: schedules with no date fell back to TODAY,
+// and income was written with the column's default direction, 'outflow'.
+const dash = await body(p2);
+ok('nothing from setup reads "due today"', !/due today/i.test(dash));
+ok('income is money coming in, not a negative expense', /Next money in: Income/.test(dash));
 
 const became = await p2.evaluate(async () => {
   const [recurring, goals] = await Promise.all([

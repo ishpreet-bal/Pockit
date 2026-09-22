@@ -6,6 +6,7 @@ import { withUser } from '@/lib/db/client';
 import { pockThreads, pockMessages } from '@/lib/db/schema';
 import { getAiProvider } from '@/lib/ai';
 import { AiUnavailableError } from '@/lib/ai/types';
+import { describeProviderError } from '@/lib/ai/errors';
 import { checkRateLimit } from '@/lib/auth/rate-limit';
 import { POCK_BRIEF, composeTurn } from '@/lib/pock/brief';
 import { relevantTo, renderHelp } from '@/lib/pock/knowledge';
@@ -185,7 +186,9 @@ export async function POST(request: Request) {
         configured: false,
       }, { status: 503 });
     }
-    throw error;
+    const problem = describeProviderError(error);
+    console.error('[pock] provider error:', problem.detail);
+    return NextResponse.json({ error: problem.message, threadId: prepared.threadId }, { status: problem.status });
   }
 
   if (answer === '') {

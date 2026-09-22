@@ -54,7 +54,10 @@ export default async function AssetPage({ params }: { params: Promise<{ symbol: 
   ]);
 
   // Nothing knows this instrument — a 404 is more honest than an empty shell.
-  if (!profile && !quote) notFound();
+  // Only a symbol NOTHING recognises is a 404. A rate-limited minute is not
+  // evidence an instrument does not exist, and treating it as such is what sent
+  // people to a blank black page for VOO.
+  if (!profile && !quote && !catalogEntry(symbol)) notFound();
 
   const entry = catalogEntry(symbol);
   const currency = profile?.currency ?? quote?.currency ?? 'USD';

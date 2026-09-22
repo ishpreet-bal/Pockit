@@ -51,7 +51,7 @@ export function TimelineSlider({
   const pct = ((months - 1) / (60 - 1)) * 100;
 
   return (
-    <div className="mt-3 rounded-[var(--radius-card)] border border-[var(--border)] bg-[var(--surface-2)] p-3.5">
+    <div data-tour="goal-slider" className="mt-3 rounded-[var(--radius-card)] border border-[var(--border)] bg-[var(--surface-2)] p-3.5">
       <div className="flex items-center gap-1.5 text-xs font-semibold text-[var(--text-muted)]">
         <CalendarClock className="h-3.5 w-3.5" strokeWidth={2.2} />
         What if I took longer?

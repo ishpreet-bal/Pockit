@@ -7,6 +7,7 @@ import { withoutUser } from '@/lib/db/client';
 import { userProfiles } from '@/lib/db/schema';
 import { parseAnswers } from '@/lib/onboarding/state';
 import { OnboardingFlow } from './flow';
+import { Ambient } from '@/components/brand/ambient';
 
 export const metadata: Metadata = { title: 'Get started' };
 export const dynamic = 'force-dynamic';
@@ -27,13 +28,16 @@ export default async function OnboardingPage() {
   if (rows[0]?.stage === 'done') redirect('/overview');
 
   return (
-    <div className="mx-auto flex min-h-[100svh] max-w-lg flex-col justify-center px-4 py-10">
+    <div className="relative flex min-h-[100svh] flex-col items-center justify-center overflow-hidden px-4 py-10">
+      <Ambient />
+      <div className="relative w-full max-w-lg">
       <OnboardingFlow
         displayName={user.displayName}
         baseCurrency={user.baseCurrency}
         initialStage={rows[0]?.stage ?? 'account_created'}
         initialAnswers={parseAnswers(rows[0]?.answers)}
       />
+      </div>
     </div>
   );
 }

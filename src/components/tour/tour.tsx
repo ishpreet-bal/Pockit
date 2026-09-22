@@ -4,10 +4,14 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { Button } from '@/components/ui/primitives';
+import { Mascot } from '@/components/brand/mascot';
 
 export interface TourStep {
-  /** A selector for the real element this step is about. */
-  target: string;
+  /**
+   * A selector for the real element this step is about. Omitted for a centred
+   * step — an introduction or a closing word that is about the page as a whole.
+   */
+  target?: string;
   title: string;
   body: string;
   /** Where the card sits relative to the target when there is room. */
@@ -61,7 +65,7 @@ export function Tour({
   const measure = useCallback(() => {
     const step = steps[index];
     if (!step) return;
-    const element = visible(step.target);
+    const element = step.target ? visible(step.target) : null;
     if (!element) { setBox(null); return; }
     const rect = element.getBoundingClientRect();
     setBox({ top: rect.top, left: rect.left, width: rect.width, height: rect.height });
@@ -70,13 +74,15 @@ export function Tour({
   useEffect(() => {
     const step = steps[index];
     if (!step) return;
+    if (!step.target) { setBox(null); return; }
     const element = visible(step.target);
     if (!element) {
       // Skip past a target this viewport does not show, rather than anchoring a
       // card to the corner of the screen.
       let nextReal = -1;
       for (let i = index + 1; i < steps.length; i++) {
-        if (visible(steps[i]!.target)) { nextReal = i; break; }
+        const t = steps[i]!.target;
+        if (!t || visible(t)) { nextReal = i; break; }
       }
       if (nextReal === -1) onFinish(true);
       else setIndex(nextReal);
@@ -117,7 +123,10 @@ export function Tour({
     ? { top: box.top - pad, left: box.left - pad, width: box.width + pad * 2, height: box.height + pad * 2 }
     : null;
 
-  const card = cut ? placeCard(cut, step.prefer ?? 'bottom') : { top: 24, left: 24 };
+  // A step with no target is an introduction: centred, over an even dim.
+  // Framer animates `y`, which would overwrite a translate() used for centring, so
+  // a centred card is placed by a grid wrapper instead of by its own transform.
+  const card: React.CSSProperties | undefined = cut ? placeCard(cut, step.prefer ?? 'bottom') : undefined;
 
   return createPortal(
     <div
@@ -147,6 +156,7 @@ export function Tour({
         <Shade reduced={reduced} style={{ inset: 0 }} />
       )}
 
+      <div className={cut ? 'contents' : 'absolute inset-0 grid place-items-center p-4'}>
       <AnimatePresence mode="wait">
         <motion.div
           key={index}
@@ -155,10 +165,12 @@ export function Tour({
           initial={reduced ? false : { opacity: 0, y: 6 }}
           animate={{ opacity: 1, y: 0 }}
           exit={reduced ? undefined : { opacity: 0, y: -6 }}
-          transition={{ duration: 0.18 }}
+          transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
           style={card}
-          className="absolute w-[min(320px,calc(100vw-2rem))] rounded-[var(--radius-card)] border border-[var(--border)] bg-[var(--surface)] p-4 shadow-[var(--shadow-lg)] outline-none"
+          className={`${cut ? 'absolute' : 'relative'} w-[min(340px,calc(100vw-2rem))] rounded-[var(--radius-card)] border border-[var(--border)] bg-[var(--surface)] p-4 shadow-[var(--shadow-lg)] outline-none`}
         >
+          {/* On a centred step Pock is the one speaking, so Pock is on the card. */}
+          {!cut ? <Mascot mood="happy" className="mb-2 h-16 w-16" /> : null}
           <p className="text-2xs uppercase tracking-[0.08em] text-[var(--text-subtle)]">
             {index + 1} / {steps.length}
           </p>
@@ -191,6 +203,7 @@ export function Tour({
           </button>
         </motion.div>
       </AnimatePresence>
+      </div>
     </div>,
     document.body,
   );
