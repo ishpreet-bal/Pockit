@@ -5,12 +5,11 @@ import { usePathname } from 'next/navigation';
 import { useEffect, useState, type ComponentType } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
-  LayoutDashboard, ArrowLeftRight, PieChart, Target, CalendarDays,
-  Repeat, Landmark, Upload, BarChart3, Briefcase, LineChart,
-  Sparkles, Settings, MoreHorizontal, PanelLeftClose, PanelLeftOpen,
-  Monitor, Sun, Moon, ChevronDown, X,
+  LayoutDashboard, ArrowLeftRight, Target, LineChart, MoreHorizontal, PanelLeftClose, PanelLeftOpen, Monitor, Sun, Moon, ChevronDown, X,
 } from 'lucide-react';
 import { Logo, Mark } from '@/components/brand/logo';
+import { MORE_ITEMS } from './nav-items';
+import { Mascot } from '@/components/brand/mascot';
 import { cn } from '@/lib/ui/cn';
 
 export interface NavWorkspace { id: string; name: string; kind: 'personal' | 'business'; isDemo: boolean }
@@ -25,38 +24,28 @@ type Icon = ComponentType<{ className?: string; strokeWidth?: number }>;
  * discover, quiet enough not to compete.
  */
 const PRIMARY: { href: string; label: string; icon: Icon }[] = [
-  { href: '/overview', label: 'Overview', icon: LayoutDashboard },
-  { href: '/transactions', label: 'Transactions', icon: ArrowLeftRight },
-  { href: '/budget', label: 'Budget', icon: PieChart },
+  { href: '/overview', label: 'Home', icon: LayoutDashboard },
+  { href: '/transactions', label: 'Spending', icon: ArrowLeftRight },
   { href: '/goals', label: 'Goals', icon: Target },
-  { href: '/calendar', label: 'Calendar', icon: CalendarDays },
 ];
 
 /**
- * Debts and Forecast are not missing — they are tabs inside Accounts and Insights.
- * Listing every view separately made the app look wider and thinner than it is, and
- * gave four related questions four half-empty screens.
+ * Investing sits one step below the three core tabs: visible in the sidebar and the
+ * phone's tab bar, and first in More — but set apart, because Pockit is a
+ * budgeting app first and investing is where some people go next.
  */
-const SECONDARY: { href: string; label: string; icon: Icon; blurb: string }[] = [
-  { href: '/recurring', label: 'Recurring', icon: Repeat, blurb: 'Bills and subscriptions that repeat' },
-  { href: '/accounts', label: 'Accounts & debts', icon: Landmark, blurb: 'Balances, what you owe, payoff plans' },
-  { href: '/analytics', label: 'Insights', icon: BarChart3, blurb: 'Spending patterns and forecast' },
-  { href: '/investing', label: 'Investing', icon: LineChart, blurb: 'Your risk profile and watchlist' },
-  { href: '/imports', label: 'Import', icon: Upload, blurb: 'Bring in statements and receipts' },
-  { href: '/business', label: 'Business', icon: Briefcase, blurb: 'Revenue, expenses and margin' },
-  { href: '/assistant', label: 'Assistant', icon: Sparkles, blurb: 'Ask about your own records' },
-  { href: '/settings', label: 'Settings', icon: Settings, blurb: 'Profile, privacy and export' },
-];
+const INVESTING = { href: '/investing', label: 'Investing', icon: LineChart };
 
 const MOBILE_TABS: { href: string; label: string; icon: Icon }[] = [
-  { href: '/overview', label: 'Overview', icon: LayoutDashboard },
-  { href: '/transactions', label: 'Activity', icon: ArrowLeftRight },
-  { href: '/budget', label: 'Budget', icon: PieChart },
-  { href: '/calendar', label: 'Calendar', icon: CalendarDays },
+  ...PRIMARY,
+  { href: '/investing', label: 'Invest', icon: LineChart },
 ];
 
 /** Sibling routes that live as tabs under one nav entry, so the entry stays lit. */
 const TAB_SIBLINGS: Record<string, string[]> = {
+  // Budget is part of Spending now, so Spending stays lit while you are in it.
+  '/transactions': ['/budget'],
+  '/more': MORE_ITEMS.map((i) => i.href),
   '/accounts': ['/debts'],
   '/analytics': ['/forecast'],
 };
@@ -76,7 +65,6 @@ const COLLAPSE_KEY = 'pockit-sidebar-collapsed';
 export function Sidebar({ workspaces, activeId }: { workspaces: NavWorkspace[]; activeId: string }) {
   const isActive = useIsActive();
   const [collapsed, setCollapsed] = useState(false);
-  const [moreOpen, setMoreOpen] = useState(() => SECONDARY.some((i) => isActive(i.href)));
 
   // Read the stored preference after mount rather than during render: the server has
   // no localStorage, and initialising from it directly would hydrate mismatched.
@@ -152,38 +140,9 @@ export function Sidebar({ workspaces, activeId }: { workspaces: NavWorkspace[]; 
       <nav className={cn('flex-1 space-y-0.5 overflow-y-auto pb-4', collapsed ? 'px-3' : 'px-4')}>
         {PRIMARY.map(link)}
 
-        <button
-          type="button"
-          onClick={() => setMoreOpen((v) => !v)}
-          aria-expanded={moreOpen}
-          title={collapsed ? 'More' : undefined}
-          className={cn(
-            'mt-3 flex w-full items-center gap-3 rounded-[var(--radius-control)] py-2 text-sm text-[var(--text-muted)] transition-colors hover:bg-[var(--surface-2)] hover:text-[var(--text)]',
-            collapsed ? 'justify-center px-0' : 'px-3',
-          )}
-        >
-          <MoreHorizontal className="h-[18px] w-[18px] shrink-0" strokeWidth={1.8} />
-          {collapsed ? null : (
-            <>
-              <span className="flex-1 text-left">More</span>
-              <ChevronDown className={cn('h-4 w-4 transition-transform', moreOpen && 'rotate-180')} />
-            </>
-          )}
-        </button>
-
-        <AnimatePresence initial={false}>
-          {moreOpen ? (
-            <motion.div
-              className="space-y-0.5 overflow-hidden"
-              initial={{ height: 0, opacity: 0 }}
-              animate={{ height: 'auto', opacity: 1 }}
-              exit={{ height: 0, opacity: 0 }}
-              transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
-            >
-              {SECONDARY.map(link)}
-            </motion.div>
-          ) : null}
-        </AnimatePresence>
+        <div className="my-3 border-t border-[var(--border)]" />
+        {link(INVESTING)}
+        {link({ href: '/more', label: 'More', icon: MoreHorizontal })}
       </nav>
 
       <div className={cn('space-y-2 border-t border-[var(--border)] p-3', collapsed && 'px-2')}>
@@ -331,7 +290,7 @@ export function MobileTabs() {
                 </button>
               </div>
               <ul className="space-y-1">
-                {[{ href: '/goals', label: 'Goals', icon: Target, blurb: 'What you are saving towards' }, ...SECONDARY].map((item) => {
+                {MORE_ITEMS.map((item) => {
                   const Ico = item.icon;
                   return (
                     <li key={item.href}>
@@ -413,6 +372,15 @@ export function MobileHeader({ workspaces, activeId }: { workspaces: NavWorkspac
         <Mark className="h-4.5 w-4.5" />
       </Link>
       <div className="min-w-0 flex-1"><WorkspaceSwitcher workspaces={workspaces} activeId={activeId} /></div>
+      <button
+        type="button"
+        onClick={() => window.dispatchEvent(new Event('pock:open'))}
+        aria-label="Ask Pock"
+        data-tour="pock"
+        className="grid h-10 w-10 shrink-0 place-items-center rounded-full border border-[var(--border-strong)] bg-[var(--surface-2)]"
+      >
+        <Mascot mood="idle" className="h-8 w-8" />
+      </button>
     </header>
   );
 }

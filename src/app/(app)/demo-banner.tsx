@@ -39,19 +39,18 @@ export function DemoBanner() {
   }
 
   return (
-    <div className="mb-4 flex flex-wrap items-center gap-3 rounded-[var(--radius-card)] border border-[var(--warning)]/30 bg-[var(--warning-soft)] px-4 py-3">
+    // One line, not a paragraph. On a phone the old version was taller than the
+    // number it sat above, which is backwards for a notice that means "not yours".
+    <div className="mb-4 flex items-center gap-2.5 rounded-full border border-[var(--warning)]/30 bg-[var(--warning-soft)] py-1.5 pl-3.5 pr-1.5">
       <FlaskConical className="h-4 w-4 shrink-0 text-[var(--warning)]" strokeWidth={2.1} />
-      <div className="min-w-0 flex-1">
-        <p className="text-sm font-semibold">You are looking at sample data.</p>
-        <p className="mt-0.5 text-xs text-[var(--text-muted)]">
-          These transactions, accounts and goals were generated to show how Pockit works. Clearing
-          them empties this workspace completely so you can start with your own.
-        </p>
-        {error ? <p className="mt-1 text-xs text-[var(--negative)]">{error}</p> : null}
-      </div>
-      <div className="flex shrink-0 gap-2">
-        <Button size="sm" variant="primary" disabled={busy} onClick={() => void clear()}>
-          {busy ? 'Clearing…' : 'Clear it and start fresh'}
+      <p className="min-w-0 flex-1 truncate text-sm">
+        <span className="font-semibold">Sample data</span>
+        <span className="hidden text-[var(--text-muted)] sm:inline"> — not your real money</span>
+        {error ? <span className="ml-2 text-xs text-[var(--negative)]">{error}</span> : null}
+      </p>
+      <div className="flex shrink-0 items-center gap-1">
+        <Button size="sm" variant="primary" className="rounded-full" disabled={busy} onClick={() => void clear()}>
+          {busy ? 'Clearing…' : 'Start fresh'}
         </Button>
         <button
           type="button"

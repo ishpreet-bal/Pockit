@@ -170,9 +170,6 @@ export function buildPicture(answers: Answers): StartingPicture {
     : null;
   if (monthlyCommitmentsMinor === null) missing.push('recurring bills');
 
-  if (!answers.spendingByCategory || Object.keys(answers.spendingByCategory).length === 0) {
-    missing.push('everyday spending');
-  }
 
   const flexibleMinor =
     monthlyIncomeMinor === null

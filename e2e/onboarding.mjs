@@ -57,7 +57,7 @@ ok('and offers a way out immediately', /Skip for now/.test(await body()));
 
 await p.click('button:has-text("Continue")');
 await p.waitForTimeout(900);
-ok('progress is stated in words, not only dots', /1 of 6/.test(await body()));
+ok('progress is stated in words, not only dots', /1 of 4/.test(await body()));
 
 await p.fill('#income-amount', '2400');
 await p.selectOption('#income-cadence', 'biweekly');
@@ -72,8 +72,6 @@ await p.waitForTimeout(1200);
 const afterIncome = await p.evaluate(async () => (await fetch('/api/onboarding/state')).json());
 ok('every screen saves before the next one', afterIncome.answers.incomeMinor === 240000, JSON.stringify(afterIncome.answers));
 
-await p.click('button:has-text("A regular job")');
-await p.waitForTimeout(1200);
 await p.click('button:has-text("Add them now")');
 await p.waitForTimeout(700);
 await p.fill('input[aria-label="Bill 1 name"]', 'Rent');
@@ -83,8 +81,6 @@ ok('a recurring bill can be created with no import history', true);
 await p.click('button:has-text("Done")');
 await p.waitForTimeout(1300);
 
-await p.click('button:has-text("Continue")'); // spending, left blank
-await p.waitForTimeout(1300);
 
 // The skip control lives inside a form. It must skip WITHOUT submitting a zero —
 // an unmarked button inside a form submits it, which recorded savings of $0 for

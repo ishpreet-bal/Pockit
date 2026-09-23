@@ -15,55 +15,45 @@ import type { TourStep } from './tour';
 export const PAGE_TOURS: { prefix: string; label: string; steps: TourStep[] }[] = [
   {
     prefix: '/overview',
-    label: 'Overview',
+    label: 'Home',
     steps: [
-      { title: 'Your Overview', body: 'This is the page to glance at every day. A few stops to explain what each number means.' },
+      { title: 'Home', body: 'Everything here answers one question: am I okay this month?' },
       {
         target: '[aria-label="Where you stand"]',
-        title: 'Available after upcoming bills',
-        body: 'The cash across your accounts, minus the bills still due this month. It is deliberately smaller than your balance — money already promised to a bill is not really spendable.',
+        title: 'Safe to spend',
+        body: 'The money in your accounts, minus bills still due this month. It\u2019s smaller than your balance on purpose — money already promised to a bill isn\u2019t really yours to spend.',
       },
       {
         target: '[aria-label="Coming up"]',
-        title: 'The next 30 days',
-        body: 'Every bill and payday Pockit expects, in date order. These come from your recurring payments, so if something is missing, add it there.',
+        title: 'Coming up',
+        body: 'Your next few bills, in date order. They come from Bills & subscriptions in More.',
       },
       {
-        target: '[aria-label="Where your money went"]',
-        title: 'Where it went',
-        body: 'This month’s spending by category. Tap a slice to see the transactions behind it.',
+        target: 'a[aria-label="Goals"]',
+        title: 'Your goals',
+        body: 'Your top goal at a glance. Tap to see them all.',
       },
       {
-        target: '[aria-label="On track"]',
-        title: 'Are you on track?',
-        body: 'Your budget and goals in one line each — whether this month is running ahead of plan or behind it.',
-      },
-      {
-        target: '[aria-label="Recent activity"]',
-        title: 'Recent activity',
-        body: 'Your latest transactions. Search here to find one quickly without leaving the page.',
+        target: 'a[aria-label="Investing"]',
+        title: 'Investing',
+        body: 'What you own and what you\u2019re following. Tap to explore stocks and funds.',
       },
     ],
   },
   {
     prefix: '/transactions',
-    label: 'Transactions',
+    label: 'Spending',
     steps: [
-      { title: 'Your transactions', body: 'Everything that has come in or gone out. Here is how to find and add things.' },
-      {
-        target: '[aria-label="Transaction view"]',
-        title: 'Choose a time window',
-        body: 'This month, what is still to come, or everything before. Upcoming shows scheduled bills that have not happened yet.',
-      },
+      { title: 'Spending', body: 'Where your money went this month, and everything you\u2019ve spent.' },
       {
         target: '[aria-label="Search transactions"]',
-        title: 'Search and filter',
-        body: 'Type a shop or description, or tap a category below to show only that. Filters live in the address bar, so a filtered view can be bookmarked.',
+        title: 'Find anything',
+        body: 'Search by shop or description, or tap a category to see only that.',
       },
       {
         target: '[aria-label="Add transaction"]',
-        title: 'Add one yourself',
-        body: 'As you type what it was, Pockit suggests things you have entered before — and picking one fills in the category too.',
+        title: 'Add spending',
+        body: 'Start typing and Pockit suggests things you\u2019ve added before — picking one fills in the category too.',
         prefer: 'left',
       },
     ],

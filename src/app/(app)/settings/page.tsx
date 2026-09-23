@@ -26,6 +26,37 @@ export default async function SettingsPage() {
   const categoryById = new Map(categories.map((c) => [c.id, c]));
   const provider = getAiProvider();
 
+  const formProps = {
+    profile: {
+            displayName: user.displayName,
+            baseCurrency: user.baseCurrency,
+            timezone: user.timezone,
+            locale: user.locale,
+            fileRetention: user.fileRetention,
+            aiEnabled: user.aiEnabled,
+          },
+    categories: categories
+            .filter((c) => c.kind === 'expense')
+            .map((c) => ({
+              id: c.id,
+              name: c.name,
+              icon: c.icon,
+              parent: c.parentId ? categoryById.get(c.parentId)?.name ?? null : null,
+              classification: c.classification,
+              necessity: c.necessity,
+            })),
+    rules: rules.map((r) => ({
+            id: r.id,
+            pattern: r.pattern,
+            matchType: r.matchType,
+            source: r.source,
+            timesApplied: r.timesApplied,
+            categoryName: r.categoryId ? categoryById.get(r.categoryId)?.name ?? null : null,
+          })),
+    aiProviderLabel: provider.capabilities.label,
+    aiConfigured: provider.capabilities.vision || provider.capabilities.tools,
+  };
+
   return (
     <>
       <PageHeader title="Settings" description={`Signed in as ${user.email}`} />
@@ -43,37 +74,23 @@ export default async function SettingsPage() {
         </div>
 
         <div className="space-y-4 lg:col-span-2">
-        <SettingsForms
-          profile={{
-            displayName: user.displayName,
-            baseCurrency: user.baseCurrency,
-            timezone: user.timezone,
-            locale: user.locale,
-            fileRetention: user.fileRetention,
-            aiEnabled: user.aiEnabled,
-          }}
-          categories={categories
-            .filter((c) => c.kind === 'expense')
-            .map((c) => ({
-              id: c.id,
-              name: c.name,
-              icon: c.icon,
-              parent: c.parentId ? categoryById.get(c.parentId)?.name ?? null : null,
-              classification: c.classification,
-              necessity: c.necessity,
-            }))}
-          rules={rules.map((r) => ({
-            id: r.id,
-            pattern: r.pattern,
-            matchType: r.matchType,
-            source: r.source,
-            timesApplied: r.timesApplied,
-            categoryName: r.categoryId ? categoryById.get(r.categoryId)?.name ?? null : null,
-          }))}
-          aiProviderLabel={provider.capabilities.label}
-          aiConfigured={provider.capabilities.vision || provider.capabilities.tools}
-        />
+        <SettingsForms {...formProps} />
         </div>
+
+        <TwoFactor />
+
+        {/*
+          The rest is real, and rarely needed. It used to sit at the same weight as
+          "change my name", which is how Settings reached thirteen cards. Folded,
+          not removed: one tap opens it, and the one irreversible control stays last.
+        */}
+        <details className="group lg:col-span-2">
+          <summary className="flex cursor-pointer list-none items-center justify-between rounded-[var(--radius-card)] border border-[var(--border)] bg-[var(--surface)] px-4 py-3.5 text-sm font-medium hover:bg-[var(--surface-2)]">
+            <span>Advanced</span>
+            <span className="text-xs text-[var(--text-subtle)] group-open:hidden">Categories, integrations, workspaces, reset</span>
+          </summary>
+          <div className="mt-4 grid gap-4 lg:grid-cols-2 [&>*]:min-w-0">
+        <div className="space-y-4 lg:col-span-2"><SettingsForms {...formProps} part="advanced" /></div>
 
         <Card>
           <CardHeader title="What is sent to an AI provider" description="Spec-mandated disclosure, kept accurate" />
@@ -112,8 +129,6 @@ export default async function SettingsPage() {
           </CardBody>
         </Card>
 
-        <TwoFactor />
-
         <MarketHealth />
 
         <Card>
@@ -133,6 +148,8 @@ export default async function SettingsPage() {
         <div className="lg:col-span-2">
           <ResetWorkspace workspaceName={workspace.name} />
         </div>
+          </div>
+        </details>
       </div>
     </>
   );

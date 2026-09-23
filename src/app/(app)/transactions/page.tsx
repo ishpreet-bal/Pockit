@@ -6,6 +6,8 @@ import { PageHeader } from '../page-header';
 import { Card, EmptyState, Badge, LinkButton } from '@/components/ui/primitives';
 import { Money } from '@/components/finance/money';
 import { TransactionFilters } from './filters';
+import { MonthSummary } from './month-summary';
+import { buildOverview } from '@/lib/finance/view/overview';
 import { AddTransaction } from './add-transaction';
 import { TransactionActions } from './transaction-actions';
 import { todayIn, startOfMonth, endOfMonth } from '@/lib/finance/period';
@@ -15,7 +17,7 @@ import { toDecimalString, absMinor } from '@/lib/money';
 import { cn } from '@/lib/ui/cn';
 import type { LedgerTxn } from '@/lib/finance/types';
 
-export const metadata: Metadata = { title: 'Transactions' };
+export const metadata: Metadata = { title: 'Spending' };
 export const dynamic = 'force-dynamic';
 
 type View = 'this_month' | 'upcoming' | 'past' | 'all';
@@ -38,8 +40,9 @@ export default async function TransactionsPage({
   const today = todayIn(user.timezone);
   const cur = workspace.baseCurrency;
 
-  const [all, categories, accounts] = await Promise.all([
+  const [all, categories, accounts, summary] = await Promise.all([
     repo.listTransactions(), repo.listCategories(), repo.listAccounts(),
+    buildOverview(repo, user.timezone, user.locale),
   ]);
 
   const categoryById = new Map(categories.map((c) => [c.id, c]));
@@ -90,7 +93,7 @@ export default async function TransactionsPage({
   return (
     <>
       <PageHeader
-        title="Transactions"
+        title="Spending"
         action={<AddTransaction accounts={accounts.map((a) => ({ id: a.id, name: a.name, currency: a.currency }))} categories={choices} today={today} />}
       >
         <nav className="-mx-1 flex gap-1 overflow-x-auto pb-0.5" aria-label="Transaction view">
@@ -120,6 +123,7 @@ export default async function TransactionsPage({
       <div className="space-y-5 px-4 py-4 sm:px-6">
         {/* Hidden when there is nothing to filter — an empty list with a search box
             above it just looks like the search already failed. */}
+        {empty ? null : <MonthSummary d={summary} />}
         {empty ? null : <TransactionFilters categories={choices} accounts={accountChoices} />}
 
         {empty ? (

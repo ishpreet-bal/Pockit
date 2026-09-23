@@ -39,8 +39,14 @@ const EXPORTS = [
 ];
 
 export function SettingsForms({
-  profile, categories, rules, aiProviderLabel, aiConfigured,
+  profile, categories, rules, aiProviderLabel, aiConfigured, part = 'basic',
 }: {
+  /**
+   * Which half to render. The everyday settings sit at the top of the page; the
+   * category classifications and learned rules live inside "Advanced", because
+   * they are powerful and almost nobody needs them on a normal visit.
+   */
+  part?: 'basic' | 'advanced';
   profile: Profile;
   categories: CategoryRow[];
   rules: RuleRow[];
@@ -80,6 +86,116 @@ export function SettingsForms({
   }
 
   const visibleCategories = showAllCategories ? localCategories : localCategories.slice(0, 12);
+
+  if (part === 'advanced') {
+    return (
+      <>
+      <Card>
+        <CardHeader
+          title="Category classifications"
+          description="These drive fixed-vs-variable budgeting and the essential-spending estimate. They are yours to set."
+        />
+        <CardBody className="px-0 pb-0">
+          <Table>
+            <thead>
+              <tr><Th>Category</Th><Th>Fixed or variable</Th><Th>Essential or discretionary</Th></tr>
+            </thead>
+            <tbody>
+              {visibleCategories.map((c) => (
+                <tr key={c.id} className="hover:bg-[var(--surface-2)]">
+                  <Td>
+                    {c.parent ? <span className="text-[var(--text-subtle)]">{c.parent} › </span> : null}
+                    {c.name}
+                  </Td>
+                  <Td>
+                    <Select
+                      className="h-8 text-xs"
+                      defaultValue={c.classification}
+                      aria-label={`${c.name} classification`}
+                      onChange={(e) => {
+                        setLocalCategories((prev) => prev.map((x) => (x.id === c.id ? { ...x, classification: e.target.value } : x)));
+                        void send({ kind: 'category', categoryId: c.id, classification: e.target.value }, `${c.name} updated.`);
+                      }}
+                    >
+                      <option value="variable">Variable</option>
+                      <option value="fixed">Fixed</option>
+                    </Select>
+                  </Td>
+                  <Td>
+                    <Select
+                      className="h-8 text-xs"
+                      defaultValue={c.necessity}
+                      aria-label={`${c.name} necessity`}
+                      onChange={(e) => {
+                        setLocalCategories((prev) => prev.map((x) => (x.id === c.id ? { ...x, necessity: e.target.value } : x)));
+                        void send({ kind: 'category', categoryId: c.id, necessity: e.target.value }, `${c.name} updated.`);
+                      }}
+                    >
+                      <option value="discretionary">Discretionary</option>
+                      <option value="essential">Essential</option>
+                    </Select>
+                  </Td>
+                </tr>
+              ))}
+            </tbody>
+          </Table>
+          {localCategories.length > 12 ? (
+            <div className="border-t border-[var(--border)] p-3 text-center">
+              <Button size="sm" onClick={() => setShowAllCategories((v) => !v)}>
+                {showAllCategories ? 'Show fewer' : `Show all ${localCategories.length}`}
+              </Button>
+            </div>
+          ) : null}
+        </CardBody>
+      </Card>
+
+      <Card>
+        <CardHeader
+          title="Learned rules"
+          description="Every categorisation the system has inferred from your corrections. Delete any of them."
+        />
+        <CardBody className={localRules.length > 0 ? 'px-0 pb-0' : undefined}>
+          {localRules.length === 0 ? (
+            <p className="text-sm text-[var(--text-muted)]">
+              No rules yet. When you re-categorise a merchant during an import review, the system records a rule here
+              so the next import already knows — and you can see and remove every one.
+            </p>
+          ) : (
+            <Table>
+              <thead>
+                <tr><Th>When the description matches</Th><Th>Category</Th><Th>Source</Th><Th numeric>Used</Th><Th /></tr>
+              </thead>
+              <tbody>
+                {localRules.map((r) => (
+                  <tr key={r.id} className="hover:bg-[var(--surface-2)]">
+                    <Td><code className="text-xs">{r.matchType} &ldquo;{r.pattern}&rdquo;</code></Td>
+                    <Td className="text-[var(--text-muted)]">{r.categoryName ?? '—'}</Td>
+                    <Td><Badge tone={r.source === 'learned' ? 'info' : 'neutral'}>{r.source}</Badge></Td>
+                    <Td numeric className="text-[var(--text-muted)]">{r.timesApplied}</Td>
+                    <Td>
+                      <div className="flex justify-end">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setLocalRules((prev) => prev.filter((x) => x.id !== r.id));
+                            void send({ kind: 'deleteRule', ruleId: r.id }, 'Rule removed.');
+                          }}
+                          className="text-xs font-medium text-[var(--text-muted)] hover:text-[var(--negative)] hover:underline"
+                        >
+                          Delete
+                        </button>
+                      </div>
+                    </Td>
+                  </tr>
+                ))}
+              </tbody>
+            </Table>
+          )}
+        </CardBody>
+      </Card>
+      </>
+    );
+  }
 
   return (
     <>
@@ -207,109 +323,6 @@ export function SettingsForms({
         </CardBody>
       </Card>
 
-      <Card>
-        <CardHeader
-          title="Category classifications"
-          description="These drive fixed-vs-variable budgeting and the essential-spending estimate. They are yours to set."
-        />
-        <CardBody className="px-0 pb-0">
-          <Table>
-            <thead>
-              <tr><Th>Category</Th><Th>Fixed or variable</Th><Th>Essential or discretionary</Th></tr>
-            </thead>
-            <tbody>
-              {visibleCategories.map((c) => (
-                <tr key={c.id} className="hover:bg-[var(--surface-2)]">
-                  <Td>
-                    {c.parent ? <span className="text-[var(--text-subtle)]">{c.parent} › </span> : null}
-                    {c.name}
-                  </Td>
-                  <Td>
-                    <Select
-                      className="h-8 text-xs"
-                      defaultValue={c.classification}
-                      aria-label={`${c.name} classification`}
-                      onChange={(e) => {
-                        setLocalCategories((prev) => prev.map((x) => (x.id === c.id ? { ...x, classification: e.target.value } : x)));
-                        void send({ kind: 'category', categoryId: c.id, classification: e.target.value }, `${c.name} updated.`);
-                      }}
-                    >
-                      <option value="variable">Variable</option>
-                      <option value="fixed">Fixed</option>
-                    </Select>
-                  </Td>
-                  <Td>
-                    <Select
-                      className="h-8 text-xs"
-                      defaultValue={c.necessity}
-                      aria-label={`${c.name} necessity`}
-                      onChange={(e) => {
-                        setLocalCategories((prev) => prev.map((x) => (x.id === c.id ? { ...x, necessity: e.target.value } : x)));
-                        void send({ kind: 'category', categoryId: c.id, necessity: e.target.value }, `${c.name} updated.`);
-                      }}
-                    >
-                      <option value="discretionary">Discretionary</option>
-                      <option value="essential">Essential</option>
-                    </Select>
-                  </Td>
-                </tr>
-              ))}
-            </tbody>
-          </Table>
-          {localCategories.length > 12 ? (
-            <div className="border-t border-[var(--border)] p-3 text-center">
-              <Button size="sm" onClick={() => setShowAllCategories((v) => !v)}>
-                {showAllCategories ? 'Show fewer' : `Show all ${localCategories.length}`}
-              </Button>
-            </div>
-          ) : null}
-        </CardBody>
-      </Card>
-
-      <Card>
-        <CardHeader
-          title="Learned rules"
-          description="Every categorisation the system has inferred from your corrections. Delete any of them."
-        />
-        <CardBody className={localRules.length > 0 ? 'px-0 pb-0' : undefined}>
-          {localRules.length === 0 ? (
-            <p className="text-sm text-[var(--text-muted)]">
-              No rules yet. When you re-categorise a merchant during an import review, the system records a rule here
-              so the next import already knows — and you can see and remove every one.
-            </p>
-          ) : (
-            <Table>
-              <thead>
-                <tr><Th>When the description matches</Th><Th>Category</Th><Th>Source</Th><Th numeric>Used</Th><Th /></tr>
-              </thead>
-              <tbody>
-                {localRules.map((r) => (
-                  <tr key={r.id} className="hover:bg-[var(--surface-2)]">
-                    <Td><code className="text-xs">{r.matchType} &ldquo;{r.pattern}&rdquo;</code></Td>
-                    <Td className="text-[var(--text-muted)]">{r.categoryName ?? '—'}</Td>
-                    <Td><Badge tone={r.source === 'learned' ? 'info' : 'neutral'}>{r.source}</Badge></Td>
-                    <Td numeric className="text-[var(--text-muted)]">{r.timesApplied}</Td>
-                    <Td>
-                      <div className="flex justify-end">
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setLocalRules((prev) => prev.filter((x) => x.id !== r.id));
-                            void send({ kind: 'deleteRule', ruleId: r.id }, 'Rule removed.');
-                          }}
-                          className="text-xs font-medium text-[var(--text-muted)] hover:text-[var(--negative)] hover:underline"
-                        >
-                          Delete
-                        </button>
-                      </div>
-                    </Td>
-                  </tr>
-                ))}
-              </tbody>
-            </Table>
-          )}
-        </CardBody>
-      </Card>
     </>
   );
 }

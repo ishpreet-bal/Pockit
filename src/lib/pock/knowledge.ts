@@ -33,20 +33,20 @@ export const HELP: HelpEntry[] = [
   {
     id: 'overview',
     route: '/overview',
-    title: 'Overview — the home screen',
-    keywords: ['overview', 'dashboard', 'home', 'available', 'left to spend', 'summary', 'net'],
-    body: `Overview is the home screen. Its headline figure is "available after upcoming bills": the
-cash across your accounts, minus the bills still scheduled this month. It is deliberately not your
-raw balance, because money already committed to a bill is not really spendable.
-Below it: what came in, what you spent, what is still to pay, the next 30 days of scheduled items,
-and where the money went by category.`,
+    title: 'Home — the first tab',
+    keywords: ['overview', 'dashboard', 'home', 'available', 'safe to spend', 'left to spend', 'summary', 'net'],
+    body: `Pockit has three main tabs: Home, Spending and Goals, plus Investing and a More screen.
+Home shows one headline figure, "Safe to spend": the cash across your accounts minus the bills still
+due this month. It is deliberately not your raw balance, because money already promised to a bill is
+not really spendable. Below it: the next three bills, your top goal, and your investments.`,
   },
   {
     id: 'transactions-add',
     route: '/transactions',
-    title: 'Adding and editing transactions',
+    title: 'Spending — adding and finding transactions',
     keywords: ['transaction', 'add', 'spend', 'expense', 'income', 'delete', 'edit', 'merchant', 'receipt'],
-    body: `Transactions lists everything. "Add" opens a small form: amount, what it was, category,
+    body: `The Spending tab shows this month at a glance (spent, budget, top categories) and every
+transaction below it. "Add" opens a small form: amount, what it was, category,
 date and account. The description box suggests things you have entered before, and picking a
 suggestion also fills in the category you usually use for it.
 To edit or delete one, open the transaction from the list; delete is inside that view.
@@ -58,7 +58,7 @@ so a filtered view can be bookmarked and the back button undoes it.`,
     route: '/recurring',
     title: 'Recurring bills and income',
     keywords: ['recurring', 'bill', 'subscription', 'rent', 'salary', 'repeat', 'monthly', 'regular'],
-    body: `Recurring holds anything that repeats: rent, insurance, subscriptions, loan payments, pay.
+    body: `Bills & subscriptions (in More) holds anything that repeats: rent, insurance, subscriptions, loan payments, pay.
 Each has an amount, a frequency (weekly, biweekly, twice monthly, monthly, yearly) and a next date.
 These drive the "still to pay this month" figure on Overview and the next-30-days list.
 You can add one directly — it does not require importing any transaction history first.`,
@@ -68,7 +68,7 @@ You can add one directly — it does not require importing any transaction histo
     route: '/budget',
     title: 'Budgets',
     keywords: ['budget', 'limit', 'category', 'overspend', 'plan', 'allocate', 'envelope'],
-    body: `Budget sets a monthly limit per category and tracks spending against it.
+    body: `Budget is reached from the Spending tab ("Budget" link on the month summary). It sets a monthly limit per category and tracks spending against it.
 Categories are marked fixed or variable, and essential or discretionary. Those two flags matter
 beyond the budget screen: the goal feasibility calculation only ever suggests reducing categories
 marked discretionary, so how you classify them changes the advice you get.
@@ -93,7 +93,7 @@ treated differently because delaying it accrues interest.`,
     route: '/investing',
     title: 'Investing',
     keywords: ['invest', 'stock', 'etf', 'crypto', 'watchlist', 'portfolio', 'ticker', 'share', 'market'],
-    body: `Investing has its own sections: Overview, Stocks, ETFs, Crypto, Watchlist and Portfolio.
+    body: `Investing is in the sidebar (and the Invest tab on a phone). It has its own sections: Overview, Stocks, ETFs, Crypto, Watchlist and Portfolio.
 Search from the box at the top by ticker or company name. Every instrument opens a page with a
 chart (1D to MAX), key statistics, and analysis.
 The star on that page follows it; with more than one list, the caret beside the star chooses which.
@@ -115,7 +115,7 @@ whether the key is missing, rejected or rate-limited.`,
   {
     id: 'accounts',
     route: '/accounts',
-    title: 'Accounts, debts and holdings',
+    title: 'Accounts, debts and holdings (in More)',
     keywords: ['account', 'balance', 'debt', 'credit card', 'loan', 'net worth', 'holding', 'own'],
     body: `Accounts holds everything you own or owe: chequing, savings, cash, credit cards, loans,
 mortgages and investment accounts. Balances are derived from transactions rather than typed in,
@@ -127,7 +127,7 @@ Investments you actually own are added here, and those are what count towards ne
     route: '/imports/new',
     title: 'Importing statements',
     keywords: ['import', 'csv', 'statement', 'upload', 'bank', 'excel', 'pdf', 'screenshot'],
-    body: `Import accepts CSV, Excel, PDF and images of statements. Everything goes to a review
+    body: `Import a statement (in More) accepts CSV, Excel, PDF and images of statements. Everything goes to a review
 screen first — nothing is written to your ledger until you accept it. Duplicates are detected
 against what you already have, and a whole import can be rolled back afterwards.
 CSV, Excel and text PDFs are parsed on the server and never sent to an AI provider. Only
@@ -138,7 +138,7 @@ screenshots and scanned PDFs are, because extracting those requires it.`,
     route: '/calendar',
     title: 'Calendar',
     keywords: ['calendar', 'when', 'due', 'upcoming', 'payday', 'schedule'],
-    body: `Calendar lays out scheduled income and bills by date, so you can see whether money lands
+    body: `Calendar (in More) lays out scheduled income and bills by date, so you can see whether money lands
 before a bill leaves. It reads from your recurring items.`,
   },
   {
@@ -147,7 +147,8 @@ before a bill leaves. It reads from your recurring items.`,
     title: 'Changing your income, currency and personal details',
     keywords: ['income', 'salary', 'change income', 'currency', 'timezone', 'name', 'profile', 'settings'],
     body: `Settings holds your name, base currency, timezone and date format.
-Income itself is not a single setting — it is whatever is recorded as income in Recurring, which is
+Settings is in More. Income itself is not a single setting — it is whatever is recorded as income in
+Bills & subscriptions, which is
 what the calculations read. To change your income, edit the recurring income there.
 Settings also has category classifications, privacy and file retention, data export, two-step
 verification, and the market-data check.`,

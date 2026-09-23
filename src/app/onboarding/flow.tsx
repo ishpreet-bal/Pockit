@@ -30,7 +30,13 @@ import { cn } from '@/lib/ui/cn';
 
 type StepId = 'intro' | 'income' | 'source' | 'recurring' | 'spending' | 'savings' | 'goals' | 'summary';
 
-const STEPS: StepId[] = ['intro', 'income', 'source', 'recurring', 'spending', 'savings', 'goals', 'summary'];
+/**
+ * Four questions. There were six: "what kind of work pays you" and a grid of
+ * spending estimates asked the most of people and changed the least — nothing
+ * downstream needed the first, and the second is measured properly once real
+ * spending exists. Shorter setup is the difference between finishing and leaving.
+ */
+const STEPS: StepId[] = ['intro', 'income', 'recurring', 'savings', 'goals', 'summary'];
 /** The intro and the summary are not questions, so they are not counted in the progress. */
 const QUESTION_STEPS: StepId[] = STEPS.filter((s) => s !== 'intro' && s !== 'summary');
 
@@ -123,7 +129,7 @@ export function OnboardingFlow({
               <Step
                 heading={heading}
                 title="Let's set up your Pockit."
-                body="A few quick questions, so your dashboard starts from your real numbers instead of a blank page. About two minutes — and you can skip anything you'd rather not answer."
+                body="Four quick questions so Pockit starts from your real numbers. About a minute — skip anything you like."
                 mascot
               >
                 <div className="mt-5 flex flex-col gap-2">
@@ -735,9 +741,7 @@ function resumeAt(stage: string, answers: Answers): StepId {
   // Mid-flow: the first question they have neither answered nor skipped.
   const skipped = new Set(answers.skipped ?? []);
   if (answers.incomeMinor === undefined && !skipped.has('income')) return 'income';
-  if (answers.incomeSource === undefined && !skipped.has('source')) return 'source';
   if (answers.recurring === undefined && !skipped.has('recurring')) return 'recurring';
-  if (answers.spendingByCategory === undefined && !skipped.has('spending')) return 'spending';
   if (answers.savingsMinor === undefined && !skipped.has('savings')) return 'savings';
   if (answers.goals === undefined && !skipped.has('goals')) return 'goals';
   return 'summary';

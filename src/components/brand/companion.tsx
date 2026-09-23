@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { AnimatePresence, motion, useAnimationControls, useReducedMotion } from 'framer-motion';
-import { X, MessageCircleQuestion, MessageSquarePlus, Compass, PlayCircle, Sparkles } from 'lucide-react';
+import { X, MessageCircleQuestion, MessageSquarePlus, Compass, Sparkles } from 'lucide-react';
 import { Mascot, type Mood } from './mascot';
 import { AskPock, type PockAnchor } from './ask-pock';
 import { FeedbackForm } from '@/components/feedback/feedback-form';
@@ -74,8 +74,14 @@ export function Companion({ tip }: { tip: CompanionTip | null }) {
       setPanel('ask');
       setOpen(true);
     }
+    // The phone header's otter opens the same menu this button does.
+    function onOpen() { setHidden(false); setPanel('tip'); setOpen((v) => !v); }
     window.addEventListener('pock:ask', onAsk);
-    return () => window.removeEventListener('pock:ask', onAsk);
+    window.addEventListener('pock:open', onOpen);
+    return () => {
+      window.removeEventListener('pock:ask', onAsk);
+      window.removeEventListener('pock:open', onOpen);
+    };
   }, []);
 
   useEffect(() => {
@@ -118,7 +124,7 @@ export function Companion({ tip }: { tip: CompanionTip | null }) {
     // Stacked above the quick-add button rather than bottom-left: the sidebar's
     // own footer lives in that corner on desktop, and a character sitting on top of
     // the theme switcher is not a guide, it is an obstruction.
-    <div className="pointer-events-none fixed bottom-[calc(env(safe-area-inset-bottom)+136px)] right-4 z-40 flex flex-col items-end md:bottom-24 md:right-6">
+    <div className="pointer-events-none fixed bottom-[calc(env(safe-area-inset-bottom)+76px)] right-4 z-40 flex flex-col items-end md:bottom-24 md:right-6">
       <AnimatePresence>
         {open ? (
           <motion.div
@@ -201,14 +207,6 @@ export function Companion({ tip }: { tip: CompanionTip | null }) {
                 <Compass className="h-4 w-4 text-[var(--text-subtle)]" />
                 Explore this page
               </button>
-              <button
-                type="button"
-                onClick={() => { close(); window.dispatchEvent(new Event('pock:tour')); }}
-                className="flex w-full items-center gap-1.5 rounded-[var(--radius-control)] px-2 py-1.5 text-left text-sm hover:bg-[var(--surface-2)]"
-              >
-                <PlayCircle className="h-4 w-4 text-[var(--text-subtle)]" />
-                Replay the 60-second tour
-              </button>
               <a
                 href="/demo"
                 className="flex w-full items-center gap-1.5 rounded-[var(--radius-control)] px-2 py-1.5 text-left text-sm hover:bg-[var(--surface-2)]"
@@ -252,7 +250,9 @@ export function Companion({ tip }: { tip: CompanionTip | null }) {
         data-tour="pock"
         aria-label={activeTip ? 'Pock has something to say' : 'Pock'}
         className={cn(
-          'pointer-events-auto relative grid h-14 w-14 place-items-center rounded-full',
+          // On a phone Pock lives in the header instead: two floating buttons
+          // stacked over the right edge were covering the amounts beside them.
+          'pointer-events-auto relative hidden h-14 w-14 place-items-center rounded-full md:grid',
           // A little pool for the otter to float in, rather than a flat brand disc.
           'bg-[radial-gradient(circle_at_50%_70%,color-mix(in_srgb,var(--goal)_35%,var(--surface))_0%,var(--surface)_70%)]',
           'border border-[var(--border-strong)] shadow-[var(--shadow-md)]',
