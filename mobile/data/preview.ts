@@ -62,3 +62,26 @@ export const previewSummary: Summary = {
     ],
   },
 };
+
+/** Sample month of transactions for the See all screen in preview mode. */
+export const previewTransactions = {
+  month: '2026-09',
+  transactions: [
+    { id: 't1', name: 'No Frills', date: '2026-09-30', amountMinor: -6_432, category: 'Groceries', icon: '🛒' },
+    { id: 't2', name: 'Presto', date: '2026-09-30', amountMinor: -1_000, category: 'Transport', icon: '🚗' },
+    { id: 't3', name: 'Tim Hortons', date: '2026-09-29', amountMinor: -485, category: 'Coffee', icon: '☕' },
+    { id: 't4', name: 'Spotify', date: '2026-09-28', amountMinor: -1_199, category: 'Subscriptions', icon: '🎵' },
+    { id: 't5', name: 'Payroll', date: '2026-09-26', amountMinor: 240_000, category: 'Salary', icon: '💼' },
+    { id: 't6', name: 'Uber Eats', date: '2026-09-25', amountMinor: -3_120, category: 'Eating out', icon: '🍽️' },
+  ],
+  totals: { outMinor: 12_236, inMinor: 240_000 },
+  categories: [
+    { id: 'c1', name: 'Groceries', icon: '🛒', kind: 'expense', parentId: null },
+    { id: 'c2', name: 'Eating out', icon: '🍽️', kind: 'expense', parentId: null },
+    { id: 'c3', name: 'Transport', icon: '🚗', kind: 'expense', parentId: null },
+    { id: 'c4', name: 'Shopping', icon: '🛍️', kind: 'expense', parentId: null },
+    { id: 'c5', name: 'Bills', icon: '💡', kind: 'expense', parentId: null },
+    { id: 'c6', name: 'Salary', icon: '💼', kind: 'income', parentId: null },
+  ],
+  accounts: [{ id: 'a1', name: 'Chequing', type: 'checking' }],
+};

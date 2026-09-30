@@ -5,7 +5,6 @@ import * as Haptics from 'expo-haptics';
 import { Icon } from '@/components/Icon';
 import { useColors, useIsDark, type Section } from '@/theme/tokens';
 import { useSession } from '@/lib/session';
-import { SummaryProvider } from '@/lib/summary';
 
 /**
  * The native tab bar. Each tab lights up in its own section colour, so the bar
@@ -30,7 +29,6 @@ export default function TabLayout() {
   if (me && !me.setupDone) return <Redirect href="/setup" />;
 
   return (
-    <SummaryProvider>
     <Tabs
       screenListeners={{ tabPress: () => { void Haptics.selectionAsync(); } }}
       screenOptions={{
@@ -61,6 +59,5 @@ export default function TabLayout() {
         />
       ))}
     </Tabs>
-    </SummaryProvider>
   );
 }

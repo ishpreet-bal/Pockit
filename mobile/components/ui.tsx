@@ -2,6 +2,7 @@ import { createContext, useContext, useState, type ReactNode } from 'react';
 import { ActivityIndicator, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View, type ViewStyle } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
+import { router } from 'expo-router';
 import { radius, space, type, useColors, type Section } from '@/theme/tokens';
 import { Icon } from './Icon';
 
@@ -18,8 +19,8 @@ export function useAccent() {
  * a large title, content below, clear of the notch and the tab bar.
  */
 export function Screen({
-  section, eyebrow, title, right, children, onRefresh, refreshing = false,
-}: { section: Section; eyebrow?: string; title: string; right?: ReactNode; children: ReactNode; onRefresh?: () => void; refreshing?: boolean }) {
+  section, eyebrow, title, right, children, onRefresh, refreshing = false, back,
+}: { section: Section; eyebrow?: string; title: string; right?: ReactNode; children: ReactNode; onRefresh?: () => void; refreshing?: boolean; back?: boolean }) {
   const insets = useSafeAreaInsets();
   const c = useColors();
   return (
@@ -30,6 +31,12 @@ export function Screen({
         contentInsetAdjustmentBehavior="never"
         refreshControl={onRefresh ? <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={c.section[section].accent} /> : undefined}
       >
+        {back ? (
+          <Pressable onPress={() => router.back()} hitSlop={12} accessibilityRole="button" accessibilityLabel="Back" style={{ flexDirection: 'row', alignItems: 'center', gap: 2, marginBottom: space.sm, alignSelf: 'flex-start' }}>
+            <Icon name="chevron.left" size={20} color={c.section[section].accent} />
+            <Text style={[type.bodyStrong, { color: c.section[section].accent }]}>Back</Text>
+          </Pressable>
+        ) : null}
         <View style={s.titleRow}>
           <View style={{ flex: 1 }}>
             {eyebrow ? <Text style={[type.subhead, { color: c.textMuted }]}>{eyebrow}</Text> : null}

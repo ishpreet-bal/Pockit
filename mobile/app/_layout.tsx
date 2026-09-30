@@ -12,6 +12,7 @@ import {
 import 'react-native-reanimated';
 import { useColors, useIsDark } from '@/theme/tokens';
 import { SessionProvider } from '@/lib/session';
+import { SummaryProvider } from '@/lib/summary';
 
 export { ErrorBoundary } from 'expo-router';
 export const unstable_settings = { initialRouteName: '(tabs)' };
@@ -37,6 +38,7 @@ export default function RootLayout() {
 
   return (
     <SessionProvider>
+      <SummaryProvider>
       <ThemeProvider value={theme}>
         <StatusBar style={dark ? 'light' : 'dark'} />
         <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: c.bg } }}>
@@ -45,8 +47,11 @@ export default function RootLayout() {
           <Stack.Screen name="sign-up" />
           <Stack.Screen name="sign-in" />
           <Stack.Screen name="setup" options={{ gestureEnabled: false, animation: 'fade' }} />
+          <Stack.Screen name="transactions" />
+          <Stack.Screen name="add" options={{ presentation: 'modal' }} />
         </Stack>
       </ThemeProvider>
+      </SummaryProvider>
     </SessionProvider>
   );
 }
