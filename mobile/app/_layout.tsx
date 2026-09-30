@@ -52,6 +52,8 @@ export default function RootLayout() {
           <Stack.Screen name="new-goal" options={{ presentation: 'modal' }} />
           <Stack.Screen name="bills" />
           <Stack.Screen name="goal/[id]" />
+          <Stack.Screen name="search" />
+          <Stack.Screen name="stock/[symbol]" />
         </Stack>
       </ThemeProvider>
       </SummaryProvider>

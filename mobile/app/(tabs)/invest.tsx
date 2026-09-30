@@ -1,4 +1,6 @@
-import { Text, View } from 'react-native';
+import { Pressable, Text, View } from 'react-native';
+import { router } from 'expo-router';
+import { Icon } from '@/components/Icon';
 import { Card, EmptyCard, Loading, formatMoney, PreviewBadge, Screen, SectionHeader, StaleNote, useAccent } from '@/components/ui';
 import { PREVIEW } from '@/lib/session';
 import { useSummary, type Summary } from '@/lib/summary';
@@ -8,7 +10,7 @@ import { space, type, useColors } from '@/theme/tokens';
 export default function Invest() {
   const { data, error, refreshing, refresh } = useSummary();
   return (
-    <Screen section="invest" title="Invest" onRefresh={refresh} refreshing={refreshing}>
+    <Screen section="invest" title="Invest" onRefresh={refresh} refreshing={refreshing} right={<SearchButton />}>
       {PREVIEW ? <PreviewBadge /> : null}
       <StaleNote message={data ? error : null} />
       {data ? <Body d={data} /> : <Loading error={error} />}
@@ -20,6 +22,7 @@ function Line({ symbol, name, value, pct, last }: { symbol: string; name: string
   const c = useColors();
   const a = useAccent();
   return (
+    <Pressable accessibilityRole="button" onPress={() => router.push({ pathname: '/stock/[symbol]', params: { symbol } })} style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1 })}>
     <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.md, padding: space.lg, borderBottomWidth: last ? 0 : 0.5, borderBottomColor: c.border }}>
       <View style={{ width: 40, height: 40, borderRadius: 12, backgroundColor: a.soft, alignItems: 'center', justifyContent: 'center' }}>
         <Text style={[type.caption, { color: a.accent, fontSize: 10 }]} numberOfLines={1}>{symbol.slice(0, 5)}</Text>
@@ -33,6 +36,7 @@ function Line({ symbol, name, value, pct, last }: { symbol: string; name: string
         {pct !== null ? <Text style={[type.footnote, { color: pct >= 0 ? c.positive : c.negative }]}>{pct >= 0 ? '▲' : '▼'} {Math.abs(pct).toFixed(1)}% today</Text> : null}
       </View>
     </View>
+    </Pressable>
   );
 }
 
@@ -58,7 +62,12 @@ function Body({ d }: { d: Summary }) {
           </Card>
         </>
       ) : (
-        <EmptyCard title="Nothing invested yet" body="Add what you own under Accounts and it’s valued here. Or just follow a few stocks to learn how they move." />
+        <>
+          <EmptyCard title="Nothing invested yet" body="Search any stock or fund and tap Watch to follow it. What you own is added under Accounts." />
+          <Card style={{ padding: space.lg, marginTop: 12, alignItems: 'center' }} onPress={() => router.push('/search')}>
+            <Text style={[type.bodyStrong, { color: c.section.invest.accent }]}>Search stocks & funds</Text>
+          </Card>
+        </>
       )}
 
       {inv.watchlist.length ? (
@@ -73,5 +82,15 @@ function Body({ d }: { d: Summary }) {
       ) : null}
       <Text style={[type.caption, { color: c.textSubtle, marginTop: space.lg, textAlign: 'center' }]}>Pockit helps you follow investments. It never buys or sells.</Text>
     </>
+  );
+}
+
+function SearchButton() {
+  const a = useAccent();
+  return (
+    <Pressable onPress={() => router.push('/search')} accessibilityRole="button" accessibilityLabel="Search stocks and funds" hitSlop={8}
+      style={{ width: 42, height: 42, borderRadius: 14, backgroundColor: a.soft, alignItems: 'center', justifyContent: 'center' }}>
+      <Icon name="magnifyingglass" size={19} color={a.accent} />
+    </Pressable>
   );
 }

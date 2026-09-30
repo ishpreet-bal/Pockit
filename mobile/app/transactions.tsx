@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Pressable, Text, TextInput, View } from 'react-native';
+import { Platform, Pressable, Text, TextInput, View } from 'react-native';
 import { router } from 'expo-router';
 import { Card, EmptyCard, formatMoney, friendlyDate, Loading, Row, Screen, useAccent } from '@/components/ui';
 import { Icon } from '@/components/Icon';
@@ -83,7 +83,7 @@ function Search({ value, onChange }: { value: string; onChange: (v: string) => v
     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, height: 44, borderRadius: radius.control, backgroundColor: c.surface2, paddingHorizontal: 12, marginBottom: space.lg }}>
       <Icon name="magnifyingglass" size={17} color={c.textSubtle} />
       <TextInput value={value} onChangeText={onChange} placeholder="Search shops or categories" placeholderTextColor={c.textSubtle}
-        style={{ flex: 1, fontFamily: font.regular, fontSize: 16, color: c.text }} autoCorrect={false} clearButtonMode="while-editing" />
+        style={{ flex: 1, fontFamily: font.regular, fontSize: 16, color: c.text, ...(Platform.OS === 'web' ? ({ outlineStyle: 'none' } as object) : {}) }} autoCorrect={false} clearButtonMode="while-editing" />
     </View>
   );
 }
