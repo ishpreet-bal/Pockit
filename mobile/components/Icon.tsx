@@ -17,6 +17,7 @@ const WEB: Record<string, string> = {
   'music.note': 'music_note',
   'plus': 'add',
   'chevron.right': 'chevron_right',
+  'chevron.left': 'chevron_left',
   'repeat': 'repeat',
   'calendar': 'calendar_month',
   'building.columns': 'account_balance',

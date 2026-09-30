@@ -39,6 +39,7 @@
     ".next/types/**/*.ts"
   ],
   "exclude": [
+    "mobile",
     "node_modules",
     ".next",
     "dist",

@@ -2,13 +2,10 @@
 
 import { redirect } from 'next/navigation';
 import { z } from 'zod';
-import { eq } from 'drizzle-orm';
-import { withoutUser } from '@/lib/db/client';
-import { users } from '@/lib/db/schema';
 import { createUserWithWorkspace, findUserByEmail } from '@/lib/data/bootstrap';
-import { verifyPassword } from './password';
 import { createSession, destroySession, audit, requestContext } from './session';
 import { checkRateLimit } from './rate-limit';
+import { checkCredentials } from './credentials';
 import {
   startPendingTwoFactor, readPendingTwoFactor, clearPendingTwoFactor,
   twoFactorEnabled, verifySecondFactor, consumeRecoveryCode,
@@ -52,9 +49,6 @@ async function guarded(run: () => Promise<AuthFormState>): Promise<AuthFormState
     };
   }
 }
-
-const MAX_FAILED = 8;
-const LOCK_MINUTES = 15;
 
 export async function signUpAction(prev: AuthFormState, formData: FormData): Promise<AuthFormState> {
   return guarded(() => signUp(prev, formData));
@@ -115,35 +109,9 @@ async function signIn(_prev: AuthFormState, formData: FormData): Promise<AuthFor
   const limit = await checkRateLimit(`signin:${ip ?? 'unknown'}`, 10, 15 * 60);
   if (!limit.allowed) return { error: 'Too many attempts. Please try again in a few minutes.' };
 
-  const user = await findUserByEmail(email);
-
-  // Always run a hash comparison so a missing account and a wrong password take the
-  // same time; otherwise response timing reveals which addresses are registered.
-  const stored = user?.passwordHash ?? '$scrypt$65536$8$1$AAAAAAAAAAAAAAAAAAAAAA$AAAA';
-  const valid = await verifyPassword(password, stored);
-
-  if (!user || !valid || user.deletedAt) {
-    if (user) {
-      const failed = user.failedLoginCount + 1;
-      await withoutUser((tx) =>
-        tx.update(users).set({
-          failedLoginCount: failed,
-          lockedUntil: failed >= MAX_FAILED ? new Date(Date.now() + LOCK_MINUTES * 60_000) : user.lockedUntil,
-        }).where(eq(users.id, user.id)),
-      );
-      await audit({ actorUserId: user.id, action: 'auth.sign_in_failed', entity: 'user', entityId: user.id });
-    }
-    return { error: 'Email or password is incorrect.' };
-  }
-
-  if (user.lockedUntil && user.lockedUntil > new Date()) {
-    return { error: 'This account is temporarily locked after several failed attempts. Try again shortly.' };
-  }
-
-  await withoutUser((tx) =>
-    tx.update(users).set({ failedLoginCount: 0, lockedUntil: null, lastLoginAt: new Date() })
-      .where(eq(users.id, user.id)),
-  );
+  const checked = await checkCredentials(email, password);
+  if (!checked.ok) return { error: checked.error };
+  const user = { id: checked.userId };
 
   // The password was right. If a second factor is enrolled, that is not yet a
   // session — it is permission to be ASKED for the code. No session row exists

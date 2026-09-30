@@ -1,9 +1,10 @@
-import { Tabs } from 'expo-router';
+import { Redirect, Tabs } from 'expo-router';
 import { Platform, StyleSheet } from 'react-native';
 import { BlurView } from 'expo-blur';
 import * as Haptics from 'expo-haptics';
 import { Icon } from '@/components/Icon';
 import { useColors, useIsDark, type Section } from '@/theme/tokens';
+import { useSession } from '@/lib/session';
 
 /**
  * The native tab bar. Each tab lights up in its own section colour, so the bar
@@ -20,6 +21,13 @@ const TABS: { name: string; title: string; icon: string; section: Section }[] = 
 export default function TabLayout() {
   const c = useColors();
   const dark = useIsDark();
+  const { status, me } = useSession();
+
+  // The tabs are only for someone signed in who has been through setup.
+  if (status === 'loading') return null;
+  if (status === 'signed-out') return <Redirect href="/welcome" />;
+  if (me && !me.setupDone) return <Redirect href="/setup" />;
+
   return (
     <Tabs
       screenListeners={{ tabPress: () => { void Haptics.selectionAsync(); } }}

@@ -1,5 +1,9 @@
 import { Card, Row, Screen, SectionHeader } from '@/components/ui';
-import { useColors } from '@/theme/tokens';
+import { Text } from 'react-native';
+import { router } from 'expo-router';
+import { Card as Box } from '@/components/ui';
+import { useSession } from '@/lib/session';
+import { space, type, useColors } from '@/theme/tokens';
 
 const ITEMS = [
   { icon: 'repeat', title: 'Bills', detail: 'Rent, phone, subscriptions' },
@@ -29,6 +33,20 @@ function Body() {
           <Row key={it.title} icon={it.icon} title={it.title} detail={it.detail} value="›" valueColor={c.textSubtle} last={i === ITEMS.length - 1} onPress={() => {}} />
         ))}
       </Card>
+      <SignOut />
+    </>
+  );
+}
+
+function SignOut() {
+  const c = useColors();
+  const { signOut, me } = useSession();
+  return (
+    <>
+      <Box style={{ marginTop: space.xxl, padding: space.lg, alignItems: 'center' }} onPress={async () => { await signOut(); router.replace('/welcome'); }}>
+        <Text style={[type.bodyStrong, { color: c.negative }]}>Sign out</Text>
+      </Box>
+      {me?.email ? <Text style={[type.caption, { color: c.textSubtle, textAlign: 'center', marginTop: space.sm }]}>Signed in as {me.email}</Text> : null}
     </>
   );
 }

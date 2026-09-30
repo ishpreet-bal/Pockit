@@ -11,6 +11,7 @@ import {
 } from '@expo-google-fonts/bricolage-grotesque';
 import 'react-native-reanimated';
 import { useColors, useIsDark } from '@/theme/tokens';
+import { SessionProvider } from '@/lib/session';
 
 export { ErrorBoundary } from 'expo-router';
 export const unstable_settings = { initialRouteName: '(tabs)' };
@@ -35,11 +36,17 @@ export default function RootLayout() {
   const theme = { ...base, colors: { ...base.colors, background: c.bg, card: c.bg, text: c.text, border: c.border, primary: c.section.home.accent } };
 
   return (
-    <ThemeProvider value={theme}>
-      <StatusBar style={dark ? 'light' : 'dark'} />
-      <Stack screenOptions={{ contentStyle: { backgroundColor: c.bg } }}>
-        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-      </Stack>
-    </ThemeProvider>
+    <SessionProvider>
+      <ThemeProvider value={theme}>
+        <StatusBar style={dark ? 'light' : 'dark'} />
+        <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: c.bg } }}>
+          <Stack.Screen name="(tabs)" />
+          <Stack.Screen name="welcome" options={{ animation: 'fade' }} />
+          <Stack.Screen name="sign-up" />
+          <Stack.Screen name="sign-in" />
+          <Stack.Screen name="setup" options={{ gestureEnabled: false, animation: 'fade' }} />
+        </Stack>
+      </ThemeProvider>
+    </SessionProvider>
   );
 }

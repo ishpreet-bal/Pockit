@@ -34,7 +34,14 @@ export interface WorkspaceSummary {
   role: string;
 }
 
-export async function createSession(userId: string, ip: string | null, userAgent: string | null): Promise<void> {
+/**
+ * Create a session row and return its signed token.
+ *
+ * The browser receives it as an httpOnly cookie (createSession); the iPhone app
+ * receives it in the response body and keeps it in the Keychain, then sends it back
+ * as `Authorization: Bearer …`. Same row, same expiry, same revocation.
+ */
+export async function issueSessionToken(userId: string, ip: string | null, userAgent: string | null): Promise<string> {
   const token = generateToken();
   const expiresAt = new Date(Date.now() + MAX_AGE_SECONDS * 1000);
 
@@ -44,8 +51,24 @@ export async function createSession(userId: string, ip: string | null, userAgent
     });
   });
 
+  return sign(token, env.AUTH_SECRET);
+}
+
+/** The signed token from the cookie, or from a Bearer header sent by the app. */
+async function presentedToken(): Promise<string | null> {
   const jar = await cookies();
-  jar.set(COOKIE, sign(token, env.AUTH_SECRET), {
+  const fromCookie = jar.get(COOKIE)?.value;
+  if (fromCookie) return fromCookie;
+  const auth = (await headers()).get('authorization');
+  const match = auth?.match(/^Bearer\s+(.+)$/i);
+  return match?.[1]?.trim() || null;
+}
+
+export async function createSession(userId: string, ip: string | null, userAgent: string | null): Promise<void> {
+  const signed = await issueSessionToken(userId, ip, userAgent);
+
+  const jar = await cookies();
+  jar.set(COOKIE, signed, {
     httpOnly: true,
     secure: env.NODE_ENV === 'production',
     sameSite: 'lax',
@@ -56,7 +79,7 @@ export async function createSession(userId: string, ip: string | null, userAgent
 
 export async function destroySession(): Promise<void> {
   const jar = await cookies();
-  const raw = jar.get(COOKIE)?.value;
+  const raw = await presentedToken();
   if (raw) {
     const token = unsign(raw, env.AUTH_SECRET);
     if (token) {
@@ -74,8 +97,7 @@ export async function destroySession(): Promise<void> {
  * places still issues exactly one query.
  */
 export const getSessionUser = cache(async (): Promise<SessionUser | null> => {
-  const jar = await cookies();
-  const raw = jar.get(COOKIE)?.value;
+  const raw = await presentedToken();
   if (!raw) return null;
 
   const token = unsign(raw, env.AUTH_SECRET);

@@ -1,0 +1,127 @@
+import { forwardRef, useState, type ReactNode } from 'react';
+import { ActivityIndicator, KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, TextInput, View, type TextInputProps } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import * as Haptics from 'expo-haptics';
+import { font, radius, space, type, useColors, useIsDark } from '@/theme/tokens';
+
+/**
+ * A full-screen step: optional back link and progress at the top, the question in
+ * large type, content in the middle, and the main button pinned above the keyboard.
+ * Every screen before the tabs uses this, so they all move and read the same way.
+ */
+export function StepScreen({
+  top, title, subtitle, children, footer,
+}: { top?: ReactNode; title: string; subtitle?: string; children?: ReactNode; footer: ReactNode }) {
+  const c = useColors();
+  const insets = useSafeAreaInsets();
+  return (
+    <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1, backgroundColor: c.bg }}>
+      <ScrollView
+        keyboardShouldPersistTaps="handled"
+        contentContainerStyle={{ flexGrow: 1, paddingTop: insets.top + space.md, paddingHorizontal: space.xl, paddingBottom: space.xl }}
+      >
+        {top ? <View style={{ minHeight: 32, marginBottom: space.xl }}>{top}</View> : null}
+        <Text style={[type.largeTitle, { color: c.text }]} accessibilityRole="header">{title}</Text>
+        {subtitle ? <Text style={[type.body, { color: c.textMuted, marginTop: space.sm, lineHeight: 22 }]}>{subtitle}</Text> : null}
+        <View style={{ marginTop: space.xxl, gap: space.lg }}>{children}</View>
+      </ScrollView>
+      <View style={{ paddingHorizontal: space.xl, paddingBottom: Math.max(insets.bottom, space.lg), paddingTop: space.sm, gap: space.sm }}>
+        {footer}
+      </View>
+    </KeyboardAvoidingView>
+  );
+}
+
+export function Button({
+  label, onPress, variant = 'primary', loading, disabled, accent,
+}: { label: string; onPress: () => void; variant?: 'primary' | 'secondary' | 'plain'; loading?: boolean; disabled?: boolean; accent?: string }) {
+  const c = useColors();
+  const dark = useIsDark();
+  const tint = accent ?? c.section.home.accent;
+  const off = disabled || loading;
+  const bg = variant === 'primary' ? tint : variant === 'secondary' ? c.surface2 : 'transparent';
+  // Dark mode's accents are light, so the label goes dark to keep contrast.
+  const fg = variant === 'primary' ? (dark ? c.bg : '#ffffff') : variant === 'secondary' ? c.text : tint;
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityState={{ disabled: off }}
+      disabled={off}
+      onPress={() => { void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); onPress(); }}
+      style={({ pressed }) => ({
+        height: 54, borderRadius: 16, alignItems: 'center', justifyContent: 'center',
+        backgroundColor: bg, opacity: disabled ? 0.4 : pressed ? 0.85 : 1,
+        transform: [{ scale: pressed ? 0.98 : 1 }],
+      })}
+    >
+      {loading ? <ActivityIndicator color={fg} /> : <Text style={{ fontFamily: font.semibold, fontSize: 17, color: fg }}>{label}</Text>}
+    </Pressable>
+  );
+}
+
+export const Field = forwardRef<TextInput, TextInputProps & { label: string; error?: string; prefix?: string }>(
+  function Field({ label, error, prefix, style, ...rest }, ref) {
+    const c = useColors();
+    const [focused, setFocused] = useState(false);
+    return (
+      <View>
+        <Text style={[type.footnote, { color: c.textMuted, marginBottom: 6 }]}>{label}</Text>
+        <View style={{
+          flexDirection: 'row', alignItems: 'center', height: 54, borderRadius: 14, paddingHorizontal: space.lg,
+          backgroundColor: c.surface, borderWidth: 1.5,
+          borderColor: error ? c.negative : focused ? c.section.home.accent : c.border,
+        }}>
+          {prefix ? <Text style={{ fontFamily: font.medium, fontSize: 18, color: c.textMuted, marginRight: 4 }}>{prefix}</Text> : null}
+          <TextInput
+            ref={ref}
+            placeholderTextColor={c.textSubtle}
+            onFocus={() => setFocused(true)}
+            onBlur={() => setFocused(false)}
+            // The field's own border shows focus; the browser outline (web previews only) would double it.
+            style={[{ flex: 1, fontFamily: font.regular, fontSize: 18, color: c.text }, Platform.OS === 'web' && ({ outlineStyle: 'none' } as object), style]}
+            {...rest}
+          />
+        </View>
+        {error ? <Text style={[type.footnote, { color: c.negative, marginTop: 6 }]}>{error}</Text> : null}
+      </View>
+    );
+  },
+);
+
+export function Chip({ label, selected, onPress }: { label: string; selected: boolean; onPress: () => void }) {
+  const c = useColors();
+  const a = c.section.home;
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityState={{ selected }}
+      onPress={() => { void Haptics.selectionAsync(); onPress(); }}
+      style={{
+        paddingHorizontal: 16, paddingVertical: 11, borderRadius: radius.pill,
+        backgroundColor: selected ? a.soft : c.surface,
+        borderWidth: 1.5, borderColor: selected ? a.accent : c.border,
+      }}
+    >
+      <Text style={{ fontFamily: font.medium, fontSize: 15, color: selected ? a.accent : c.text }}>{label}</Text>
+    </Pressable>
+  );
+}
+
+export function ChipRow({ children }: { children: ReactNode }) {
+  return <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>{children}</View>;
+}
+
+/** A plain sentence in red, for a failure that is not about one field. */
+export function FormError({ message }: { message?: string | null }) {
+  const c = useColors();
+  if (!message) return null;
+  return <Text style={[type.subhead, { color: c.negative }]}>{message}</Text>;
+}
+
+/** Dollars typed by a person → minor units. "1,800.50" → 180050. Null if not a number. */
+export function toMinor(text: string): number | null {
+  const clean = text.replace(/[^0-9.]/g, '');
+  if (!clean) return null;
+  const n = Number(clean);
+  return Number.isFinite(n) ? Math.round(n * 100) : null;
+}

@@ -4,12 +4,15 @@ import { Card, formatMoney, PreviewBadge, Row, Screen, SectionHeader, useAccent 
 import { LineChart } from '@/components/LineChart';
 import { PockButton, PockMark } from '@/components/Pock';
 import { preview as p } from '@/data/preview';
+import { useSession } from '@/lib/session';
 import { space, type, useColors } from '@/theme/tokens';
 
 /** Home: how much can I spend, what's coming up, and a glance at goals and investments. */
 export default function Home() {
+  const { me } = useSession();
+  const first = me?.name?.split(' ')[0];
   return (
-    <Screen section="home" title={`Hi ${p.name}`} right={<PockButton />}>
+    <Screen section="home" title={first ? `Hi ${first}` : 'Hi there'} right={<PockButton />}>
       <Body />
     </Screen>
   );
