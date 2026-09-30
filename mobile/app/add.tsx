@@ -102,7 +102,8 @@ export default function Add() {
           <View style={{ flexDirection: 'row', alignItems: 'center' }}>
             <Text style={{ fontFamily: font.bold, fontSize: 46, color: amount ? c.text : c.textSubtle }}>$</Text>
             <TextInput value={amount} onChangeText={setAmount} placeholder="0" placeholderTextColor={c.textSubtle} keyboardType="decimal-pad" autoFocus
-              accessibilityLabel="Amount" style={{ fontFamily: font.bold, fontSize: 56, color: c.text, minWidth: 60, textAlign: 'center' }} />
+              accessibilityLabel="Amount" // Sized to its digits so the $ stays beside the number instead of being pushed aside.
+              style={{ fontFamily: font.bold, fontSize: 56, color: c.text, width: Math.max(1, amount.length || 1) * 34 + 8, textAlign: 'left' }} />
           </View>
         </View>
 
