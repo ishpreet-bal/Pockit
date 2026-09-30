@@ -29,6 +29,9 @@ const WEB: Record<string, string> = {
   'fork.knife': 'restaurant',
   'car': 'directions_car',
   'cup.and.saucer': 'local_cafe',
+  'lifepreserver': 'health_and_safety',
+  'airplane': 'flight',
+  'laptopcomputer': 'laptop_mac',
 };
 
 export function Icon({ name, size = 20, color }: { name: string; size?: number; color: string }) {
