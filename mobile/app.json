@@ -6,7 +6,7 @@
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "pockit",
-    "userInterfaceStyle": "dark",
+    "userInterfaceStyle": "automatic",
     "ios": {
       "supportsTablet": false,
       "bundleIdentifier": "com.ishpreetbal.pockit"
@@ -32,13 +32,13 @@
         {
           "image": "./assets/images/splash-icon.png",
           "resizeMode": "contain",
-          "backgroundColor": "#0b1020"
+          "backgroundColor": "#fbfbfd",
+          "dark": { "backgroundColor": "#0f0e14" }
         }
       ]
     ],
     "experiments": {
       "typedRoutes": true
-    },
-    "backgroundColor": "#0b1020"
+    }
   }
 }

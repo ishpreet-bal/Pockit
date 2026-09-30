@@ -1,20 +1,34 @@
-import { Text, View } from 'react-native';
-import { Card, Screen } from '@/components/ui';
-import { Otter } from '@/components/Otter';
-import { colors, space, type } from '@/theme/tokens';
+import { Card, Row, Screen, SectionHeader } from '@/components/ui';
+import { useColors } from '@/theme/tokens';
 
-/** Designed and built in a later step. Kept honest rather than filled with mock UI. */
-export default function ScreenMore() {
+const ITEMS = [
+  { icon: 'repeat', title: 'Bills', detail: 'Rent, phone, subscriptions' },
+  { icon: 'building.columns', title: 'Accounts', detail: 'Chequing, savings, credit' },
+  { icon: 'square.and.arrow.down', title: 'Import', detail: 'Bring in a bank statement' },
+  { icon: 'gearshape', title: 'Settings', detail: 'Face ID, notifications, appearance' },
+];
+
+export default function More() {
   return (
-    <Screen title="More">
-      <Card style={{ padding: space.xl, alignItems: 'center' }}>
-        <Otter size={64} mood="thinking" />
-        <Text style={[type.headline, { color: colors.text, marginTop: space.md }]}>Coming in the next step</Text>
-        <Text style={[type.footnote, { color: colors.textMuted, marginTop: space.xs, textAlign: 'center' }]}>
-          This tab is designed after Home is signed off.
-        </Text>
-      </Card>
-      <View />
+    <Screen section="more" title="More">
+      <Body />
     </Screen>
+  );
+}
+
+function Body() {
+  const c = useColors();
+  return (
+    <>
+      <Card>
+        <Row icon="bubble.left" title="Ask Pock" detail="Questions about your money" value="›" valueColor={c.textSubtle} last onPress={() => {}} />
+      </Card>
+      <SectionHeader title="Manage" />
+      <Card>
+        {ITEMS.map((it, i) => (
+          <Row key={it.title} icon={it.icon} title={it.title} detail={it.detail} value="›" valueColor={c.textSubtle} last={i === ITEMS.length - 1} onPress={() => {}} />
+        ))}
+      </Card>
+    </>
   );
 }

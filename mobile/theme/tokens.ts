@@ -1,51 +1,90 @@
+import { useColorScheme } from 'react-native';
+
 /**
- * Pockit — Tide, for iOS.
+ * Pockit's design system: "Lilac".
  *
- * The same palette as the web app, so the two feel like one product. Dark first:
- * it is the default, and the app ships dark-only until light is designed for
- * native properly rather than inverted.
+ * Clean and calm, one strong number per screen, warmth from wording rather than
+ * decoration. Light and dark follow the phone's setting.
  *
- * Type follows Apple's Human Interface Guidelines sizes (34 large title, 17 body,
- * 13 footnote) and uses the SYSTEM font — SF Pro on iOS. A custom face is the
- * single fastest way to make a native app feel like a website in a wrapper.
+ * Each section has its own accent so you always know where you are:
+ * Home is lilac, Spending rose, Goals teal, Invest blue. The accent tints the tab
+ * icon, the chart, progress bars and links on that section — nothing else.
  */
-export const colors = {
-  bg: '#0b1020',
-  surface: '#131a2b',
-  surface2: '#1a2236',
-  surface3: '#242e46',
-  border: '#212a40',
-  borderStrong: '#37425f',
 
-  text: '#e8ebf5',
-  textMuted: '#98a2bd',
-  textSubtle: '#7a85a3',
+export type Section = 'home' | 'spending' | 'goals' | 'invest' | 'more';
 
-  accent: '#b3a6ff',
-  accentFill: '#9d8cff',
-  accentFillText: '#0b1020',
-  accentSoft: '#231f45',
-
-  positive: '#4ade9a',
-  negative: '#ff7a85',
-  warning: '#f5b544',
-  warningSoft: '#2c2210',
-  goal: '#5ed3f0',
-} as const;
-
-export const type = {
-  largeTitle: { fontSize: 34, fontWeight: '700' as const, letterSpacing: 0.37 },
-  title2: { fontSize: 22, fontWeight: '700' as const, letterSpacing: 0.35 },
-  title3: { fontSize: 20, fontWeight: '600' as const, letterSpacing: 0.38 },
-  headline: { fontSize: 17, fontWeight: '600' as const, letterSpacing: -0.41 },
-  body: { fontSize: 17, fontWeight: '400' as const, letterSpacing: -0.41 },
-  callout: { fontSize: 16, fontWeight: '400' as const, letterSpacing: -0.32 },
-  subhead: { fontSize: 15, fontWeight: '400' as const, letterSpacing: -0.24 },
-  footnote: { fontSize: 13, fontWeight: '400' as const, letterSpacing: -0.08 },
-  caption: { fontSize: 12, fontWeight: '500' as const, letterSpacing: 0 },
-  /** The hero figure. Tabular so the digits don't shuffle as the number changes. */
-  hero: { fontSize: 48, fontWeight: '700' as const, letterSpacing: -1, fontVariant: ['tabular-nums' as const] },
+const light = {
+  bg: '#fbfbfd',
+  surface: '#ffffff',
+  surface2: '#f1eff8',
+  border: '#ebe8f3',
+  text: '#15131c',
+  textMuted: '#716c80',
+  textSubtle: '#9a95a8',
+  positive: '#1f9d57',
+  negative: '#d6344c',
+  warning: '#b7791f',
+  section: {
+    home: { accent: '#6d4aff', soft: '#f1edff' },
+    spending: { accent: '#e0457b', soft: '#fdecf2' },
+    goals: { accent: '#0f9488', soft: '#e3f6f3' },
+    invest: { accent: '#2f6bff', soft: '#e9f0ff' },
+    more: { accent: '#5b566a', soft: '#f1eff5' },
+  },
 };
 
-export const space = { xs: 4, sm: 8, md: 12, lg: 16, xl: 20, xxl: 28 } as const;
-export const radius = { control: 12, card: 18, pill: 999 } as const;
+// Dark keeps the structure of the "Harbour" direction, but on a neutral violet-black
+// rather than navy, so the section colours stay the only colour on screen.
+const dark: typeof light = {
+  bg: '#0f0e14',
+  surface: '#18171f',
+  surface2: '#23222c',
+  border: '#27262f',
+  text: '#f3f1f8',
+  textMuted: '#9a96a8',
+  textSubtle: '#6f6b7d',
+  positive: '#6ee7a8',
+  negative: '#ff7a8a',
+  warning: '#f5c26b',
+  section: {
+    home: { accent: '#a794ff', soft: '#221d3a' },
+    spending: { accent: '#ff7aa6', soft: '#351b26' },
+    goals: { accent: '#4fd1c0', soft: '#132c2a' },
+    invest: { accent: '#7aa2ff', soft: '#172240' },
+    more: { accent: '#b9b4c8', soft: '#24222c' },
+  },
+};
+
+export type Palette = typeof light;
+
+export function useColors(): Palette {
+  return useColorScheme() === 'dark' ? dark : light;
+}
+
+export function useIsDark() {
+  return useColorScheme() === 'dark';
+}
+
+export const font = {
+  regular: 'BricolageGrotesque_400Regular',
+  medium: 'BricolageGrotesque_500Medium',
+  semibold: 'BricolageGrotesque_600SemiBold',
+  bold: 'BricolageGrotesque_700Bold',
+};
+
+/** Apple's text sizes, set in Bricolage Grotesque. */
+export const type = {
+  hero: { fontFamily: font.bold, fontSize: 46, letterSpacing: -1.4, fontVariant: ['tabular-nums' as const] },
+  largeTitle: { fontFamily: font.bold, fontSize: 32, letterSpacing: -0.8 },
+  title2: { fontFamily: font.bold, fontSize: 24, letterSpacing: -0.4 },
+  title3: { fontFamily: font.semibold, fontSize: 19 },
+  headline: { fontFamily: font.semibold, fontSize: 17 },
+  body: { fontFamily: font.regular, fontSize: 16 },
+  bodyStrong: { fontFamily: font.medium, fontSize: 16 },
+  subhead: { fontFamily: font.regular, fontSize: 15 },
+  footnote: { fontFamily: font.regular, fontSize: 13 },
+  caption: { fontFamily: font.medium, fontSize: 12 },
+};
+
+export const space = { xs: 4, sm: 8, md: 12, lg: 16, xl: 22, xxl: 28 };
+export const radius = { control: 12, tile: 11, card: 20, pill: 999 };
