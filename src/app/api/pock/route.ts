@@ -180,8 +180,8 @@ export async function POST(request: Request) {
   } catch (error) {
     if (error instanceof AiUnavailableError) {
       return NextResponse.json({
-        error: 'Pock cannot answer questions yet — this deployment has no AI provider configured. ' +
-          'Everything else in the investing section works without one.',
+        error: 'Pock can’t answer questions yet — the AI isn’t switched on for this Pockit. ' +
+          'Everything else works without it.',
         threadId: prepared.threadId,
         configured: false,
       }, { status: 503 });

@@ -130,6 +130,7 @@ function Body({ goal, refresh }: { goal: G; refresh: () => Promise<void> }) {
           <>
             <Button label="Add money" accent={a.accent} onPress={() => setMode('add')} />
             <Button label={noTarget ? 'Set a target' : 'Change amount or date'} variant="secondary" onPress={() => setMode('edit')} />
+            <Button label="Ask Pock about this goal" variant="plain" accent={a.accent} onPress={() => router.push({ pathname: '/pock', params: { goalId: goal.id, goalName: goal.name } })} />
             <Pressable onPress={remove} style={{ alignItems: 'center', padding: space.md }} accessibilityRole="button">
               <Text style={[type.subhead, { color: c.negative }]}>Delete goal</Text>
             </Pressable>

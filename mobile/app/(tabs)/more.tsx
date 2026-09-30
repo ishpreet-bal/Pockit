@@ -25,7 +25,7 @@ function Body() {
   return (
     <>
       <Card>
-        <Row icon="bubble.left" title="Ask Pock" detail="Questions about your money" value="›" valueColor={c.textSubtle} last onPress={() => {}} />
+        <Row icon="bubble.left" title="Ask Pock" detail="Questions about your money" value="›" valueColor={c.textSubtle} last onPress={() => router.push('/pock')} />
       </Card>
       <SectionHeader title="Manage" />
       <Card>

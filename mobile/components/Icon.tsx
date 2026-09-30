@@ -18,6 +18,8 @@ const WEB: Record<string, string> = {
   'plus': 'add',
   'chevron.right': 'chevron_right',
   'chevron.left': 'chevron_left',
+  'arrow.up': 'arrow_upward',
+  'square.and.pencil': 'edit_square',
   'repeat': 'repeat',
   'calendar': 'calendar_month',
   'building.columns': 'account_balance',

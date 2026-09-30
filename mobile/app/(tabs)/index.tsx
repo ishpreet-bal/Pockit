@@ -13,7 +13,7 @@ export default function Home() {
   const { data, error, refreshing, refresh } = useSummary();
   const first = me?.name?.split(' ')[0];
   return (
-    <Screen section="home" title={first ? `Hi ${first}` : 'Hi there'} right={<PockButton />} onRefresh={refresh} refreshing={refreshing}>
+    <Screen section="home" title={first ? `Hi ${first}` : 'Hi there'} right={<PockButton onPress={() => router.push('/pock')} />} onRefresh={refresh} refreshing={refreshing}>
       {PREVIEW ? <PreviewBadge /> : null}
       <StaleNote message={data ? error : null} />
       {data ? <Body d={data} /> : <Loading error={error} />}
