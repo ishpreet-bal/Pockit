@@ -1,92 +1,35 @@
 import { Text, View } from 'react-native';
-import { Card, formatMoney, PreviewBadge, ProgressBar, Row, Screen, SectionHeader, Segmented, useAccent, useSegment } from '@/components/ui';
-import { Icon } from '@/components/Icon';
+import { Card, formatMoney, PreviewBadge, ProgressBar, Row, Screen, SectionHeader } from '@/components/ui';
 import { preview as p } from '@/data/preview';
 import { space, type, useColors } from '@/theme/tokens';
 
-const PERIODS = ['This month', 'Last month'] as const;
-
+/** Spending answers: how much have I spent this month, and on what? */
 export default function Spending() {
   return (
-    <Screen section="spending" eyebrow="September" title="Spending" right={<AddButton />}>
+    <Screen section="spending" title="Spending">
       <Body />
     </Screen>
   );
 }
 
-function AddButton() {
-  const a = useAccent();
-  return (
-    <View accessibilityLabel="Add spending" style={{ width: 42, height: 42, borderRadius: 14, backgroundColor: a.soft, alignItems: 'center', justifyContent: 'center' }}>
-      <Icon name="plus" size={20} color={a.accent} />
-    </View>
-  );
-}
-
 function Body() {
   const c = useColors();
-  const a = useAccent();
-  const [period, setPeriod] = useSegment<(typeof PERIODS)[number]>('This month');
   const s = p.spending;
   const left = s.budgetMinor - s.spentMinor;
-  const monthPct = s.dayOfMonth / s.daysInMonth;
-  const spentPct = s.spentMinor / s.budgetMinor;
-
   return (
     <>
       <PreviewBadge />
-      <Segmented options={PERIODS} value={period} onChange={setPeriod} />
-      <Text style={[type.subhead, { color: c.textMuted, marginTop: space.lg }]}>Spent so far</Text>
-      <Text style={[type.hero, { color: c.text, marginTop: 2 }]}>{formatMoney(s.spentMinor)}</Text>
-      <Text style={[type.footnote, { color: c.textMuted, marginTop: 4 }]}>
-        of {formatMoney(s.budgetMinor, { cents: false })} planned · <Text style={{ color: c.positive }}>{formatMoney(left, { cents: false })} left</Text>
-      </Text>
-
-      <View style={{ marginTop: space.lg }}>
-        <ProgressBar value={spentPct} height={10} />
-        {/* where "on pace" would be: the share of the month gone */}
-        <View style={{ position: 'absolute', left: `${monthPct * 100}%`, top: -4, width: 2, height: 18, borderRadius: 1, backgroundColor: c.text, opacity: 0.35 }} />
+      <View style={{ alignItems: 'center', paddingVertical: space.xxl }}>
+        <Text style={[type.subhead, { color: c.textMuted }]}>Spent this month</Text>
+        <Text style={[type.hero, { color: c.text, fontSize: 56, marginTop: 4 }]}>{formatMoney(s.spentMinor, { cents: false })}</Text>
+        <Text style={[type.subhead, { color: c.textMuted, marginTop: 6 }]}>{formatMoney(left, { cents: false })} left of your {formatMoney(s.budgetMinor, { cents: false })} plan</Text>
       </View>
-      <Text style={[type.caption, { color: c.textMuted, marginTop: 8 }]}>
-        {spentPct <= monthPct ? 'Under pace — nicely done.' : 'Spending a little faster than the month.'}
-      </Text>
+      <ProgressBar value={s.spentMinor / s.budgetMinor} height={10} />
 
-      <SectionHeader title="By category" action="Budget" />
+      <SectionHeader title="Where it went" action="See all" />
       <Card>
-        {s.categories.map((cat, i) => {
-          const over = cat.spentMinor > cat.budgetMinor;
-          return (
-            <View key={cat.name} style={{ paddingHorizontal: space.lg, paddingVertical: 13, borderBottomWidth: i < s.categories.length - 1 ? 0.5 : 0, borderBottomColor: c.border }}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.md }}>
-                <View style={{ width: 36, height: 36, borderRadius: 11, backgroundColor: a.soft, alignItems: 'center', justifyContent: 'center' }}>
-                  <Icon name={cat.icon} size={17} color={a.accent} />
-                </View>
-                <Text style={[type.body, { color: c.text, flex: 1 }]}>{cat.name}</Text>
-                <Text style={[type.bodyStrong, { color: over ? c.negative : c.text }]}>{formatMoney(cat.spentMinor, { cents: false })}</Text>
-              </View>
-              <View style={{ marginTop: 10, marginLeft: 48 }}>
-                <ProgressBar value={cat.spentMinor / cat.budgetMinor} height={4} />
-                <Text style={[type.caption, { color: over ? c.negative : c.textSubtle, marginTop: 5 }]}>
-                  {over ? `${formatMoney(cat.spentMinor - cat.budgetMinor, { cents: false })} over` : `${formatMoney(cat.budgetMinor - cat.spentMinor, { cents: false })} left`} of {formatMoney(cat.budgetMinor, { cents: false })}
-                </Text>
-              </View>
-            </View>
-          );
-        })}
-      </Card>
-
-      <SectionHeader title="Recent" action="See all" />
-      <Card>
-        {s.recent.map((t, i) => (
-          <Row
-            key={t.id}
-            icon={t.icon}
-            title={t.name}
-            detail={`${t.category} · ${t.date}`}
-            value={formatMoney(t.amountMinor, { signed: true })}
-            valueColor={t.amountMinor > 0 ? c.positive : undefined}
-            last={i === s.recent.length - 1}
-          />
+        {s.categories.slice(0, 3).map((cat, i) => (
+          <Row key={cat.name} icon={cat.icon} title={cat.name} value={formatMoney(cat.spentMinor, { cents: false })} last={i === 2} />
         ))}
       </Card>
     </>
