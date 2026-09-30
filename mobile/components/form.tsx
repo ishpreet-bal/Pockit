@@ -2,7 +2,7 @@ import { forwardRef, useState, type ReactNode } from 'react';
 import { ActivityIndicator, KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, TextInput, View, type TextInputProps } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
-import { font, radius, space, type, useColors, useIsDark } from '@/theme/tokens';
+import { font, radius, space, type, useColors, useIsDark, type Section } from '@/theme/tokens';
 
 /**
  * A full-screen step: optional back link and progress at the top, the question in
@@ -59,8 +59,8 @@ export function Button({
   );
 }
 
-export const Field = forwardRef<TextInput, TextInputProps & { label: string; error?: string; prefix?: string }>(
-  function Field({ label, error, prefix, style, ...rest }, ref) {
+export const Field = forwardRef<TextInput, TextInputProps & { label: string; error?: string; prefix?: string; section?: Section }>(
+  function Field({ label, error, prefix, style, section = 'home', ...rest }, ref) {
     const c = useColors();
     const [focused, setFocused] = useState(false);
     return (
@@ -69,7 +69,7 @@ export const Field = forwardRef<TextInput, TextInputProps & { label: string; err
         <View style={{
           flexDirection: 'row', alignItems: 'center', height: 54, borderRadius: 14, paddingHorizontal: space.lg,
           backgroundColor: c.surface, borderWidth: 1.5,
-          borderColor: error ? c.negative : focused ? c.section.home.accent : c.border,
+          borderColor: error ? c.negative : focused ? c.section[section].accent : c.border,
         }}>
           {prefix ? <Text style={{ fontFamily: font.medium, fontSize: 18, color: c.textMuted, marginRight: 4 }}>{prefix}</Text> : null}
           <TextInput
@@ -88,9 +88,9 @@ export const Field = forwardRef<TextInput, TextInputProps & { label: string; err
   },
 );
 
-export function Chip({ label, selected, onPress }: { label: string; selected: boolean; onPress: () => void }) {
+export function Chip({ label, selected, onPress, section = 'home' }: { label: string; selected: boolean; onPress: () => void; section?: Section }) {
   const c = useColors();
-  const a = c.section.home;
+  const a = c.section[section];
   return (
     <Pressable
       accessibilityRole="button"

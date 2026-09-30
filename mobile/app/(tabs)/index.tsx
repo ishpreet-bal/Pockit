@@ -66,7 +66,7 @@ function Body({ d }: { d: Summary }) {
         <Text style={[type.footnote, { color: c.text, flex: 1, lineHeight: 18 }]}>{tip(d)}</Text>
       </View>
 
-      <SectionHeader title="Coming up" action={h.upcoming.length ? 'All bills' : undefined} />
+      <SectionHeader title="Coming up" action="All bills" onAction={() => router.push('/bills')} />
       {h.upcoming.length ? (
         <Card>
           {h.upcoming.map((b, i) => (

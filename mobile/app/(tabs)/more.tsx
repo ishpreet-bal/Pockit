@@ -30,7 +30,7 @@ function Body() {
       <SectionHeader title="Manage" />
       <Card>
         {ITEMS.map((it, i) => (
-          <Row key={it.title} icon={it.icon} title={it.title} detail={it.detail} value="›" valueColor={c.textSubtle} last={i === ITEMS.length - 1} onPress={() => {}} />
+          <Row key={it.title} icon={it.icon} title={it.title} detail={it.detail} value="›" valueColor={c.textSubtle} last={i === ITEMS.length - 1} onPress={it.title === 'Bills' ? () => router.push('/bills') : () => {}} />
         ))}
       </Card>
       <SignOut />

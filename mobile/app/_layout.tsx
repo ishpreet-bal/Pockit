@@ -49,6 +49,9 @@ export default function RootLayout() {
           <Stack.Screen name="setup" options={{ gestureEnabled: false, animation: 'fade' }} />
           <Stack.Screen name="transactions" />
           <Stack.Screen name="add" options={{ presentation: 'modal' }} />
+          <Stack.Screen name="new-goal" options={{ presentation: 'modal' }} />
+          <Stack.Screen name="bills" />
+          <Stack.Screen name="goal/[id]" />
         </Stack>
       </ThemeProvider>
       </SummaryProvider>

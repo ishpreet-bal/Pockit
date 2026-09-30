@@ -1,6 +1,9 @@
 import { Text, View } from 'react-native';
 import { Card, EmptyCard, Loading, formatMoney, PreviewBadge, ProgressBar, Screen, StaleNote, useAccent } from '@/components/ui';
 import { PREVIEW } from '@/lib/session';
+import { router } from 'expo-router';
+import { Pressable } from 'react-native';
+import { Icon } from '@/components/Icon';
 import { useSummary, type Summary } from '@/lib/summary';
 import { space, type, useColors } from '@/theme/tokens';
 
@@ -8,7 +11,7 @@ import { space, type, useColors } from '@/theme/tokens';
 export default function Goals() {
   const { data, error, refreshing, refresh } = useSummary();
   return (
-    <Screen section="goals" title="Goals" onRefresh={refresh} refreshing={refreshing}>
+    <Screen section="goals" title="Goals" onRefresh={refresh} refreshing={refreshing} right={<NewGoalButton />}>
       {PREVIEW ? <PreviewBadge /> : null}
       <StaleNote message={data ? error : null} />
       {data ? <Body d={data} /> : <Loading error={error} />}
@@ -31,7 +34,14 @@ function Body({ d }: { d: Summary }) {
   const c = useColors();
   const a = useAccent();
   if (d.goals.length === 0) {
-    return <EmptyCard title="No goals yet" body="An emergency fund, a trip, a car — add one and Pockit tells you how much to put aside each month." />;
+    return (
+      <>
+        <EmptyCard title="No goals yet" body="An emergency fund, a trip, a car — add one and Pockit tells you how much to put aside each month." />
+        <Card style={{ padding: space.lg, marginTop: 12, alignItems: 'center' }} onPress={() => router.push('/new-goal')}>
+          <Text style={[type.bodyStrong, { color: a.accent }]}>+ Add a goal</Text>
+        </Card>
+      </>
+    );
   }
   const saved = d.goals.reduce((s, g) => s + g.currentMinor, 0);
   const behind = d.goals.filter((g) => g.status === 'behind').length;
@@ -48,7 +58,7 @@ function Body({ d }: { d: Summary }) {
           const date = byDate(g.targetDate);
           const tone = g.status === 'behind' ? c.warning : g.status === 'open' ? c.textMuted : a.accent;
           return (
-            <Card key={g.id} style={{ padding: space.lg }}>
+            <Card key={g.id} style={{ padding: space.lg }} onPress={() => router.push({ pathname: '/goal/[id]', params: { id: g.id } })}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.md }}>
                 <View style={{ flex: 1 }}>
                   <Text style={[type.headline, { color: c.text }]}>{g.name}</Text>
@@ -66,5 +76,15 @@ function Body({ d }: { d: Summary }) {
         })}
       </View>
     </>
+  );
+}
+
+function NewGoalButton() {
+  const a = useAccent();
+  return (
+    <Pressable onPress={() => router.push('/new-goal')} accessibilityRole="button" accessibilityLabel="New goal" hitSlop={8}
+      style={{ width: 42, height: 42, borderRadius: 14, backgroundColor: a.soft, alignItems: 'center', justifyContent: 'center' }}>
+      <Icon name="plus" size={20} color={a.accent} />
+    </Pressable>
   );
 }

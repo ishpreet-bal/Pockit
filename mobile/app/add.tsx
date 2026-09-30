@@ -129,7 +129,7 @@ export default function Add() {
             <Text style={[type.footnote, { color: c.textMuted, marginBottom: 8 }]}>Category</Text>
             <ChipRow>
               {categories.map((cat) => (
-                <Chip key={cat.id} label={`${cat.icon ?? ''} ${cat.name}`.trim()} selected={categoryId === cat.id} onPress={() => setCategoryId(categoryId === cat.id ? null : cat.id)} />
+                <Chip section="spending" key={cat.id} label={`${cat.icon ?? ''} ${cat.name}`.trim()} selected={categoryId === cat.id} onPress={() => setCategoryId(categoryId === cat.id ? null : cat.id)} />
               ))}
             </ChipRow>
           </View>
@@ -139,7 +139,7 @@ export default function Add() {
           <Text style={[type.footnote, { color: c.textMuted, marginBottom: 8 }]}>When</Text>
           <ChipRow>
             {[['Today', 0], ['Yesterday', 1], ['2 days ago', 2]].map(([label, n]) => (
-              <Chip key={label} label={String(label)} selected={date === daysAgo(Number(n))} onPress={() => setDate(daysAgo(Number(n)))} />
+              <Chip section="spending" key={label} label={String(label)} selected={date === daysAgo(Number(n))} onPress={() => setDate(daysAgo(Number(n)))} />
             ))}
           </ChipRow>
         </View>
@@ -148,7 +148,7 @@ export default function Add() {
           <View>
             <Text style={[type.footnote, { color: c.textMuted, marginBottom: 8 }]}>From account</Text>
             <ChipRow>
-              {meta.accounts.map((a) => <Chip key={a.id} label={a.name} selected={accountId === a.id} onPress={() => setAccountId(a.id)} />)}
+              {meta.accounts.map((a) => <Chip section="spending" key={a.id} label={a.name} selected={accountId === a.id} onPress={() => setAccountId(a.id)} />)}
             </ChipRow>
           </View>
         ) : null}
