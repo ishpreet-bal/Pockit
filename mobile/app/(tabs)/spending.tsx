@@ -1,9 +1,10 @@
 import { Text, View } from 'react-native';
-import { Card, formatMoney, PreviewBadge, ProgressBar, Row, Screen, SectionHeader } from '@/components/ui';
+import { Card, formatMoney, PreviewBadge, ProgressBar, Row, Screen, SectionHeader, useAccent } from '@/components/ui';
+import { Icon } from '@/components/Icon';
 import { preview as p } from '@/data/preview';
 import { space, type, useColors } from '@/theme/tokens';
 
-/** Spending answers: how much have I spent this month, and on what? */
+/** Spending: how much this month, against the plan, by category, and the latest few. */
 export default function Spending() {
   return (
     <Screen section="spending" title="Spending">
@@ -14,22 +15,44 @@ export default function Spending() {
 
 function Body() {
   const c = useColors();
+  const a = useAccent();
   const s = p.spending;
   const left = s.budgetMinor - s.spentMinor;
   return (
     <>
       <PreviewBadge />
-      <View style={{ alignItems: 'center', paddingVertical: space.xxl }}>
-        <Text style={[type.subhead, { color: c.textMuted }]}>Spent this month</Text>
-        <Text style={[type.hero, { color: c.text, fontSize: 56, marginTop: 4 }]}>{formatMoney(s.spentMinor, { cents: false })}</Text>
-        <Text style={[type.subhead, { color: c.textMuted, marginTop: 6 }]}>{formatMoney(left, { cents: false })} left of your {formatMoney(s.budgetMinor, { cents: false })} plan</Text>
-      </View>
-      <ProgressBar value={s.spentMinor / s.budgetMinor} height={10} />
+      <Text style={[type.subhead, { color: c.textMuted }]}>Spent in September</Text>
+      <Text style={[type.hero, { color: c.text, marginTop: 2 }]}>{formatMoney(s.spentMinor, { cents: false })}</Text>
+      <Text style={[type.footnote, { color: c.textMuted, marginTop: 4 }]}>
+        <Text style={{ color: c.positive }}>{formatMoney(left, { cents: false })} left</Text> of your {formatMoney(s.budgetMinor, { cents: false })} plan
+      </Text>
+      <View style={{ marginTop: space.lg }}><ProgressBar value={s.spentMinor / s.budgetMinor} height={10} /></View>
 
-      <SectionHeader title="Where it went" action="See all" />
+      <SectionHeader title="Where it went" action="Budget" />
       <Card>
-        {s.categories.slice(0, 3).map((cat, i) => (
-          <Row key={cat.name} icon={cat.icon} title={cat.name} value={formatMoney(cat.spentMinor, { cents: false })} last={i === 2} />
+        {s.categories.map((cat, i) => {
+          const over = cat.spentMinor > cat.budgetMinor;
+          return (
+            <View key={cat.name} style={{ flexDirection: 'row', alignItems: 'center', gap: space.md, paddingHorizontal: space.lg, paddingVertical: 12, borderBottomWidth: i < s.categories.length - 1 ? 0.5 : 0, borderBottomColor: c.border }}>
+              <View style={{ width: 36, height: 36, borderRadius: 11, backgroundColor: a.soft, alignItems: 'center', justifyContent: 'center' }}>
+                <Icon name={cat.icon} size={17} color={a.accent} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                  <Text style={[type.body, { color: c.text }]}>{cat.name}</Text>
+                  <Text style={[type.bodyStrong, { color: over ? c.negative : c.text }]}>{formatMoney(cat.spentMinor, { cents: false })}</Text>
+                </View>
+                <View style={{ marginTop: 8 }}><ProgressBar value={cat.spentMinor / cat.budgetMinor} height={4} /></View>
+              </View>
+            </View>
+          );
+        })}
+      </Card>
+
+      <SectionHeader title="Recent" action="See all" />
+      <Card>
+        {s.recent.slice(0, 3).map((t, i) => (
+          <Row key={t.id} icon={t.icon} title={t.name} detail={t.date} value={formatMoney(t.amountMinor, { signed: true })} valueColor={t.amountMinor > 0 ? c.positive : undefined} last={i === 2} />
         ))}
       </Card>
     </>

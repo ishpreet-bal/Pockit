@@ -134,7 +134,8 @@ export function useSegment<T extends string>(initial: T) {
 /** Minor units in, a formatted amount out. Never a float on the way through. */
 export function formatMoney(minor: number, opts: { signed?: boolean; cents?: boolean } = {}): string {
   const negative = minor < 0;
-  const abs = Math.abs(Math.round(minor));
+  // Whole-dollar display rounds to the nearest dollar ($11.99 reads as $12, not $11).
+  const abs = opts.cents === false ? Math.round(Math.abs(minor) / 100) * 100 : Math.abs(Math.round(minor));
   const dollars = Math.floor(abs / 100).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',');
   const cents = (abs % 100).toString().padStart(2, '0');
   const body = opts.cents === false ? `$${dollars}` : `$${dollars}.${cents}`;
