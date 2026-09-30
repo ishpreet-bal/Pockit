@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, type ReactNode } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View, type ViewStyle } from 'react-native';
+import { ActivityIndicator, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View, type ViewStyle } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
 import { radius, space, type, useColors, type Section } from '@/theme/tokens';
@@ -18,8 +18,8 @@ export function useAccent() {
  * a large title, content below, clear of the notch and the tab bar.
  */
 export function Screen({
-  section, eyebrow, title, right, children,
-}: { section: Section; eyebrow?: string; title: string; right?: ReactNode; children: ReactNode }) {
+  section, eyebrow, title, right, children, onRefresh, refreshing = false,
+}: { section: Section; eyebrow?: string; title: string; right?: ReactNode; children: ReactNode; onRefresh?: () => void; refreshing?: boolean }) {
   const insets = useSafeAreaInsets();
   const c = useColors();
   return (
@@ -28,6 +28,7 @@ export function Screen({
         style={{ flex: 1, backgroundColor: c.bg }}
         contentContainerStyle={{ paddingTop: insets.top + space.md, paddingBottom: 120, paddingHorizontal: space.xl }}
         contentInsetAdjustmentBehavior="never"
+        refreshControl={onRefresh ? <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={c.section[section].accent} /> : undefined}
       >
         <View style={s.titleRow}>
           <View style={{ flex: 1 }}>
@@ -73,9 +74,9 @@ export function SectionHeader({ title, action, onAction }: { title: string; acti
 
 /** One line in a list: icon tile, title and detail, value on the right. */
 export function Row({
-  icon, title, detail, value, valueColor, last, onPress,
+  icon, emoji, title, detail, value, valueColor, last, onPress,
 }: {
-  icon: string; title: string; detail?: string; value?: string; valueColor?: string; last?: boolean; onPress?: () => void;
+  icon: string; emoji?: string | null; title: string; detail?: string; value?: string; valueColor?: string; last?: boolean; onPress?: () => void;
 }) {
   const c = useColors();
   const a = useAccent();
@@ -85,10 +86,10 @@ export function Row({
       style={({ pressed }) => [s.row, !last && { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: c.border }, pressed && onPress && { opacity: 0.6 }]}
     >
       <View style={[s.iconTile, { backgroundColor: a.soft }]}>
-        <Icon name={icon} size={17} color={a.accent} />
+        {emoji ? <Text style={{ fontSize: 17 }}>{emoji}</Text> : <Icon name={icon} size={17} color={a.accent} />}
       </View>
       <View style={{ flex: 1 }}>
-        <Text style={[type.body, { color: c.text }]}>{title}</Text>
+        <Text style={[type.body, { color: c.text }]} numberOfLines={1}>{title}</Text>
         {detail ? <Text style={[type.footnote, { color: c.textMuted, marginTop: 1 }]}>{detail}</Text> : null}
       </View>
       {value ? <Text style={[type.bodyStrong, { color: valueColor ?? c.text, fontVariant: ['tabular-nums'] }]}>{value}</Text> : null}
@@ -164,3 +165,46 @@ const s = StyleSheet.create({
   iconTile: { width: 36, height: 36, borderRadius: radius.tile, alignItems: 'center', justifyContent: 'center' },
   previewBadge: { alignSelf: 'flex-start', paddingHorizontal: 10, paddingVertical: 4, borderRadius: radius.pill, marginBottom: space.md },
 });
+
+/** "Today", "Tomorrow", "Yesterday", or "Oct 3" — dates the way people say them. */
+export function friendlyDate(iso: string, today: string): string {
+  const d = new Date(`${iso}T12:00:00Z`), t = new Date(`${today}T12:00:00Z`);
+  const days = Math.round((d.getTime() - t.getTime()) / 86_400_000);
+  if (days === 0) return 'Today';
+  if (days === 1) return 'Tomorrow';
+  if (days === -1) return 'Yesterday';
+  return d.toLocaleDateString('en-CA', { month: 'short', day: 'numeric', timeZone: 'UTC' });
+}
+
+/** A calm card for "nothing here yet", with one thing to do about it. */
+export function EmptyCard({ title, body }: { title: string; body: string }) {
+  const c = useColors();
+  return (
+    <View style={[s.card, { backgroundColor: c.surface, borderColor: c.border, padding: space.xl, alignItems: 'center' }]}>
+      <Text style={[type.headline, { color: c.text, textAlign: 'center' }]}>{title}</Text>
+      <Text style={[type.footnote, { color: c.textMuted, textAlign: 'center', marginTop: 6, lineHeight: 18 }]}>{body}</Text>
+    </View>
+  );
+}
+
+/** Shown above the content when a refresh failed but older numbers are still on screen. */
+export function StaleNote({ message }: { message: string | null }) {
+  const c = useColors();
+  if (!message) return null;
+  return (
+    <View style={{ backgroundColor: c.surface2, borderRadius: 12, padding: 10, marginBottom: space.md }}>
+      <Text style={[type.footnote, { color: c.textMuted }]}>{message}</Text>
+    </View>
+  );
+}
+
+/** First load: a spinner, or the error with how to retry. */
+export function Loading({ error }: { error: string | null }) {
+  const c = useColors();
+  return (
+    <View style={{ paddingVertical: 80, alignItems: 'center' }}>
+      {error ? <Text style={[type.subhead, { color: c.textMuted, textAlign: 'center' }]}>{error}{'\n'}Pull down to try again.</Text> : <ActivityIndicator />}
+    </View>
+  );
+}
+

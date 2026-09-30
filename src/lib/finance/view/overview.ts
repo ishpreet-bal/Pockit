@@ -190,6 +190,10 @@ export async function buildOverview(repo: WorkspaceRepo, timezone: string, local
     nextIncome,
 
     goalStatus,
+    /** Every goal, active first by priority, finished ones last — for the app's Goals tab. */
+    allGoals: [...goals]
+      .sort((a, b) => Number(a.currentMinor >= a.targetMinor) - Number(b.currentMinor >= b.targetMinor) || a.priority - b.priority)
+      .map((g) => ({ goal: g, math: computeGoalMath(g, today) })),
     budgetStatus,
     insights,
     series6,

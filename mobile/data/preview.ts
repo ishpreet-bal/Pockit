@@ -1,64 +1,64 @@
+import type { Summary } from '@/lib/summary';
+
 /**
- * Sample figures for design review ONLY.
+ * Sample figures for design review ONLY (EXPO_PUBLIC_PREVIEW=1).
  *
- * Every screen that reads from here shows a "Design preview" badge. Step 3 replaces
- * this module with calls to the Pockit server; nothing in it is anyone's money.
+ * Same shape the server returns, so the screens cannot tell the difference and
+ * every screen can be reviewed without an account. Nothing here is anyone's money.
  */
-const days = Array.from({ length: 30 }, (_, i) => i + 1);
-
-export const preview = {
-  name: 'Ish',
-  safeToSpendMinor: 124_000,
-  changeVsLastMonthMinor: 8_600,
-  balanceSeries: {
-    values: [98, 102, 99, 104, 101, 108, 106, 103, 110, 112, 109, 115, 111, 118, 116, 121, 119, 117, 123, 126, 122, 128, 125, 120, 118, 121, 119, 122, 123, 124].map((v) => v * 1000),
-    labels: days.map((d) => `Sep ${d}`),
+export const previewSummary: Summary = {
+  currency: 'CAD',
+  today: '2026-09-30',
+  hasData: true,
+  hasBalance: true,
+  home: {
+    safeToSpendMinor: 124_000,
+    explanation: '$3,040 in cash, minus $1,800 of bills still to pay this month.',
+    short: false,
+    daysLeft: 1,
+    nextIncome: { name: 'Payday', date: '2026-10-01', amountMinor: 240_000 },
+    upcoming: [
+      { name: 'Rent', date: '2026-10-01', amountMinor: 180_000 },
+      { name: 'Phone', date: '2026-10-03', amountMinor: 6_000 },
+      { name: 'Spotify', date: '2026-10-05', amountMinor: 1_199 },
+    ],
+    trend: [
+      { month: '2026-04', netMinor: 42_000 }, { month: '2026-05', netMinor: 61_000 }, { month: '2026-06', netMinor: -12_000 },
+      { month: '2026-07', netMinor: 38_000 }, { month: '2026-08', netMinor: 55_000 }, { month: '2026-09', netMinor: 71_000 },
+    ],
   },
-  upcoming: [
-    { id: '1', name: 'Rent', date: 'Oct 1', amountMinor: 180_000, icon: 'house.fill' },
-    { id: '2', name: 'Phone', date: 'Oct 3', amountMinor: 6_000, icon: 'iphone' },
-    { id: '3', name: 'Spotify', date: 'Oct 5', amountMinor: 1_199, icon: 'music.note' },
-  ],
-  nextIncome: { name: 'Payday', date: 'Oct 1', amountMinor: 240_000 },
-
   spending: {
     spentMinor: 142_350,
+    spentDeltaMinor: -8_600,
     budgetMinor: 200_000,
-    dayOfMonth: 30,
-    daysInMonth: 30,
     categories: [
-      { name: 'Groceries', icon: 'cart', spentMinor: 48_210, budgetMinor: 55_000 },
-      { name: 'Eating out', icon: 'fork.knife', spentMinor: 31_540, budgetMinor: 25_000 },
-      { name: 'Transport', icon: 'car', spentMinor: 18_900, budgetMinor: 30_000 },
-      { name: 'Coffee', icon: 'cup.and.saucer', spentMinor: 6_700, budgetMinor: 8_000 },
+      { id: '1', name: 'Groceries', icon: '🛒', amountMinor: 48_210, budgetMinor: 55_000 },
+      { id: '2', name: 'Eating out', icon: '🍽️', amountMinor: 31_540, budgetMinor: 25_000 },
+      { id: '3', name: 'Transport', icon: '🚗', amountMinor: 18_900, budgetMinor: 30_000 },
+      { id: '4', name: 'Coffee', icon: '☕', amountMinor: 6_700, budgetMinor: 8_000 },
     ],
     recent: [
-      { id: 'a', name: 'No Frills', category: 'Groceries', date: 'Today', amountMinor: -6_432, icon: 'cart' },
-      { id: 'b', name: 'Presto', category: 'Transport', date: 'Today', amountMinor: -1_000, icon: 'car' },
-      { id: 'c', name: 'Tim Hortons', category: 'Coffee', date: 'Yesterday', amountMinor: -485, icon: 'cup.and.saucer' },
-      { id: 'd', name: 'Payroll', category: 'Income', date: 'Sep 15', amountMinor: 240_000, icon: 'building.columns' },
+      { id: 'a', name: 'No Frills', date: '2026-09-30', amountMinor: -6_432, icon: '🛒', category: 'Groceries' },
+      { id: 'b', name: 'Presto', date: '2026-09-30', amountMinor: -1_000, icon: '🚗', category: 'Transport' },
+      { id: 'c', name: 'Tim Hortons', date: '2026-09-29', amountMinor: -485, icon: '☕', category: 'Coffee' },
     ],
   },
-
   goals: [
-    { id: 'g1', name: 'Emergency fund', icon: 'lifepreserver', currentMinor: 320_000, targetMinor: 1_000_000, by: 'Jun 2027', monthlyMinor: 75_000, status: 'On track' },
-    { id: 'g2', name: 'Japan trip', icon: 'airplane', currentMinor: 85_000, targetMinor: 400_000, by: 'Mar 2027', monthlyMinor: 60_000, status: 'A little behind' },
-    { id: 'g3', name: 'New laptop', icon: 'laptopcomputer', currentMinor: 140_000, targetMinor: 200_000, by: 'Dec 2026', monthlyMinor: 20_000, status: 'On track' },
+    { id: 'g1', name: 'Emergency fund', currentMinor: 320_000, targetMinor: 1_000_000, targetDate: '2027-06-30', monthlyMinor: 75_000, achieved: false, status: 'on_track' },
+    { id: 'g2', name: 'Japan trip', currentMinor: 85_000, targetMinor: 400_000, targetDate: '2027-03-31', monthlyMinor: 60_000, achieved: false, status: 'behind' },
+    { id: 'g3', name: 'New laptop', currentMinor: 140_000, targetMinor: 200_000, targetDate: '2026-12-31', monthlyMinor: 20_000, achieved: false, status: 'on_track' },
   ],
-
   invest: {
-    totalMinor: 1_284_620,
-    changeMinor: 51_230,
-    changePct: 4.15,
-    series: [100, 101, 99, 102, 104, 103, 105, 107, 106, 108, 107, 109, 111, 110, 112, 113, 111, 114, 115, 114, 116, 117, 116, 118, 119, 118, 120, 121, 122, 124].map((v) => v * 10_359),
+    totalValueMinor: 1_284_620,
+    gainMinor: 151_230,
+    gainPct: 13.34,
     holdings: [
-      { symbol: 'VFV', name: 'Vanguard S&P 500 Index ETF', valueMinor: 842_310, changePct: 5.2 },
-      { symbol: 'XEQT', name: 'iShares Core Equity ETF Portfolio', valueMinor: 442_310, changePct: 2.1 },
+      { symbol: 'VFV', name: 'Vanguard S&P 500 Index ETF', valueMinor: 842_310, gainMinor: 112_000, changePct: 0.8 },
+      { symbol: 'XEQT', name: 'iShares Core Equity ETF Portfolio', valueMinor: 442_310, gainMinor: 39_230, changePct: -0.3 },
     ],
     watchlist: [
       { symbol: 'NVDA', name: 'NVIDIA', priceMinor: 18_842, changePct: 1.8 },
       { symbol: 'SHOP', name: 'Shopify', priceMinor: 14_210, changePct: -0.9 },
-      { symbol: 'AAPL', name: 'Apple', priceMinor: 25_630, changePct: 0.4 },
     ],
   },
-} as const;
+};

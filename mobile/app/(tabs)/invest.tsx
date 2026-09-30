@@ -1,25 +1,28 @@
-import { Text, useWindowDimensions, View } from 'react-native';
-import { Card, formatMoney, PreviewBadge, Screen, SectionHeader, useAccent } from '@/components/ui';
-import { LineChart } from '@/components/LineChart';
-import { preview as p } from '@/data/preview';
+import { Text, View } from 'react-native';
+import { Card, EmptyCard, Loading, formatMoney, PreviewBadge, Screen, SectionHeader, StaleNote, useAccent } from '@/components/ui';
+import { PREVIEW } from '@/lib/session';
+import { useSummary, type Summary } from '@/lib/summary';
 import { space, type, useColors } from '@/theme/tokens';
 
-/** Invest: total value and its trend, what you own, and a short watchlist. */
+/** Invest: what your investments are worth, what you own, and a short watchlist. */
 export default function Invest() {
+  const { data, error, refreshing, refresh } = useSummary();
   return (
-    <Screen section="invest" title="Invest">
-      <Body />
+    <Screen section="invest" title="Invest" onRefresh={refresh} refreshing={refreshing}>
+      {PREVIEW ? <PreviewBadge /> : null}
+      <StaleNote message={data ? error : null} />
+      {data ? <Body d={data} /> : <Loading error={error} />}
     </Screen>
   );
 }
 
-function Line({ symbol, name, value, pct, last }: { symbol: string; name: string; value: string; pct: number; last: boolean }) {
+function Line({ symbol, name, value, pct, last }: { symbol: string; name: string; value: string; pct: number | null; last: boolean }) {
   const c = useColors();
   const a = useAccent();
   return (
     <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.md, padding: space.lg, borderBottomWidth: last ? 0 : 0.5, borderBottomColor: c.border }}>
       <View style={{ width: 40, height: 40, borderRadius: 12, backgroundColor: a.soft, alignItems: 'center', justifyContent: 'center' }}>
-        <Text style={[type.caption, { color: a.accent, fontSize: 10 }]}>{symbol}</Text>
+        <Text style={[type.caption, { color: a.accent, fontSize: 10 }]} numberOfLines={1}>{symbol.slice(0, 5)}</Text>
       </View>
       <View style={{ flex: 1 }}>
         <Text style={[type.bodyStrong, { color: c.text }]}>{symbol}</Text>
@@ -27,40 +30,48 @@ function Line({ symbol, name, value, pct, last }: { symbol: string; name: string
       </View>
       <View style={{ alignItems: 'flex-end' }}>
         <Text style={[type.bodyStrong, { color: c.text }]}>{value}</Text>
-        <Text style={[type.footnote, { color: pct >= 0 ? c.positive : c.negative }]}>{pct >= 0 ? '▲' : '▼'} {Math.abs(pct)}%</Text>
+        {pct !== null ? <Text style={[type.footnote, { color: pct >= 0 ? c.positive : c.negative }]}>{pct >= 0 ? '▲' : '▼'} {Math.abs(pct).toFixed(1)}% today</Text> : null}
       </View>
     </View>
   );
 }
 
-function Body() {
+function Body({ d }: { d: Summary }) {
   const c = useColors();
-  const { width } = useWindowDimensions();
-  const inv = p.invest;
+  const inv = d.invest;
   return (
     <>
-      <PreviewBadge />
-      <Text style={[type.subhead, { color: c.textMuted }]}>Your investments</Text>
-      <Text style={[type.hero, { color: c.text, marginTop: 2 }]}>{formatMoney(inv.totalMinor, { cents: false })}</Text>
-      <Text style={[type.footnote, { color: c.positive, marginTop: 4 }]}>▲ {formatMoney(inv.changeMinor, { cents: false })} ({inv.changePct}%) this month</Text>
-      <View style={{ marginHorizontal: -space.xl, marginTop: space.lg }}>
-        <LineChart values={[...inv.series]} labels={[...p.balanceSeries.labels]} width={width} height={90} format={(v) => formatMoney(v, { cents: false })} />
-      </View>
+      {inv.holdings.length ? (
+        <>
+          <Text style={[type.subhead, { color: c.textMuted }]}>Your investments</Text>
+          <Text style={[type.hero, { color: c.text, marginTop: 2 }]}>{formatMoney(inv.totalValueMinor, { cents: false })}</Text>
+          {inv.gainPct !== null ? (
+            <Text style={[type.footnote, { color: inv.gainMinor >= 0 ? c.positive : c.negative, marginTop: 4 }]}>
+              {inv.gainMinor >= 0 ? '▲' : '▼'} {formatMoney(Math.abs(inv.gainMinor), { cents: false })} ({Math.abs(inv.gainPct)}%) since you bought
+            </Text>
+          ) : null}
+          <SectionHeader title="What you own" />
+          <Card>
+            {inv.holdings.map((h, i) => (
+              <Line key={`${h.symbol}-${i}`} symbol={h.symbol} name={h.name} value={formatMoney(h.valueMinor, { cents: false })} pct={h.changePct} last={i === inv.holdings.length - 1} />
+            ))}
+          </Card>
+        </>
+      ) : (
+        <EmptyCard title="Nothing invested yet" body="Add what you own under Accounts and it’s valued here. Or just follow a few stocks to learn how they move." />
+      )}
 
-      <SectionHeader title="What you own" />
-      <Card>
-        {inv.holdings.map((h, i) => (
-          <Line key={h.symbol} symbol={h.symbol} name={h.name} value={formatMoney(h.valueMinor, { cents: false })} pct={h.changePct} last={i === inv.holdings.length - 1} />
-        ))}
-      </Card>
-
-      <SectionHeader title="Watching" action="Explore" />
-      <Card>
-        {inv.watchlist.slice(0, 2).map((w, i) => (
-          <Line key={w.symbol} symbol={w.symbol} name={w.name} value={formatMoney(w.priceMinor)} pct={w.changePct} last={i === 1} />
-        ))}
-      </Card>
-      <Text style={[type.caption, { color: c.textSubtle, marginTop: space.md, textAlign: 'center' }]}>Pockit helps you follow investments. It never buys or sells.</Text>
+      {inv.watchlist.length ? (
+        <>
+          <SectionHeader title="Watching" />
+          <Card>
+            {inv.watchlist.map((w, i) => (
+              <Line key={w.symbol} symbol={w.symbol} name={w.name} value={w.priceMinor !== null ? formatMoney(w.priceMinor) : '—'} pct={w.changePct} last={i === inv.watchlist.length - 1} />
+            ))}
+          </Card>
+        </>
+      ) : null}
+      <Text style={[type.caption, { color: c.textSubtle, marginTop: space.lg, textAlign: 'center' }]}>Pockit helps you follow investments. It never buys or sells.</Text>
     </>
   );
 }
