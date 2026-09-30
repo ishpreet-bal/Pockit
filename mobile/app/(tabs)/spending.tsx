@@ -3,6 +3,8 @@ import { Card, EmptyCard, Loading, formatMoney, friendlyDate, PreviewBadge, Prog
 import { PREVIEW } from '@/lib/session';
 import { useSummary, type Summary } from '@/lib/summary';
 import { space, type, useColors } from '@/theme/tokens';
+import { router } from 'expo-router';
+import { AddButton } from '../transactions';
 
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 
@@ -10,7 +12,7 @@ const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 
 export default function Spending() {
   const { data, error, refreshing, refresh } = useSummary();
   return (
-    <Screen section="spending" title="Spending" onRefresh={refresh} refreshing={refreshing}>
+    <Screen section="spending" title="Spending" onRefresh={refresh} refreshing={refreshing} right={<AddButton />}>
       {PREVIEW ? <PreviewBadge /> : null}
       <StaleNote message={data ? error : null} />
       {data ? <Body d={data} /> : <Loading error={error} />}
@@ -63,12 +65,12 @@ function Body({ d }: { d: Summary }) {
           })}
         </Card>
       ) : (
-        <EmptyCard title="Nothing spent yet this month" body="Add a purchase or import a bank statement and it’ll be sorted into categories here." />
+        <EmptyCard title="Nothing spent yet this month" body="Tap + to add a purchase, or import a bank statement, and it’ll be sorted into categories here." />
       )}
 
       {s.recent.length ? (
         <>
-          <SectionHeader title="Recent" action="See all" />
+          <SectionHeader title="Recent" action="See all" onAction={() => router.push('/transactions')} />
           <Card>
             {s.recent.map((t, i) => (
               <Row key={t.id} icon="cart" emoji={t.icon} title={t.name} detail={friendlyDate(t.date, d.today)} value={formatMoney(t.amountMinor, { signed: true })} valueColor={t.amountMinor > 0 ? c.positive : undefined} last={i === s.recent.length - 1} />

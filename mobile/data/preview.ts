@@ -83,5 +83,5 @@ export const previewTransactions = {
     { id: 'c5', name: 'Bills', icon: '💡', kind: 'expense', parentId: null },
     { id: 'c6', name: 'Salary', icon: '💼', kind: 'income', parentId: null },
   ],
-  accounts: [{ id: 'a1', name: 'Chequing', type: 'checking' }],
+  accounts: [{ id: 'a1', name: 'Chequing', type: 'chequing' }],
 };
