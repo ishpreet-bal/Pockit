@@ -139,6 +139,9 @@ export const userProfiles = pockit.table('user_profiles', {
   primaryIntent: text('primary_intent'),
   /** 'simple' hides advanced surfaces until the user asks for them. */
   experienceLevel: text('experience_level').notNull().default('simple'),
+  /** Pockit Plus is active while this is in the future. Null means never subscribed. */
+  plusUntil: timestamp('plus_until', { withTimezone: true }),
+  plusSource: text('plus_source'),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 });

@@ -13,6 +13,7 @@ import { relevantTo, renderHelp } from '@/lib/pock/knowledge';
 import { buildUserContext } from '@/lib/pock/context';
 import { buildContext as buildMarketContext } from '@/lib/investing/pock';
 import { todayIn } from '@/lib/finance/period';
+import { getPlan, FREE_POCK_QUESTIONS_PER_MONTH } from '@/lib/billing/plan';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
@@ -94,6 +95,16 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: parsed.error.issues[0]?.message ?? 'Ask a question.' }, { status: 400 });
   }
   const { question, symbol, anchor } = parsed.data;
+
+  // Free accounts get a few answers a month; Plus is unlimited. Checked before any
+  // thread is created or any model is called, so a refused question costs nothing.
+  const plan = await getPlan(ctx.user.id);
+  if (plan.pockLeftThisMonth === 0) {
+    return NextResponse.json({
+      error: `You’ve used your ${FREE_POCK_QUESTIONS_PER_MONTH} free questions this month. Pockit Plus gives you unlimited answers — or they reset on the 1st.`,
+      upgrade: true,
+    }, { status: 402 });
+  }
 
   const provider = getAiProvider();
 

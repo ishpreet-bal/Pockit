@@ -35,6 +35,9 @@ const serverSchema = z.object({
   ADMIN_SECRET: blankToUndefined(z.string().optional()),
   CRON_SECRET: blankToUndefined(z.string().optional()),
 
+  /** Shared secret RevenueCat sends with every webhook, so nobody else can grant Plus. */
+  REVENUECAT_WEBHOOK_SECRET: blankToUndefined(z.string().optional()),
+
   /** Hard cap on upload size, in megabytes. */
   MAX_UPLOAD_MB: blankToUndefined(z.coerce.number().int().positive().default(8)),
 });

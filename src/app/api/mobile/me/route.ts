@@ -3,6 +3,7 @@ import { eq } from 'drizzle-orm';
 import { requireAuthApi } from '@/lib/auth/api';
 import { withoutUser } from '@/lib/db/client';
 import { userProfiles } from '@/lib/db/schema';
+import { getPlan } from '@/lib/billing/plan';
 
 export const dynamic = 'force-dynamic';
 
@@ -10,6 +11,7 @@ export const dynamic = 'force-dynamic';
 export async function GET() {
   const ctx = await requireAuthApi();
   if ('response' in ctx) return ctx.response;
+  const plan = await getPlan(ctx.user.id);
   const rows = await withoutUser((tx) =>
     tx.select({ stage: userProfiles.onboardingStage }).from(userProfiles).where(eq(userProfiles.userId, ctx.user.id)).limit(1),
   );
@@ -17,5 +19,9 @@ export async function GET() {
     name: ctx.user.displayName,
     email: ctx.user.email,
     setupDone: rows[0]?.stage === 'done' || Boolean(ctx.user.onboardingCompletedAt),
+    id: ctx.user.id,
+    plus: plan.plus,
+    plusUntil: plan.plusUntil,
+    pockLeftThisMonth: plan.pockLeftThisMonth,
   });
 }
