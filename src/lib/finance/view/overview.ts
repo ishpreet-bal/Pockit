@@ -177,6 +177,10 @@ export async function buildOverview(repo: WorkspaceRepo, timezone: string, local
       shareOfSpend: spendTotal > 0n ? Number((c.amountMinor * 100n) / spendTotal) : 0,
     })),
     spendTotal,
+    /** Every top-level expense category with this month's spend, including $0 — what a budget is planned over. */
+    expenseCategories: categories
+      .filter((c) => c.parentId === null && c.kind === 'expense')
+      .map((c) => ({ id: c.id, name: c.name, icon: c.icon, amountMinor: rolled.get(c.id) ?? 0n })),
 
     upcoming,
     /** This month's remaining bills — the figure the headline subtracts. */

@@ -25,6 +25,7 @@ function Body() {
   return (
     <>
       <Card>
+        <Row icon="chart.bar" title="Budget" detail="A monthly plan for each category" value="›" valueColor={c.textSubtle} onPress={() => router.push('/budget')} />
         <Row icon="bubble.left" title="Ask Pock" detail="Questions about your money" value="›" valueColor={c.textSubtle} onPress={() => router.push('/pock')} />
         <Row icon="star" title="Take the tour" detail="A one-minute look around Pockit" value="›" valueColor={c.textSubtle} last onPress={() => router.push('/tour')} />
       </Card>

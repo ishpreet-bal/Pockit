@@ -42,7 +42,7 @@ function Body({ d }: { d: Summary }) {
       </Text>
       {s.budgetMinor ? <View style={{ marginTop: space.lg }}><ProgressBar value={s.spentMinor / s.budgetMinor} height={10} /></View> : null}
 
-      <SectionHeader title="Where it went" action={s.categories.length ? 'Budget' : undefined} />
+      <SectionHeader title="Where it went" action="Budget" onAction={() => router.push('/budget')} />
       {s.categories.length ? (
         <Card>
           {s.categories.map((cat, i) => {
