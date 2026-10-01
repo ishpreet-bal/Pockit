@@ -58,6 +58,7 @@ export default function RootLayout() {
           <Stack.Screen name="stock/[symbol]" />
           <Stack.Screen name="pock" options={{ presentation: 'modal' }} />
           <Stack.Screen name="settings" />
+          <Stack.Screen name="plus" options={{ presentation: 'modal' }} />
         </Stack>
         </AppLock>
       </ThemeProvider>

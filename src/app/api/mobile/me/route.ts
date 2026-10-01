@@ -20,6 +20,7 @@ export async function GET() {
     email: ctx.user.email,
     setupDone: rows[0]?.stage === 'done' || Boolean(ctx.user.onboardingCompletedAt),
     id: ctx.user.id,
+    plusEnabled: plan.enabled,
     plus: plan.plus,
     plusUntil: plan.plusUntil,
     pockLeftThisMonth: plan.pockLeftThisMonth,

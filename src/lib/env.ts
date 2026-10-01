@@ -35,6 +35,13 @@ const serverSchema = z.object({
   ADMIN_SECRET: blankToUndefined(z.string().optional()),
   CRON_SECRET: blankToUndefined(z.string().optional()),
 
+  /**
+   * Turns Pockit Plus on. Off by default: until it's switched on, every account
+   * gets everything (unlimited Pock included) and the app shows no paywall. The
+   * plan columns and the webhook still work, so the switch can be flipped any time.
+   */
+  PLUS_ENABLED: blankToUndefined(z.enum(['true', 'false']).default('false')).transform((v) => v === 'true'),
+
   /** Shared secret RevenueCat sends with every webhook, so nobody else can grant Plus. */
   REVENUECAT_WEBHOOK_SECRET: blankToUndefined(z.string().optional()),
 

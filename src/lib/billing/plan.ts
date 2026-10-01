@@ -2,6 +2,7 @@ import 'server-only';
 import { and, eq, gte, sql } from 'drizzle-orm';
 import { withoutUser } from '@/lib/db/client';
 import { pockMessages, pockThreads, userProfiles } from '@/lib/db/schema';
+import { env } from '@/lib/env';
 
 /**
  * Pockit Plus.
@@ -13,7 +14,14 @@ import { pockMessages, pockThreads, userProfiles } from '@/lib/db/schema';
  */
 export const FREE_POCK_QUESTIONS_PER_MONTH = 5;
 
+/** Whether Plus exists yet. While it doesn't, nobody is limited. */
+export function plusEnabled(): boolean {
+  return env.PLUS_ENABLED === true;
+}
+
 export interface Plan {
+  /** Whether Plus is switched on at all (the app hides every trace of it when not). */
+  enabled: boolean;
   plus: boolean;
   plusUntil: Date | null;
   pockUsedThisMonth: number;
@@ -40,11 +48,14 @@ export async function getPlan(userId: string): Promise<Plan> {
   const plusUntil = profile[0]?.plusUntil ?? null;
   const plus = plusUntil !== null && plusUntil.getTime() > Date.now();
   const pockUsedThisMonth = used[0]?.n ?? 0;
+  const enabled = plusEnabled();
   return {
+    enabled,
     plus,
     plusUntil,
     pockUsedThisMonth,
-    pockLeftThisMonth: plus ? null : Math.max(0, FREE_POCK_QUESTIONS_PER_MONTH - pockUsedThisMonth),
+    // Before Plus launches, everyone is unlimited.
+    pockLeftThisMonth: !enabled || plus ? null : Math.max(0, FREE_POCK_QUESTIONS_PER_MONTH - pockUsedThisMonth),
   };
 }
 

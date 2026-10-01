@@ -7,10 +7,10 @@ import * as Haptics from 'expo-haptics';
 import { PockMark } from '@/components/Pock';
 import { Icon } from '@/components/Icon';
 import { api, ApiError } from '@/lib/api';
-import { PREVIEW } from '@/lib/session';
+import { PREVIEW, useSession } from '@/lib/session';
 import { font, radius, space, type, useColors, useIsDark } from '@/theme/tokens';
 
-interface Msg { role: 'user' | 'pock' | 'problem'; text: string }
+interface Msg { role: 'user' | 'pock' | 'problem'; text: string; upgrade?: boolean }
 
 const STARTERS = [
   'How much can I spend this week?',
@@ -37,6 +37,8 @@ export default function Pock() {
   const [threadId, setThreadId] = useState<string | undefined>();
   const [thinking, setThinking] = useState(false);
   const scroll = useRef<ScrollView>(null);
+  const { me, refresh: refreshMe } = useSession();
+  const left = me?.plusEnabled && !me.plus ? me.pockLeftThisMonth ?? null : null;
 
   const starters = anchor ? [`Can I finish ${anchor.label ?? 'this goal'} sooner?`, `How much should I put toward ${anchor.label ?? 'this goal'} each month?`] : STARTERS;
 
@@ -55,10 +57,11 @@ export default function Pock() {
         const res = await api<{ answer: string; threadId: string }>('/api/pock', { body: { question: q, threadId, ...(anchor ? { anchor } : {}) } });
         setThreadId(res.threadId);
         setMessages((m) => [...m, { role: 'pock', text: res.answer }]);
+        if (left !== null) void refreshMe();
       }
     } catch (e) {
       if (e instanceof ApiError && typeof e.body.threadId === 'string') setThreadId(e.body.threadId);
-      setMessages((m) => [...m, { role: 'problem', text: e instanceof Error ? e.message : 'Pock couldn’t answer just now.' }]);
+      setMessages((m) => [...m, { role: 'problem', text: e instanceof Error ? e.message : 'Pock couldn’t answer just now.', upgrade: e instanceof ApiError && e.body.upgrade === true }]);
     } finally {
       setThinking(false);
       setTimeout(() => scroll.current?.scrollToEnd({ animated: true }), 50);
@@ -103,6 +106,11 @@ export default function Pock() {
               borderWidth: m.role === 'pock' ? 1 : 0, borderColor: c.border,
             }}>
               <Text style={[type.body, { color: m.role === 'user' ? onAccent : m.role === 'problem' ? c.textMuted : c.text, lineHeight: 22 }]}>{m.text}</Text>
+              {m.upgrade ? (
+                <Pressable onPress={() => router.push('/plus')} style={{ marginTop: 10, alignSelf: 'flex-start', paddingHorizontal: 14, paddingVertical: 8, borderRadius: 99, backgroundColor: a.accent }}>
+                  <Text style={{ fontFamily: font.semibold, color: onAccent }}>Try Pockit Plus free</Text>
+                </Pressable>
+              ) : null}
             </View>
           </Animated.View>
         ))}
@@ -114,6 +122,11 @@ export default function Pock() {
         ) : null}
       </ScrollView>
 
+      {left !== null ? (
+        <Text style={[type.caption, { color: c.textMuted, textAlign: 'center', paddingTop: 6 }]}>
+          {left} free question{left === 1 ? '' : 's'} left this month · <Text style={{ color: a.accent }} onPress={() => router.push('/plus')}>Go unlimited</Text>
+        </Text>
+      ) : null}
       <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: 8, paddingHorizontal: space.lg, paddingTop: space.sm, paddingBottom: Math.max(insets.bottom, space.md), borderTopWidth: 0.5, borderTopColor: c.border }}>
         <TextInput value={draft} onChangeText={setDraft} placeholder="Ask anything about your money" placeholderTextColor={c.textSubtle} multiline
           accessibilityLabel="Your question" onSubmitEditing={() => void ask(draft)} blurOnSubmit

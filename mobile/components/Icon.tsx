@@ -19,6 +19,7 @@ const WEB: Record<string, string> = {
   'chevron.right': 'chevron_right',
   'chevron.left': 'chevron_left',
   'arrow.up': 'arrow_upward',
+  'star': 'star',
   'square.and.pencil': 'edit_square',
   'repeat': 'repeat',
   'calendar': 'calendar_month',

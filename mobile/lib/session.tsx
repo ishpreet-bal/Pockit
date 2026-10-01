@@ -1,7 +1,19 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { api, ApiError, readToken, writeToken } from './api';
+import { configurePurchases } from './purchases';
 
-export interface Me { name: string | null; email: string; setupDone: boolean }
+export interface Me {
+  id?: string;
+  name: string | null;
+  email: string;
+  setupDone: boolean;
+  /** Whether Pockit Plus has launched. While false, the app shows no trace of it. */
+  plusEnabled?: boolean;
+  plus?: boolean;
+  plusUntil?: string | null;
+  /** Null when unlimited. */
+  pockLeftThisMonth?: number | null;
+}
 
 interface SessionValue {
   status: 'loading' | 'signed-out' | 'signed-in';
@@ -30,6 +42,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     try {
       const next = await api<Me>('/api/mobile/me');
       setMe(next); setStatus('signed-in');
+      if (next.plusEnabled && next.id) configurePurchases(next.id);
       return next;
     } catch (e) {
       // Only a rejected token signs you out; being offline must not.

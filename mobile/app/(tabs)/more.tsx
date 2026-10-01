@@ -27,6 +27,7 @@ function Body() {
       <Card>
         <Row icon="bubble.left" title="Ask Pock" detail="Questions about your money" value="›" valueColor={c.textSubtle} last onPress={() => router.push('/pock')} />
       </Card>
+      <PlusRow />
       <SectionHeader title="Manage" />
       <Card>
         {ITEMS.map((it, i) => (
@@ -48,5 +49,17 @@ function SignOut() {
       </Box>
       {me?.email ? <Text style={[type.caption, { color: c.textSubtle, textAlign: 'center', marginTop: space.sm }]}>Signed in as {me.email}</Text> : null}
     </>
+  );
+}
+
+/** Hidden until Pockit Plus launches (the server's PLUS_ENABLED switch). */
+function PlusRow() {
+  const c = useColors();
+  const { me } = useSession();
+  if (!me?.plusEnabled) return null;
+  return (
+    <Box style={{ marginTop: space.md }}>
+      <Row icon="star" title={me.plus ? 'Pockit Plus — active' : 'Try Pockit Plus free'} detail={me.plus ? 'Thanks for supporting Pockit' : 'Unlimited Ask Pock'} value="›" valueColor={c.textSubtle} last onPress={() => router.push('/plus')} />
+    </Box>
   );
 }
