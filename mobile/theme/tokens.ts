@@ -1,3 +1,4 @@
+import { useSyncExternalStore } from 'react';
 import { useColorScheme } from 'react-native';
 
 /**
@@ -57,12 +58,23 @@ const dark: typeof light = {
 
 export type Palette = typeof light;
 
-export function useColors(): Palette {
-  return useColorScheme() === 'dark' ? dark : light;
+/** Light, dark, or follow the phone. Set from Settings; 'system' unless the person chose otherwise. */
+export type Appearance = 'system' | 'light' | 'dark';
+let appearance: Appearance = 'system';
+const listeners = new Set<() => void>();
+export function setAppearance(next: Appearance) { appearance = next; listeners.forEach((l) => l()); }
+export function useAppearance(): Appearance {
+  return useSyncExternalStore((l) => { listeners.add(l); return () => { listeners.delete(l); }; }, () => appearance, () => appearance);
 }
 
 export function useIsDark() {
-  return useColorScheme() === 'dark';
+  const system = useColorScheme();
+  const chosen = useAppearance();
+  return chosen === 'system' ? system === 'dark' : chosen === 'dark';
+}
+
+export function useColors(): Palette {
+  return useIsDark() ? dark : light;
 }
 
 export const font = {

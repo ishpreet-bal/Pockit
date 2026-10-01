@@ -1,13 +1,13 @@
 import { useEffect, useState } from 'react';
 import { Linking, Platform, Switch, Text, View } from 'react-native';
 import Constants from 'expo-constants';
-import { Card, Screen, SectionHeader } from '@/components/ui';
+import { Card, Screen, SectionHeader, Segmented } from '@/components/ui';
 import { biometricsAvailable, confirmWithBiometrics } from '@/lib/lock';
-import { getPref, setPref } from '@/lib/prefs';
+import { getPref, saveAppearance, setPref } from '@/lib/prefs';
 import { askForNotifications, syncBillReminders } from '@/lib/reminders';
 import { useSummary } from '@/lib/summary';
 import { useSession } from '@/lib/session';
-import { space, type, useColors } from '@/theme/tokens';
+import { setAppearance, space, type, useAppearance, useColors, type Appearance } from '@/theme/tokens';
 
 function Toggle({ title, detail, value, onChange, disabled, last }: { title: string; detail: string; value: boolean; onChange: (v: boolean) => void; disabled?: boolean; last?: boolean }) {
   const c = useColors();
@@ -59,6 +59,8 @@ export default function Settings() {
 
   return (
     <Screen section="more" title="Settings" back>
+      <SectionHeader title="Appearance" />
+      <AppearancePicker />
       <SectionHeader title="Security" />
       <Card>
         <Toggle title={`Lock with ${bio.label}`} detail={bio.ok ? `Ask for ${bio.label} when Pockit opens, and after a minute away.` : `${bio.label} isn’t set up on this phone.`}
@@ -76,5 +78,22 @@ export default function Settings() {
       </Card>
       <Text style={[type.caption, { color: c.textSubtle, textAlign: 'center', marginTop: space.xl }]}>Pockit {Constants.expoConfig?.version ?? ''}</Text>
     </Screen>
+  );
+}
+
+const LOOKS: { value: Appearance; label: string }[] = [
+  { value: 'system', label: 'Match phone' },
+  { value: 'light', label: 'Light' },
+  { value: 'dark', label: 'Dark' },
+];
+
+function AppearancePicker() {
+  const current = useAppearance();
+  return (
+    <Segmented
+      options={LOOKS.map((l) => l.label)}
+      value={LOOKS.find((l) => l.value === current)!.label}
+      onChange={(label) => { const v = LOOKS.find((l) => l.label === label)!.value; setAppearance(v); void saveAppearance(v); }}
+    />
   );
 }

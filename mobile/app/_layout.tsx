@@ -10,7 +10,8 @@ import {
   BricolageGrotesque_700Bold,
 } from '@expo-google-fonts/bricolage-grotesque';
 import 'react-native-reanimated';
-import { useColors, useIsDark } from '@/theme/tokens';
+import { setAppearance, useColors, useIsDark } from '@/theme/tokens';
+import { getAppearance } from '@/lib/prefs';
 import { SessionProvider } from '@/lib/session';
 import { SummaryProvider } from '@/lib/summary';
 import { AppLock } from '@/lib/lock';
@@ -30,6 +31,7 @@ export default function RootLayout() {
   const c = useColors();
   const dark = useIsDark();
 
+  useEffect(() => { void getAppearance().then(setAppearance); }, []);
   useEffect(() => { if (loaded) void SplashScreen.hideAsync(); }, [loaded]);
   if (!loaded) return null;
 
@@ -61,7 +63,8 @@ export default function RootLayout() {
           <Stack.Screen name="plus" options={{ presentation: 'modal' }} />
           <Stack.Screen name="dev" />
           <Stack.Screen name="learn" />
-          <Stack.Screen name="tour"options={{ presentation: 'fullScreenModal', animation: 'fade' }} />
+          <Stack.Screen name="budget" />
+          <Stack.Screen name="tour" options={{ presentation: 'fullScreenModal', animation: 'fade' }} />
         </Stack>
         </AppLock>
       </ThemeProvider>
