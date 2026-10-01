@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -30,7 +30,8 @@ export default function Pock() {
   const insets = useSafeAreaInsets();
   // Dark mode's accent is light, so text on it goes dark.
   const onAccent = useIsDark() ? c.bg : '#fff';
-  const params = useLocalSearchParams<{ goalId?: string; goalName?: string }>();
+  const params = useLocalSearchParams<{ goalId?: string; goalName?: string; mode?: string; q?: string }>();
+  const learn = params.mode === 'learn';
   const anchor = params.goalId ? { kind: 'goal' as const, id: params.goalId, label: params.goalName } : undefined;
   const [messages, setMessages] = useState<Msg[]>([]);
   const [draft, setDraft] = useState('');
@@ -40,7 +41,14 @@ export default function Pock() {
   const { me, refresh: refreshMe } = useSession();
   const left = me?.plusEnabled && !me.plus ? me.pockLeftThisMonth ?? null : null;
 
-  const starters = anchor ? [`Can I finish ${anchor.label ?? 'this goal'} sooner?`, `How much should I put toward ${anchor.label ?? 'this goal'} each month?`] : STARTERS;
+  const starters = learn
+    ? ['What’s the difference between a stock and an ETF?', 'How would I start investing with $100 a month?', 'What is a TFSA?', 'Why is crypto so risky?']
+    : anchor ? [`Can I finish ${anchor.label ?? 'this goal'} sooner?`, `How much should I put toward ${anchor.label ?? 'this goal'} each month?`] : STARTERS;
+
+  const askedFromTopic = useRef(false);
+  useEffect(() => {
+    if (params.q && !askedFromTopic.current) { askedFromTopic.current = true; void ask(params.q); }
+  }, [params.q]); // eslint-disable-line react-hooks/exhaustive-deps
 
   async function ask(question: string) {
     const q = question.trim();
@@ -52,9 +60,11 @@ export default function Pock() {
     try {
       if (PREVIEW) {
         await new Promise((r) => setTimeout(r, 600));
-        setMessages((m) => [...m, { role: 'pock', text: 'You have about $1,240 you can spend before payday on Oct 1, after rent and your phone bill. That’s roughly $177 a day for the rest of the week.' }]);
+        setMessages((m) => [...m, { role: 'pock', text: learn
+          ? 'An ETF is a basket of many investments bought in one go — so instead of betting on one company, you own a little of hundreds. A stock is a single company. ETFs are a common way to start because the risk is spread out and fees are usually low.'
+          : 'You have about $1,240 you can spend before payday on Oct 1, after rent and your phone bill. That’s roughly $177 a day for the rest of the week.' }]);
       } else {
-        const res = await api<{ answer: string; threadId: string }>('/api/pock', { body: { question: q, threadId, ...(anchor ? { anchor } : {}) } });
+        const res = await api<{ answer: string; threadId: string }>('/api/pock', { body: { question: q, threadId, ...(anchor ? { anchor } : {}), ...(learn ? { mode: 'learn' } : {}) } });
         setThreadId(res.threadId);
         setMessages((m) => [...m, { role: 'pock', text: res.answer }]);
         if (left !== null) void refreshMe();
@@ -74,7 +84,7 @@ export default function Pock() {
         <Pressable onPress={() => router.back()} hitSlop={12} accessibilityLabel="Close"><Text style={[type.body, { color: a.accent }]}>Done</Text></Pressable>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
           <PockMark size={22} color={a.accent} />
-          <Text style={[type.headline, { color: c.text }]}>Pock</Text>
+          <Text style={[type.headline, { color: c.text }]}>{learn ? 'Investing tutor' : 'Pock'}</Text>
         </View>
         <Pressable onPress={() => { setMessages([]); setThreadId(undefined); }} hitSlop={12} accessibilityLabel="New conversation" disabled={!messages.length}>
           <Icon name="square.and.pencil" size={20} color={messages.length ? a.accent : c.surface2} />
@@ -86,8 +96,8 @@ export default function Pock() {
           <View style={{ flex: 1, justifyContent: 'center', gap: space.lg }}>
             <View style={{ alignItems: 'center', gap: space.md }}>
               <View style={{ width: 72, height: 72, borderRadius: 22, backgroundColor: a.soft, alignItems: 'center', justifyContent: 'center' }}><PockMark size={40} color={a.accent} /></View>
-              <Text style={[type.title3, { color: c.text, textAlign: 'center' }]}>{anchor ? `Ask about ${anchor.label ?? 'this goal'}` : 'Ask me about your money'}</Text>
-              <Text style={[type.subhead, { color: c.textMuted, textAlign: 'center', lineHeight: 21 }]}>I can see your bills, spending and goals, and I explain things plainly. I never move money.</Text>
+              <Text style={[type.title3, { color: c.text, textAlign: 'center' }]}>{learn ? 'Ask me anything about investing' : anchor ? `Ask about ${anchor.label ?? 'this goal'}` : 'Ask me about your money'}</Text>
+              <Text style={[type.subhead, { color: c.textMuted, textAlign: 'center', lineHeight: 21 }]}>{learn ? 'Stocks, ETFs, TFSAs, budgeting — any money question, explained simply. For learning, not advice.' : 'I can see your bills, spending and goals, and I explain things plainly. I never move money.'}</Text>
             </View>
             <View style={{ gap: 8 }}>
               {starters.map((s) => (
@@ -128,7 +138,7 @@ export default function Pock() {
         </Text>
       ) : null}
       <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: 8, paddingHorizontal: space.lg, paddingTop: space.sm, paddingBottom: Math.max(insets.bottom, space.md), borderTopWidth: 0.5, borderTopColor: c.border }}>
-        <TextInput value={draft} onChangeText={setDraft} placeholder="Ask anything about your money" placeholderTextColor={c.textSubtle} multiline
+        <TextInput value={draft} onChangeText={setDraft} placeholder={learn ? 'Ask about investing or money' : 'Ask anything about your money'} placeholderTextColor={c.textSubtle} multiline
           accessibilityLabel="Your question" onSubmitEditing={() => void ask(draft)} blurOnSubmit
           style={{ flex: 1, maxHeight: 120, minHeight: 44, borderRadius: radius.control, backgroundColor: c.surface2, paddingHorizontal: 14, paddingTop: 11, paddingBottom: 11, fontFamily: font.regular, fontSize: 16, color: c.text, ...(Platform.OS === 'web' ? ({ outlineStyle: 'none' } as object) : {}) }} />
         <Pressable onPress={() => void ask(draft)} disabled={draft.trim().length < 2 || thinking} accessibilityLabel="Send"

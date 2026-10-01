@@ -8,7 +8,7 @@ import { getAiProvider } from '@/lib/ai';
 import { AiUnavailableError } from '@/lib/ai/types';
 import { describeProviderError } from '@/lib/ai/errors';
 import { checkRateLimit } from '@/lib/auth/rate-limit';
-import { POCK_BRIEF, composeTurn } from '@/lib/pock/brief';
+import { POCK_BRIEF, LEARN_BRIEF, composeTurn } from '@/lib/pock/brief';
 import { relevantTo, renderHelp } from '@/lib/pock/knowledge';
 import { buildUserContext } from '@/lib/pock/context';
 import { buildContext as buildMarketContext } from '@/lib/investing/pock';
@@ -63,6 +63,8 @@ const askSchema = z.object({
    * which goal. It is a subject, not an instruction — the anchor widens which data
    * is fetched, and never tells the model what to conclude.
    */
+  /** 'learn' = the investing tutor on the app's Learn screen: finance-only, educational. */
+  mode: z.enum(['assistant', 'learn']).optional(),
   anchor: z.object({
     kind: z.enum(['goal', 'symbol', 'budget', 'spending']),
     id: z.string().max(64).optional(),
@@ -94,7 +96,7 @@ export async function POST(request: Request) {
   if (!parsed.success) {
     return NextResponse.json({ error: parsed.error.issues[0]?.message ?? 'Ask a question.' }, { status: 400 });
   }
-  const { question, symbol, anchor } = parsed.data;
+  const { question, symbol, anchor, mode } = parsed.data;
 
   // Free accounts get a few answers a month; Plus is unlimited. Checked before any
   // thread is created or any model is called, so a refused question costs nothing.
@@ -185,7 +187,7 @@ export async function POST(request: Request) {
   let answer: string;
   let model: string | null = null;
   try {
-    const response = await provider.converse({ brief: POCK_BRIEF, messages, maxTokens: 900 });
+    const response = await provider.converse({ brief: mode === 'learn' ? LEARN_BRIEF : POCK_BRIEF, messages, maxTokens: 900 });
     answer = response.data.trim();
     model = response.usage?.model ?? null;
   } catch (error) {
