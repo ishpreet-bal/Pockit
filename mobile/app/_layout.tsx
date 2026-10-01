@@ -13,6 +13,7 @@ import 'react-native-reanimated';
 import { useColors, useIsDark } from '@/theme/tokens';
 import { SessionProvider } from '@/lib/session';
 import { SummaryProvider } from '@/lib/summary';
+import { AppLock } from '@/lib/lock';
 
 export { ErrorBoundary } from 'expo-router';
 export const unstable_settings = { initialRouteName: '(tabs)' };
@@ -41,6 +42,7 @@ export default function RootLayout() {
       <SummaryProvider>
       <ThemeProvider value={theme}>
         <StatusBar style={dark ? 'light' : 'dark'} />
+        <AppLock>
         <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: c.bg } }}>
           <Stack.Screen name="(tabs)" />
           <Stack.Screen name="welcome" options={{ animation: 'fade' }} />
@@ -55,7 +57,9 @@ export default function RootLayout() {
           <Stack.Screen name="search" />
           <Stack.Screen name="stock/[symbol]" />
           <Stack.Screen name="pock" options={{ presentation: 'modal' }} />
+          <Stack.Screen name="settings" />
         </Stack>
+        </AppLock>
       </ThemeProvider>
       </SummaryProvider>
     </SessionProvider>

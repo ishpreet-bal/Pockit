@@ -9,7 +9,7 @@ const ITEMS = [
   { icon: 'repeat', title: 'Bills', detail: 'Rent, phone, subscriptions' },
   { icon: 'building.columns', title: 'Accounts', detail: 'Chequing, savings, credit' },
   { icon: 'square.and.arrow.down', title: 'Import', detail: 'Bring in a bank statement' },
-  { icon: 'gearshape', title: 'Settings', detail: 'Face ID, notifications, appearance' },
+  { icon: 'gearshape', title: 'Settings', detail: 'Face ID and bill reminders' },
 ];
 
 export default function More() {
@@ -30,7 +30,7 @@ function Body() {
       <SectionHeader title="Manage" />
       <Card>
         {ITEMS.map((it, i) => (
-          <Row key={it.title} icon={it.icon} title={it.title} detail={it.detail} value="›" valueColor={c.textSubtle} last={i === ITEMS.length - 1} onPress={it.title === 'Bills' ? () => router.push('/bills') : () => {}} />
+          <Row key={it.title} icon={it.icon} title={it.title} detail={it.detail} value="›" valueColor={c.textSubtle} last={i === ITEMS.length - 1} onPress={it.title === 'Bills' ? () => router.push('/bills') : it.title === 'Settings' ? () => router.push('/settings') : () => {}} />
         ))}
       </Card>
       <SignOut />
