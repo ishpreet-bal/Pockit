@@ -73,6 +73,7 @@ export default function Setup() {
   const [payday, setPayday] = useState<string | null>(null);
   const [bills, setBills] = useState<Bill[]>([]);
   const [savings, setSavings] = useState('');
+  const [chequing, setChequing] = useState('');
   const [goals, setGoals] = useState<string[]>([]);
   const [skipped, setSkipped] = useState<string[]>([]);
   const [picture, setPicture] = useState<Picture | null>(null);
@@ -150,7 +151,7 @@ export default function Setup() {
           </>}
         >
           <View style={{ backgroundColor: c.section.home.soft, borderRadius: radius.card, padding: space.xl, gap: space.md }}>
-            {['What you earn', 'Bills you pay every month', 'What you’ve saved', 'What you’re saving for'].map((t, i) => (
+            {['What you earn', 'Bills you pay every month', 'What you have right now', 'What you’re saving for'].map((t, i) => (
               <View key={t} style={{ flexDirection: 'row', alignItems: 'center', gap: space.md }}>
                 <View style={{ width: 26, height: 26, borderRadius: 13, backgroundColor: c.surface, alignItems: 'center', justifyContent: 'center' }}>
                   <Text style={{ fontFamily: font.semibold, fontSize: 13, color: c.section.home.accent }}>{i + 1}</Text>
@@ -244,18 +245,24 @@ export default function Setup() {
     }
 
     case 'savings': {
-      const minor = toMinor(savings);
+      const chq = toMinor(chequing);
+      const sav = toMinor(savings);
+      // Either is enough to go on; whatever's left blank stays "not set yet", not zero.
+      const answers: Record<string, number> = {};
+      if (chq !== null) answers.chequingMinor = chq;
+      if (sav !== null) answers.savingsMinor = sav;
       screen = (
         <StepScreen
           top={progress}
-          title="Do you have any savings?"
-          subtitle="A rough number is fine. It helps Pockit tell you how safe you are if something unexpected comes up."
+          title="How much do you have right now?"
+          subtitle="Rough numbers are fine — check your banking app if you like. This is what “safe to spend” starts from."
           footer={<>
-            <Button label="Continue" loading={busy} disabled={minor === null} onPress={() => save({ savingsMinor: minor! }, 'goals')} />
-            {skipButton('savings', 'goals', 'Nothing yet')}
+            <Button label="Continue" loading={busy} disabled={chq === null && sav === null} onPress={() => save(answers, 'goals')} />
+            {skipButton('savings', 'goals', 'I’ll add this later')}
           </>}
         >
-          <Field label="Saved so far" prefix="$" value={savings} onChangeText={setSavings} keyboardType="decimal-pad" placeholder="3,000" autoFocus />
+          <Field label="In your everyday (chequing) account" prefix="$" value={chequing} onChangeText={setChequing} keyboardType="decimal-pad" placeholder="1,500" autoFocus />
+          <Field label="In savings (optional)" prefix="$" value={savings} onChangeText={setSavings} keyboardType="decimal-pad" placeholder="3,000" />
           <FormError message={error} />
         </StepScreen>
       );

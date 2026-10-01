@@ -67,7 +67,17 @@ export async function POST() {
     const existing = await tx.select({ id: accounts.id, type: accounts.type })
       .from(accounts).where(eq(accounts.workspaceId, ctx.workspace.id));
 
+    // A balance someone gives us is "right now", which already includes today's
+    // spending — so it starts counting from tomorrow, or today would be counted twice.
+    const tomorrow = new Date(Date.now() + 86_400_000).toISOString().slice(0, 10);
+    const opening = answers.chequingMinor !== undefined
+      ? { openingBalanceMinor: BigInt(answers.chequingMinor), openingBalanceDate: tomorrow }
+      : {};
+
     let chequingId = existing.find((a) => a.type === 'chequing')?.id ?? null;
+    if (chequingId && answers.chequingMinor !== undefined) {
+      await tx.update(accounts).set(opening).where(eq(accounts.id, chequingId));
+    }
     if (!chequingId) {
       const made = await tx.insert(accounts).values({
         workspaceId: ctx.workspace.id,
@@ -77,6 +87,7 @@ export async function POST() {
         // the sign of every balance derived from it.
         normalBalance: 'debit',
         currency: ctx.workspace.baseCurrency,
+        ...opening,
       }).returning({ id: accounts.id });
       chequingId = made[0]!.id;
       counts.accounts++;

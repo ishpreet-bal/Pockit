@@ -1,4 +1,7 @@
+import { useState } from 'react';
 import { Text, useWindowDimensions, View } from 'react-native';
+import { Button, Field, FormError, toMinor } from '@/components/form';
+import { api } from '@/lib/api';
 import { router } from 'expo-router';
 import { Card, EmptyCard, Loading, formatMoney, friendlyDate, PreviewBadge, Row, Screen, SectionHeader, StaleNote, useAccent } from '@/components/ui';
 import { LineChart } from '@/components/LineChart';
@@ -24,7 +27,7 @@ export default function Home() {
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
 function tip(d: Summary): string {
-  if (!d.hasBalance) return 'Add how much is in your bank account (More → Accounts) and Pockit works out what’s safe to spend.';
+  if (!d.hasBalance) return 'Add what’s in your everyday account below and Pockit works out what’s safe to spend.';
   if (d.home.short) return 'Bills due this month are more than the cash you have. Hold off on extras until payday.';
   const bill = d.home.upcoming[0];
   if (bill && d.home.safeToSpendMinor > bill.amountMinor) return `${bill.name} is covered. You’re in good shape until payday.`;
@@ -66,6 +69,8 @@ function Body({ d }: { d: Summary }) {
         <Text style={[type.footnote, { color: c.text, flex: 1, lineHeight: 18 }]}>{tip(d)}</Text>
       </View>
 
+      {!d.hasBalance && !PREVIEW ? <BalanceCard /> : null}
+
       <SectionHeader title="Coming up" action="All bills" onAction={() => router.push('/bills')} />
       {h.upcoming.length ? (
         <Card>
@@ -105,5 +110,33 @@ function Body({ d }: { d: Summary }) {
         </Card>
       </View>
     </>
+  );
+}
+
+/**
+ * Shown until there's a balance to work from. Without one, "safe to spend" can
+ * only ever say $0 — so ask, right where the $0 is.
+ */
+function BalanceCard() {
+  const c = useColors();
+  const a = useAccent();
+  const { refresh } = useSummary();
+  const [amount, setAmount] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  async function save() {
+    setBusy(true); setError(null);
+    try { await api('/api/mobile/balance', { body: { amount: toMinor(amount)! / 100 } }); await refresh(); }
+    catch (e) { setError(e instanceof Error ? e.message : 'That could not be saved.'); }
+    finally { setBusy(false); }
+  }
+  return (
+    <Card style={{ padding: space.lg, gap: space.md, marginTop: space.lg, borderColor: a.accent, borderWidth: 1 }}>
+      <Text style={[type.headline, { color: c.text }]}>What’s in your everyday account?</Text>
+      <Text style={[type.footnote, { color: c.textMuted, marginTop: -6, lineHeight: 18 }]}>Pockit works out what’s safe to spend from this, after your bills.</Text>
+      <Field label="Balance right now" prefix="$" value={amount} onChangeText={setAmount} keyboardType="decimal-pad" placeholder="1,500" />
+      <FormError message={error} />
+      <Button label="Save" loading={busy} disabled={toMinor(amount) === null} onPress={save} />
+    </Card>
   );
 }

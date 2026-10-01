@@ -116,6 +116,8 @@ export const answersSchema = z.object({
   recurring: z.array(recurringAnswer).max(30).optional(),
   spendingByCategory: z.record(z.string(), z.number().int().nonnegative()).optional(),
   savingsMinor: z.number().int().nonnegative().optional(),
+  /** What's in the everyday (chequing) account right now — the starting point for "safe to spend". */
+  chequingMinor: z.number().int().nonnegative().optional(),
   goals: z.array(goalAnswer).max(10).optional(),
   /** Which screens they chose to skip, so the summary can say what is missing. */
   skipped: z.array(z.string().max(40)).max(20).optional(),
