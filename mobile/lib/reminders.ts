@@ -42,3 +42,13 @@ export async function syncBillReminders(summary: Summary | null): Promise<number
   }
   return scheduled;
 }
+
+/** Developer tool: a sample reminder a few seconds from now, to check notifications work on this phone. */
+export async function sendTestReminder(): Promise<boolean> {
+  if (Platform.OS === 'web' || !(await askForNotifications())) return false;
+  await Notifications.scheduleNotificationAsync({
+    content: { title: 'Rent is due tomorrow', body: '$1,800 — it’s already set aside in what you can spend. (Test reminder)' },
+    trigger: { type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL, seconds: 5 },
+  });
+  return true;
+}

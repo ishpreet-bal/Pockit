@@ -19,7 +19,16 @@ export function plusEnabled(): boolean {
   return env.PLUS_ENABLED === true;
 }
 
+/** Is this one of the people who run Pockit? Matched case-insensitively against ADMIN_EMAILS. */
+export function isAdminEmail(email: string | null | undefined): boolean {
+  if (!email) return false;
+  const admins = (env.ADMIN_EMAILS ?? '').split(',').map((e) => e.trim().toLowerCase()).filter(Boolean);
+  return admins.includes(email.trim().toLowerCase());
+}
+
 export interface Plan {
+  /** Runs Pockit: always has Plus, sees developer tools. */
+  admin: boolean;
   /** Whether Plus is switched on at all (the app hides every trace of it when not). */
   enabled: boolean;
   plus: boolean;
@@ -33,7 +42,8 @@ function monthStart(now = new Date()) {
   return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
 }
 
-export async function getPlan(userId: string): Promise<Plan> {
+export async function getPlan(user: { id: string; email: string }): Promise<Plan> {
+  const userId = user.id;
   const [profile, used] = await Promise.all([
     withoutUser((tx) => tx.select({ plusUntil: userProfiles.plusUntil }).from(userProfiles).where(eq(userProfiles.userId, userId)).limit(1)),
     // Questions asked, not answers received: a failed answer still counted against
@@ -46,10 +56,13 @@ export async function getPlan(userId: string): Promise<Plan> {
     ),
   ]);
   const plusUntil = profile[0]?.plusUntil ?? null;
-  const plus = plusUntil !== null && plusUntil.getTime() > Date.now();
+  const admin = isAdminEmail(user.email);
+  // Admins never pay and are never limited, whether or not Plus has launched.
+  const plus = admin || (plusUntil !== null && plusUntil.getTime() > Date.now());
   const pockUsedThisMonth = used[0]?.n ?? 0;
   const enabled = plusEnabled();
   return {
+    admin,
     enabled,
     plus,
     plusUntil,

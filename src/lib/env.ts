@@ -42,6 +42,12 @@ const serverSchema = z.object({
    */
   PLUS_ENABLED: blankToUndefined(z.enum(['true', 'false']).default('false')).transform((v) => v === 'true'),
 
+  /**
+   * Comma-separated emails of the people who run Pockit. Admins always have Plus
+   * (never a paywall or limit) and see the app's Developer screen.
+   */
+  ADMIN_EMAILS: blankToUndefined(z.string().optional()),
+
   /** Shared secret RevenueCat sends with every webhook, so nobody else can grant Plus. */
   REVENUECAT_WEBHOOK_SECRET: blankToUndefined(z.string().optional()),
 

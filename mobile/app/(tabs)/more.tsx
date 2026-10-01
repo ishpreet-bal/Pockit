@@ -34,6 +34,7 @@ function Body() {
           <Row key={it.title} icon={it.icon} title={it.title} detail={it.detail} value="›" valueColor={c.textSubtle} last={i === ITEMS.length - 1} onPress={it.title === 'Bills' ? () => router.push('/bills') : it.title === 'Settings' ? () => router.push('/settings') : () => {}} />
         ))}
       </Card>
+      <DevRow />
       <SignOut />
     </>
   );
@@ -60,6 +61,18 @@ function PlusRow() {
   return (
     <Box style={{ marginTop: space.md }}>
       <Row icon="star" title={me.plus ? 'Pockit Plus — active' : 'Try Pockit Plus free'} detail={me.plus ? 'Thanks for supporting Pockit' : 'Unlimited Ask Pock'} value="›" valueColor={c.textSubtle} last onPress={() => router.push('/plus')} />
+    </Box>
+  );
+}
+
+/** Only for admins (ADMIN_EMAILS on the server). */
+function DevRow() {
+  const c = useColors();
+  const { me } = useSession();
+  if (!me?.admin) return null;
+  return (
+    <Box style={{ marginTop: space.xxl }}>
+      <Row icon="gearshape" title="Developer" detail="Admin tools — only you can see this" value="›" valueColor={c.textSubtle} last onPress={() => router.push('/dev')} />
     </Box>
   );
 }

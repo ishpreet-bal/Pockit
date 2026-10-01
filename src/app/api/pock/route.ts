@@ -98,7 +98,7 @@ export async function POST(request: Request) {
 
   // Free accounts get a few answers a month; Plus is unlimited. Checked before any
   // thread is created or any model is called, so a refused question costs nothing.
-  const plan = await getPlan(ctx.user.id);
+  const plan = await getPlan(ctx.user);
   if (plan.pockLeftThisMonth === 0) {
     return NextResponse.json({
       error: `You’ve used your ${FREE_POCK_QUESTIONS_PER_MONTH} free questions this month. Pockit Plus gives you unlimited answers — or they reset on the 1st.`,

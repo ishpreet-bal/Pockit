@@ -11,7 +11,7 @@ export const dynamic = 'force-dynamic';
 export async function GET() {
   const ctx = await requireAuthApi();
   if ('response' in ctx) return ctx.response;
-  const plan = await getPlan(ctx.user.id);
+  const plan = await getPlan(ctx.user);
   const rows = await withoutUser((tx) =>
     tx.select({ stage: userProfiles.onboardingStage }).from(userProfiles).where(eq(userProfiles.userId, ctx.user.id)).limit(1),
   );
@@ -20,6 +20,7 @@ export async function GET() {
     email: ctx.user.email,
     setupDone: rows[0]?.stage === 'done' || Boolean(ctx.user.onboardingCompletedAt),
     id: ctx.user.id,
+    admin: plan.admin,
     plusEnabled: plan.enabled,
     plus: plan.plus,
     plusUntil: plan.plusUntil,
