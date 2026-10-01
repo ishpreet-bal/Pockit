@@ -7,6 +7,8 @@ export interface Me {
   name: string | null;
   email: string;
   setupDone: boolean;
+  /** Has seen (or skipped) the walkthrough. */
+  tourDone?: boolean;
   /** Runs Pockit: always has Plus, sees the Developer screen. Decided by the server (ADMIN_EMAILS). */
   admin?: boolean;
   /** Whether Pockit Plus has launched. While false, the app shows no trace of it. */

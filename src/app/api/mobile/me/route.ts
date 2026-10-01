@@ -13,13 +13,14 @@ export async function GET() {
   if ('response' in ctx) return ctx.response;
   const plan = await getPlan(ctx.user);
   const rows = await withoutUser((tx) =>
-    tx.select({ stage: userProfiles.onboardingStage }).from(userProfiles).where(eq(userProfiles.userId, ctx.user.id)).limit(1),
+    tx.select({ stage: userProfiles.onboardingStage, tour: userProfiles.tourCompletedAt }).from(userProfiles).where(eq(userProfiles.userId, ctx.user.id)).limit(1),
   );
   return NextResponse.json({
     name: ctx.user.displayName,
     email: ctx.user.email,
     setupDone: rows[0]?.stage === 'done' || Boolean(ctx.user.onboardingCompletedAt),
     id: ctx.user.id,
+    tourDone: Boolean(rows[0]?.tour),
     admin: plan.admin,
     plusEnabled: plan.enabled,
     plus: plan.plus,

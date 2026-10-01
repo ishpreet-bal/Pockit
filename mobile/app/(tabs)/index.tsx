@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Text, useWindowDimensions, View } from 'react-native';
 import { Button, Field, FormError, toMinor } from '@/components/form';
 import { api } from '@/lib/api';
@@ -11,8 +11,21 @@ import { useSummary, type Summary } from '@/lib/summary';
 import { space, type, useColors } from '@/theme/tokens';
 
 /** Home: how much can I spend, what's coming up, and a glance at goals and investments. */
+// Once per app launch at most, so dismissing it never brings it straight back.
+let tourOffered = false;
+
 export default function Home() {
-  const { me } = useSession();
+  const { me, demo } = useSession();
+  // The walkthrough opens by itself the first time: after setup, or when someone
+  // starts the demo. Skipping it counts as seeing it.
+  useEffect(() => {
+    if (tourOffered || !me) return;
+    if (demo || me.tourDone === false) {
+      tourOffered = true;
+      const t = setTimeout(() => router.push('/tour'), 600);
+      return () => clearTimeout(t);
+    }
+  }, [me, demo]);
   const { data, error, refreshing, refresh } = useSummary();
   const first = me?.name?.split(' ')[0];
   return (

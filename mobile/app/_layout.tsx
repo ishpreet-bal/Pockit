@@ -60,6 +60,8 @@ export default function RootLayout() {
           <Stack.Screen name="settings" />
           <Stack.Screen name="plus" options={{ presentation: 'modal' }} />
           <Stack.Screen name="dev" />
+          <Stack.Screen name="learn" />
+          <Stack.Screen name="tour"options={{ presentation: 'fullScreenModal', animation: 'fade' }} />
         </Stack>
         </AppLock>
       </ThemeProvider>
