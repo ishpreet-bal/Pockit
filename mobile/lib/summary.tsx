@@ -72,7 +72,13 @@ export function SummaryProvider({ children }: { children: ReactNode }) {
     } finally { setRefreshing(false); }
   }, []);
 
-  useEffect(() => { if (status === 'signed-in') void refresh(); }, [status, refresh]);
+  const { demo } = useSession();
+  useEffect(() => {
+    // Demo shows sample figures; leaving it (or signing out) must not leave them behind.
+    if (PREVIEW) { setData(previewSummary); return; }
+    if (status === 'signed-in') void refresh();
+    else setData(null);
+  }, [status, demo, refresh]);
 
   return <Ctx.Provider value={{ data, error, refreshing, refresh }}>{children}</Ctx.Provider>;
 }

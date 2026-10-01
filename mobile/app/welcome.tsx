@@ -4,6 +4,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { PockMark } from '@/components/Pock';
 import { Button } from '@/components/form';
+import { useSession } from '@/lib/session';
 import { space, type, useColors } from '@/theme/tokens';
 
 /** The first screen anyone sees. One sentence about what Pockit does, and two ways in. */
@@ -11,6 +12,7 @@ export default function Welcome() {
   const c = useColors();
   const a = c.section.home;
   const insets = useSafeAreaInsets();
+  const { enterDemo } = useSession();
   return (
     <View style={{ flex: 1, backgroundColor: c.bg, paddingTop: insets.top, paddingBottom: Math.max(insets.bottom, space.lg), paddingHorizontal: space.xl }}>
       <View style={{ flex: 1, justifyContent: 'center' }}>
@@ -26,8 +28,9 @@ export default function Welcome() {
       </View>
       <Animated.View entering={FadeInDown.delay(450).duration(600)} style={{ gap: space.sm }}>
         <Button label="Get started" onPress={() => router.push('/sign-up')} />
+        <Button label="Look around first" variant="secondary" onPress={() => { enterDemo(); router.replace('/'); }} />
         <Button label="I already have an account" variant="plain" onPress={() => router.push('/sign-in')} />
-        <Text style={[type.caption, { color: c.textSubtle, textAlign: 'center', marginTop: space.xs }]}>Free · takes about two minutes</Text>
+        <Text style={[type.caption, { color: c.textSubtle, textAlign: 'center', marginTop: space.xs }]}>Free · the demo needs no account</Text>
       </Animated.View>
     </View>
   );

@@ -5,6 +5,7 @@ import * as Haptics from 'expo-haptics';
 import { router } from 'expo-router';
 import { radius, space, type, useColors, type Section } from '@/theme/tokens';
 import { Icon } from './Icon';
+import { useSession } from '@/lib/session';
 
 const SectionContext = createContext<Section>('home');
 
@@ -157,6 +158,17 @@ export function formatMoney(minor: number, opts: { signed?: boolean; cents?: boo
  */
 export function PreviewBadge() {
   const c = useColors();
+  const { demo, exitDemo } = useSession();
+  if (demo) {
+    return (
+      <View style={[s.previewBadge, { backgroundColor: c.section.home.soft, flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 6 }]}>
+        <Text style={[type.caption, { color: c.section.home.accent }]}>Demo · sample data</Text>
+        <Pressable onPress={() => { exitDemo(); router.replace('/welcome'); }} hitSlop={8} accessibilityRole="button">
+          <Text style={[type.caption, { color: c.text, textDecorationLine: 'underline' }]}>Exit demo</Text>
+        </Pressable>
+      </View>
+    );
+  }
   return (
     <View style={[s.previewBadge, { backgroundColor: c.surface2 }]}>
       <Text style={[type.caption, { color: c.textMuted }]}>Design preview · sample figures</Text>
