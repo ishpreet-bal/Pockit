@@ -13,7 +13,8 @@
       "buildNumber": "1",
       "infoPlist": {
         "NSFaceIDUsageDescription": "Pockit uses Face ID to keep your money private when you open the app.",
-        "ITSAppUsesNonExemptEncryption": false
+        "ITSAppUsesNonExemptEncryption": false,
+        "NSLocationWhenInUseUsageDescription": "Pockit uses your location as the starting point when you plan a trip."
       }
     },
     "android": {
@@ -54,6 +55,12 @@
         "expo-notifications",
         {
           "color": "#6d4aff"
+        }
+      ],
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Pockit uses your location as the starting point when you plan a trip."
         }
       ]
     ],

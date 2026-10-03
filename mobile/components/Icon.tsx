@@ -37,6 +37,8 @@ const WEB: Record<string, string> = {
   'airplane': 'flight',
   'laptopcomputer': 'laptop_mac',
   'bubble.left': 'chat_bubble',
+  'location': 'near_me',
+  'map': 'map',
 };
 
 export function Icon({ name, size = 20, color }: { name: string; size?: number; color: string }) {

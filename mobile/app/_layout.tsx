@@ -64,6 +64,8 @@ export default function RootLayout() {
           <Stack.Screen name="dev" />
           <Stack.Screen name="learn" />
           <Stack.Screen name="budget" />
+          <Stack.Screen name="trip" />
+          <Stack.Screen name="vehicle" options={{ presentation: 'modal' }} />
           <Stack.Screen name="tour" options={{ presentation: 'fullScreenModal', animation: 'fade' }} />
         </Stack>
         </AppLock>

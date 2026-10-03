@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Pressable, Text, TextInput, View } from 'react-native';
+import { Icon } from '@/components/Icon';
 import { router } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { Button, FormError, toMinor } from '@/components/form';
@@ -138,6 +139,7 @@ export default function Budget() {
               {lines.length - planned.length} {lines.length - planned.length === 1 ? 'category isn’t' : 'categories aren’t'} budgeted. Tap Edit to add {lines.length - planned.length === 1 ? 'it' : 'them'}.
             </Text>
           ) : null}
+          <TripCard />
         </>
       )}
     </Screen>
@@ -147,4 +149,24 @@ export default function Budget() {
 function EditButton({ onPress }: { onPress: () => void }) {
   const a = useAccent();
   return <Pressable onPress={onPress} hitSlop={12} accessibilityRole="button"><Text style={[type.bodyStrong, { color: a.accent }]}>Edit</Text></Pressable>;
+}
+
+/** Driving somewhere? Work out the gas before it lands in Transportation. */
+function TripCard() {
+  const c = useColors();
+  const a = useAccent();
+  return (
+    <Card style={{ marginTop: space.xl }} onPress={() => router.push('/trip')}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.md, padding: space.lg }}>
+        <View style={{ width: 42, height: 42, borderRadius: 13, backgroundColor: a.soft, alignItems: 'center', justifyContent: 'center' }}>
+          <Icon name="car" size={22} color={a.accent} />
+        </View>
+        <View style={{ flex: 1 }}>
+          <Text style={[type.bodyStrong, { color: c.text }]}>Plan a trip</Text>
+          <Text style={[type.footnote, { color: c.textMuted }]}>What a drive or your commute costs in gas</Text>
+        </View>
+        <Icon name="chevron.right" size={15} color={c.textSubtle} />
+      </View>
+    </Card>
+  );
 }
