@@ -37,7 +37,7 @@ function Body({ d }: { d: Summary }) {
     return (
       <>
         <EmptyCard title="No goals yet" body="An emergency fund, a trip, a car — add one and Pockit tells you how much to put aside each month." />
-        <Card style={{ padding: space.lg, marginTop: 12, alignItems: 'center' }} onPress={() => router.push('/new-goal')}>
+        <Card style={{ paddingVertical: space.lg, marginTop: 12, alignItems: 'center' }} onPress={() => router.push('/new-goal')}>
           <Text style={[type.bodyStrong, { color: a.accent }]}>+ Add a goal</Text>
         </Card>
       </>
@@ -58,7 +58,7 @@ function Body({ d }: { d: Summary }) {
           const date = byDate(g.targetDate);
           const tone = g.status === 'behind' ? c.warning : g.status === 'open' ? c.textMuted : a.accent;
           return (
-            <Card key={g.id} style={{ padding: space.lg }} onPress={() => router.push({ pathname: '/goal/[id]', params: { id: g.id } })}>
+            <Card key={g.id} style={{ paddingVertical: space.lg }} onPress={() => router.push({ pathname: '/goal/[id]', params: { id: g.id } })}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.md }}>
                 <View style={{ flex: 1 }}>
                   <Text style={[type.headline, { color: c.text }]}>{g.name}</Text>
@@ -83,7 +83,7 @@ function NewGoalButton() {
   const a = useAccent();
   return (
     <Pressable onPress={() => router.push('/new-goal')} accessibilityRole="button" accessibilityLabel="New goal" hitSlop={8}
-      style={{ width: 42, height: 42, borderRadius: 14, backgroundColor: a.soft, alignItems: 'center', justifyContent: 'center' }}>
+      style={{ width: 34, height: 34, borderRadius: 17, borderWidth: 1, borderColor: a.accent, alignItems: 'center', justifyContent: 'center' }}>
       <Icon name="plus" size={20} color={a.accent} />
     </Pressable>
   );

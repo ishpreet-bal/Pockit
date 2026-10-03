@@ -111,7 +111,7 @@ export default function Add() {
           <Text style={[type.footnote, { color: c.textMuted, marginBottom: 6 }]}>{kind === 'expense' ? 'Where or what?' : 'From?'}</Text>
           <TextInput value={what} onChangeText={(t) => { picked.current = false; setWhat(t); }} placeholder={kind === 'expense' ? 'Loblaws, rent, coffee…' : 'Paycheque, refund…'}
             placeholderTextColor={c.textSubtle} accessibilityLabel="Where or what"
-            style={{ height: 52, borderRadius: 14, paddingHorizontal: space.lg, backgroundColor: c.surface, borderWidth: 1.5, borderColor: c.border, fontFamily: font.regular, fontSize: 17, color: c.text }} />
+            style={{ height: 52, borderRadius: 6, paddingHorizontal: space.lg, backgroundColor: c.surface, borderWidth: 1.5, borderColor: c.border, fontFamily: font.regular, fontSize: 17, color: c.text }} />
           {suggestions.length ? (
             <View style={{ marginTop: 8, gap: 6 }}>
               {suggestions.map((s) => (

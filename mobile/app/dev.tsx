@@ -46,7 +46,7 @@ export default function Dev() {
   return (
     <Screen section="more" title="Developer" back>
       <Text style={[type.footnote, { color: c.textMuted, marginBottom: space.md }]}>Only you can see this screen.</Text>
-      <Card style={{ padding: space.lg, gap: 10 }}>
+      <Card style={{ paddingVertical: space.lg, gap: 10 }}>
         {info.map(([k, v]) => (
           <View key={k} style={{ flexDirection: 'row', justifyContent: 'space-between', gap: space.md }}>
             <Text style={[type.footnote, { color: c.textMuted }]}>{k}</Text>

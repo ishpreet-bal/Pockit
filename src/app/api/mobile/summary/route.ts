@@ -75,7 +75,7 @@ export async function GET() {
       short: d.available.tone === 'attention',
       daysLeft: d.position.daysLeftInPeriod,
       nextIncome: d.nextIncome ? { name: d.nextIncome.name, date: d.nextIncome.date, amountMinor: n(d.nextIncome.amountMinor) } : null,
-      upcoming: d.upcoming.slice(0, 3).map((u) => ({ name: u.name, date: u.date, amountMinor: n(u.amountMinor) })),
+      upcoming: d.position.soonCommitments.filter((u) => u.kind !== 'income').slice(0, 8).map((u) => ({ name: u.name, date: u.date, amountMinor: n(u.amountMinor) })),
       /** Monthly net cash flow for the small chart: positive months saved, negative spent more than came in. */
       trend: d.series6.map((m) => ({ month: m.month, netMinor: n(m.net) })),
     },
@@ -83,6 +83,9 @@ export async function GET() {
     spending: {
       spentMinor: n(d.spent),
       spentDeltaMinor: n(d.spentDeltaMinor),
+      periodStart: d.period.start,
+      periodEnd: d.period.end,
+      daily: d.dailySpend.map((x) => ({ date: x.date, amountMinor: n(x.amountMinor) })),
       budgetMinor: budget ? n(budget.totalTargetMinor) : null,
       categories: d.topCategories.slice(0, 4).map((c) => ({
         id: c.id, name: c.name, icon: c.icon, amountMinor: n(c.amountMinor), budgetMinor: byCategory.get(c.id) ?? null,

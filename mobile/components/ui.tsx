@@ -16,8 +16,9 @@ export function useAccent() {
 }
 
 /**
- * A tab's page. Every tab uses this so they share one rhythm: a small eyebrow,
- * a large title, content below, clear of the notch and the tab bar.
+ * A page. The title is a small line of spaced capitals across the top (the
+ * page's big number is its real headline), content below, clear of the notch
+ * and the tab bar.
  */
 export function Screen({
   section, eyebrow, title, right, children, onRefresh, refreshing = false, back,
@@ -32,16 +33,15 @@ export function Screen({
         contentInsetAdjustmentBehavior="never"
         refreshControl={onRefresh ? <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={c.section[section].accent} /> : undefined}
       >
-        {back ? (
-          <Pressable onPress={() => router.back()} hitSlop={12} accessibilityRole="button" accessibilityLabel="Back" style={{ flexDirection: 'row', alignItems: 'center', gap: 2, marginBottom: space.sm, alignSelf: 'flex-start' }}>
-            <Icon name="chevron.left" size={20} color={c.section[section].accent} />
-            <Text style={[type.bodyStrong, { color: c.section[section].accent }]}>Back</Text>
-          </Pressable>
-        ) : null}
         <View style={s.titleRow}>
+          {back ? (
+            <Pressable onPress={() => router.back()} hitSlop={12} accessibilityRole="button" accessibilityLabel="Back" style={{ flexDirection: 'row', alignItems: 'center', marginRight: space.md }}>
+              <Icon name="chevron.left" size={15} color={c.section[section].accent} />
+            </Pressable>
+          ) : null}
           <View style={{ flex: 1 }}>
-            {eyebrow ? <Text style={[type.subhead, { color: c.textMuted }]}>{eyebrow}</Text> : null}
-            <Text style={[type.largeTitle, { color: c.text }]} accessibilityRole="header">{title}</Text>
+            <Text style={[type.label, { color: c.textMuted }]} accessibilityRole="header" numberOfLines={1}>{title}</Text>
+            {eyebrow ? <Text style={[type.footnote, { color: c.textSubtle, marginTop: 2 }]}>{eyebrow}</Text> : null}
           </View>
           {right}
         </View>
@@ -53,12 +53,12 @@ export function Screen({
 
 export function Card({ children, style, onPress }: { children: ReactNode; style?: ViewStyle; onPress?: () => void }) {
   const c = useColors();
-  const base = [s.card, { backgroundColor: c.surface, borderColor: c.border }, style];
+  const base = [s.card, { borderColor: c.border }, style];
   if (!onPress) return <View style={base}>{children}</View>;
   return (
     <Pressable
       onPress={() => { void Haptics.selectionAsync(); onPress(); }}
-      style={({ pressed }) => [base, pressed && { opacity: 0.8, transform: [{ scale: 0.985 }] }]}
+      style={({ pressed }) => [base, pressed && { opacity: 0.6 }]}
     >
       {children}
     </Pressable>
@@ -70,32 +70,29 @@ export function SectionHeader({ title, action, onAction }: { title: string; acti
   const a = useAccent();
   return (
     <View style={s.sectionHeader}>
-      <Text style={[type.title3, { color: c.text }]}>{title}</Text>
+      <Text style={[type.label, { color: c.textMuted }]}>{title}</Text>
       {action ? (
-        <Pressable onPress={onAction} hitSlop={10}>
-          <Text style={[type.bodyStrong, { color: a.accent, fontSize: 15 }]}>{action}</Text>
+        <Pressable onPress={onAction} hitSlop={10} accessibilityRole="button">
+          <Text style={[type.label, { color: a.accent }]}>{action}</Text>
         </Pressable>
       ) : null}
     </View>
   );
 }
 
-/** One line in a list: icon tile, title and detail, value on the right. */
+/** One line in a list: title and detail on the left, the figure on the right. No icons. */
 export function Row({
   icon, emoji, title, detail, value, valueColor, last, onPress,
 }: {
   icon: string; emoji?: string | null; title: string; detail?: string; value?: string; valueColor?: string; last?: boolean; onPress?: () => void;
 }) {
   const c = useColors();
-  const a = useAccent();
+  void icon; void emoji;
   return (
     <Pressable
       onPress={onPress ? () => { void Haptics.selectionAsync(); onPress(); } : undefined}
       style={({ pressed }) => [s.row, !last && { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: c.border }, pressed && onPress && { opacity: 0.6 }]}
     >
-      <View style={[s.iconTile, { backgroundColor: a.soft }]}>
-        {emoji ? <Text style={{ fontSize: 17 }}>{emoji}</Text> : <Icon name={icon} size={17} color={a.accent} />}
-      </View>
       <View style={{ flex: 1 }}>
         <Text style={[type.body, { color: c.text }]} numberOfLines={1}>{title}</Text>
         {detail ? <Text style={[type.footnote, { color: c.textMuted, marginTop: 1 }]}>{detail}</Text> : null}
@@ -109,8 +106,8 @@ export function ProgressBar({ value, height = 6 }: { value: number; height?: num
   const c = useColors();
   const a = useAccent();
   return (
-    <View style={{ height, borderRadius: height, backgroundColor: c.surface2, overflow: 'hidden' }}>
-      <View style={{ width: `${Math.max(0, Math.min(1, value)) * 100}%`, height: '100%', borderRadius: height, backgroundColor: a.accent }} />
+    <View style={{ height: Math.min(height, 3), backgroundColor: c.surface2, overflow: 'hidden' }}>
+      <View style={{ width: `${Math.max(0, Math.min(1, value)) * 100}%`, height: '100%', backgroundColor: value > 1 ? c.negative : a.accent }} />
     </View>
   );
 }
@@ -119,16 +116,18 @@ export function ProgressBar({ value, height = 6 }: { value: number; height?: num
 export function Segmented<T extends string>({ options, value, onChange }: { options: readonly T[]; value: T; onChange: (v: T) => void }) {
   const c = useColors();
   return (
-    <View style={{ flexDirection: 'row', gap: 6 }}>
+    <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
       {options.map((o) => {
         const on = o === value;
         return (
           <Pressable
             key={o}
             onPress={() => { void Haptics.selectionAsync(); onChange(o); }}
-            style={{ paddingHorizontal: 12, paddingVertical: 6, borderRadius: radius.pill, backgroundColor: on ? c.surface2 : 'transparent' }}
+            accessibilityRole="button"
+            accessibilityState={{ selected: on }}
+            style={{ paddingVertical: 6, marginRight: 14, borderBottomWidth: 1.5, borderBottomColor: on ? c.section.home.accent : 'transparent' }}
           >
-            <Text style={[type.caption, { color: on ? c.text : c.textMuted }]}>{o}</Text>
+            <Text style={[type.label, { color: on ? c.text : c.textMuted }]}>{o}</Text>
           </Pressable>
         );
       })}
@@ -161,10 +160,10 @@ export function PreviewBadge() {
   const { demo, exitDemo } = useSession();
   if (demo) {
     return (
-      <View style={[s.previewBadge, { backgroundColor: c.section.home.soft, flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 6 }]}>
-        <Text style={[type.caption, { color: c.section.home.accent }]}>Demo · sample data</Text>
+      <View style={[s.previewBadge, { flexDirection: 'row', alignItems: 'center', gap: 14 }]}>
+        <Text style={[type.label, { color: c.section.home.accent }]}>Demo · sample data</Text>
         <Pressable onPress={() => { exitDemo(); router.replace('/welcome'); }} hitSlop={8} accessibilityRole="button">
-          <Text style={[type.caption, { color: c.text, textDecorationLine: 'underline' }]}>Exit demo</Text>
+          <Text style={[type.label, { color: c.text, textDecorationLine: 'underline' }]}>Exit demo</Text>
         </Pressable>
       </View>
     );
@@ -177,12 +176,13 @@ export function PreviewBadge() {
 }
 
 const s = StyleSheet.create({
-  titleRow: { flexDirection: 'row', alignItems: 'center', marginBottom: space.lg },
-  card: { borderRadius: radius.card, borderWidth: StyleSheet.hairlineWidth, overflow: 'hidden' },
-  sectionHeader: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', marginTop: space.xxl, marginBottom: space.md },
-  row: { flexDirection: 'row', alignItems: 'center', gap: space.md, paddingVertical: 13, paddingHorizontal: space.lg },
+  titleRow: { flexDirection: 'row', alignItems: 'center', minHeight: 30, marginBottom: space.xl },
+  // No boxes: a group is held together by a hairline above and below.
+  card: { borderTopWidth: StyleSheet.hairlineWidth, borderBottomWidth: StyleSheet.hairlineWidth, overflow: 'hidden' },
+  sectionHeader: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', marginTop: 36, marginBottom: space.sm },
+  row: { flexDirection: 'row', alignItems: 'center', gap: space.md, paddingVertical: 14 },
   iconTile: { width: 36, height: 36, borderRadius: radius.tile, alignItems: 'center', justifyContent: 'center' },
-  previewBadge: { alignSelf: 'flex-start', paddingHorizontal: 10, paddingVertical: 4, borderRadius: radius.pill, marginBottom: space.md },
+  previewBadge: { alignSelf: 'flex-start', paddingVertical: 4, marginBottom: space.md },
 });
 
 /** "Today", "Tomorrow", "Yesterday", or "Oct 3" — dates the way people say them. */
@@ -199,9 +199,9 @@ export function friendlyDate(iso: string, today: string): string {
 export function EmptyCard({ title, body }: { title: string; body: string }) {
   const c = useColors();
   return (
-    <View style={[s.card, { backgroundColor: c.surface, borderColor: c.border, padding: space.xl, alignItems: 'center' }]}>
-      <Text style={[type.headline, { color: c.text, textAlign: 'center' }]}>{title}</Text>
-      <Text style={[type.footnote, { color: c.textMuted, textAlign: 'center', marginTop: 6, lineHeight: 18 }]}>{body}</Text>
+    <View style={[s.card, { borderColor: c.border, paddingVertical: space.xl }]}>
+      <Text style={[type.headline, { color: c.text }]}>{title}</Text>
+      <Text style={[type.footnote, { color: c.textMuted, marginTop: 6, lineHeight: 20 }]}>{body}</Text>
     </View>
   );
 }
@@ -211,7 +211,7 @@ export function StaleNote({ message }: { message: string | null }) {
   const c = useColors();
   if (!message) return null;
   return (
-    <View style={{ backgroundColor: c.surface2, borderRadius: 12, padding: 10, marginBottom: space.md }}>
+    <View style={{ borderLeftWidth: 2, borderLeftColor: c.warning, paddingLeft: 10, paddingVertical: 4, marginBottom: space.md }}>
       <Text style={[type.footnote, { color: c.textMuted }]}>{message}</Text>
     </View>
   );

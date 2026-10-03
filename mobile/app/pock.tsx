@@ -101,7 +101,7 @@ export default function Pock() {
             </View>
             <View style={{ gap: 8 }}>
               {starters.map((s) => (
-                <Pressable key={s} onPress={() => void ask(s)} style={({ pressed }) => ({ padding: 14, borderRadius: 14, backgroundColor: c.surface, borderWidth: 1, borderColor: c.border, opacity: pressed ? 0.7 : 1 })}>
+                <Pressable key={s} onPress={() => void ask(s)} style={({ pressed }) => ({ padding: 14, borderRadius: 6, backgroundColor: c.surface, borderWidth: 1, borderColor: c.border, opacity: pressed ? 0.7 : 1 })}>
                   <Text style={[type.subhead, { color: c.text }]}>{s}</Text>
                 </Pressable>
               ))}
@@ -110,7 +110,7 @@ export default function Pock() {
         ) : messages.map((m, i) => (
           <Animated.View key={i} entering={FadeInUp.duration(250)} style={{ alignSelf: m.role === 'user' ? 'flex-end' : 'flex-start', maxWidth: '85%' }}>
             <View style={{
-              paddingHorizontal: 14, paddingVertical: 10, borderRadius: 18,
+              paddingHorizontal: 14, paddingVertical: 10, borderRadius: 6,
               borderBottomRightRadius: m.role === 'user' ? 6 : 18, borderBottomLeftRadius: m.role === 'user' ? 18 : 6,
               backgroundColor: m.role === 'user' ? a.accent : m.role === 'problem' ? c.surface2 : c.surface,
               borderWidth: m.role === 'pock' ? 1 : 0, borderColor: c.border,
@@ -137,7 +137,7 @@ export default function Pock() {
           {left} free question{left === 1 ? '' : 's'} left this month · <Text style={{ color: a.accent }} onPress={() => router.push('/plus')}>Go unlimited</Text>
         </Text>
       ) : null}
-      <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: 8, paddingHorizontal: space.lg, paddingTop: space.sm, paddingBottom: Math.max(insets.bottom, space.md), borderTopWidth: 0.5, borderTopColor: c.border }}>
+      <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: 8, paddingTop: space.sm, paddingBottom: Math.max(insets.bottom, space.md), borderTopWidth: 0.5, borderTopColor: c.border }}>
         <TextInput value={draft} onChangeText={setDraft} placeholder={learn ? 'Ask about investing or money' : 'Ask anything about your money'} placeholderTextColor={c.textSubtle} multiline
           accessibilityLabel="Your question" onSubmitEditing={() => void ask(draft)} blurOnSubmit
           style={{ flex: 1, maxHeight: 120, minHeight: 44, borderRadius: radius.control, backgroundColor: c.surface2, paddingHorizontal: 14, paddingTop: 11, paddingBottom: 11, fontFamily: font.regular, fontSize: 16, color: c.text, ...(Platform.OS === 'web' ? ({ outlineStyle: 'none' } as object) : {}) }} />

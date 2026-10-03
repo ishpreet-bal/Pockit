@@ -8,19 +8,20 @@ import type { Summary } from '@/lib/summary';
  */
 export const previewSummary: Summary = {
   currency: 'CAD',
-  today: '2026-09-30',
+  today: '2026-10-02',
   hasData: true,
   hasBalance: true,
   home: {
     safeToSpendMinor: 124_000,
     explanation: '$3,040 in cash, minus $1,800 of bills still to pay this month.',
     short: false,
-    daysLeft: 1,
-    nextIncome: { name: 'Payday', date: '2026-10-01', amountMinor: 240_000 },
+    daysLeft: 8,
+    nextIncome: { name: 'Payday', date: '2026-10-10', amountMinor: 210_000 },
     upcoming: [
-      { name: 'Rent', date: '2026-10-01', amountMinor: 180_000 },
-      { name: 'Phone', date: '2026-10-03', amountMinor: 6_000 },
-      { name: 'Spotify', date: '2026-10-05', amountMinor: 1_199 },
+      { name: 'Rogers', date: '2026-10-06', amountMinor: 6_500 },
+      { name: 'Spotify', date: '2026-10-08', amountMinor: 1_199 },
+      { name: 'Toronto Hydro', date: '2026-10-09', amountMinor: 9_200 },
+      { name: 'Rent', date: '2026-11-01', amountMinor: 145_000 },
     ],
     trend: [
       { month: '2026-04', netMinor: 42_000 }, { month: '2026-05', netMinor: 61_000 }, { month: '2026-06', netMinor: -12_000 },
@@ -28,9 +29,15 @@ export const previewSummary: Summary = {
     ],
   },
   spending: {
-    spentMinor: 142_350,
+    spentMinor: 105_300,
     spentDeltaMinor: -8_600,
-    budgetMinor: 200_000,
+    budgetMinor: 163_000,
+    periodStart: '2026-10-01',
+    periodEnd: '2026-10-31',
+    daily: [
+      { date: '2026-10-01', amountMinor: 61_200 },
+      { date: '2026-10-02', amountMinor: 44_100 },
+    ],
     categories: [
       { id: '1', name: 'Groceries', icon: '🛒', amountMinor: 48_210, budgetMinor: 55_000 },
       { id: '2', name: 'Eating out', icon: '🍽️', amountMinor: 31_540, budgetMinor: 25_000 },
@@ -38,9 +45,9 @@ export const previewSummary: Summary = {
       { id: '4', name: 'Coffee', icon: '☕', amountMinor: 6_700, budgetMinor: 8_000 },
     ],
     recent: [
-      { id: 'a', name: 'No Frills', date: '2026-09-30', amountMinor: -6_432, icon: '🛒', category: 'Groceries' },
-      { id: 'b', name: 'Presto', date: '2026-09-30', amountMinor: -1_000, icon: '🚗', category: 'Transport' },
-      { id: 'c', name: 'Tim Hortons', date: '2026-09-29', amountMinor: -485, icon: '☕', category: 'Coffee' },
+      { id: 'a', name: 'No Frills', date: '2026-10-02', amountMinor: -6_432, icon: '🛒', category: 'Groceries' },
+      { id: 'b', name: 'Presto', date: '2026-10-02', amountMinor: -1_000, icon: '🚗', category: 'Transport' },
+      { id: 'c', name: 'Tim Hortons', date: '2026-10-01', amountMinor: -485, icon: '☕', category: 'Coffee' },
     ],
   },
   goals: [
@@ -67,9 +74,9 @@ export const previewSummary: Summary = {
 export const previewTransactions = {
   month: '2026-09',
   transactions: [
-    { id: 't1', name: 'No Frills', date: '2026-09-30', amountMinor: -6_432, category: 'Groceries', icon: '🛒' },
-    { id: 't2', name: 'Presto', date: '2026-09-30', amountMinor: -1_000, category: 'Transport', icon: '🚗' },
-    { id: 't3', name: 'Tim Hortons', date: '2026-09-29', amountMinor: -485, category: 'Coffee', icon: '☕' },
+    { id: 't1', name: 'No Frills', date: '2026-10-02', amountMinor: -6_432, category: 'Groceries', icon: '🛒' },
+    { id: 't2', name: 'Presto', date: '2026-10-02', amountMinor: -1_000, category: 'Transport', icon: '🚗' },
+    { id: 't3', name: 'Tim Hortons', date: '2026-10-01', amountMinor: -485, category: 'Coffee', icon: '☕' },
     { id: 't4', name: 'Spotify', date: '2026-09-28', amountMinor: -1_199, category: 'Subscriptions', icon: '🎵' },
     { id: 't5', name: 'Payroll', date: '2026-09-26', amountMinor: 240_000, category: 'Salary', icon: '💼' },
     { id: 't6', name: 'Uber Eats', date: '2026-09-25', amountMinor: -3_120, category: 'Eating out', icon: '🍽️' },

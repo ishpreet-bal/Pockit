@@ -120,7 +120,7 @@ export default function Trip() {
 
       <SectionHeader title="Your car" />
       <Card onPress={() => router.push('/vehicle')}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.md, padding: space.lg }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.md, paddingVertical: space.lg }}>
           <View style={{ width: 42, height: 42, borderRadius: 13, backgroundColor: a.soft, alignItems: 'center', justifyContent: 'center' }}>
             <Icon name="car" size={22} color={a.accent} />
           </View>
@@ -154,7 +154,7 @@ export default function Trip() {
 
       {mode === 'One trip' ? (
         <Card style={{ marginTop: space.md }}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', padding: space.lg }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: space.lg }}>
             <Text style={[type.body, { color: c.text, flex: 1 }]}>Round trip</Text>
             <Switch value={roundTrip} onValueChange={setRoundTrip} trackColor={{ true: a.accent }} accessibilityLabel="Round trip" />
           </View>
@@ -194,7 +194,7 @@ export default function Trip() {
         <>
           <SectionHeader title="The cost" />
           <Card>
-            <View style={{ padding: space.lg }}>
+            <View style={{ paddingVertical: space.lg }}>
               {mode === 'One trip' ? (
                 <>
                   <Text style={[type.subhead, { color: c.textMuted }]}>{roundTrip ? 'There and back' : 'One way'}</Text>
@@ -275,7 +275,7 @@ function Stat({ label, value }: { label: string; value: string }) {
 function NumberRow({ label, hint, prefix, suffix, value, placeholder, onChange, last }: { label: string; hint?: string; prefix?: string; suffix: string; value: string; placeholder: string; onChange: (v: string) => void; last?: boolean }) {
   const c = useColors();
   return (
-    <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.md, paddingHorizontal: space.lg, paddingVertical: 10, borderBottomWidth: last ? 0 : 0.5, borderBottomColor: c.border }}>
+    <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.md, paddingVertical: 10, borderBottomWidth: last ? 0 : 0.5, borderBottomColor: c.border }}>
       <View style={{ flex: 1 }}>
         <Text style={[type.body, { color: c.text }]}>{label}</Text>
         {hint ? <Text style={[type.footnote, { color: c.textMuted }]}>{hint}</Text> : null}
@@ -326,7 +326,7 @@ function PlaceField({ label, value, onChange, near, offerHere }: { label: string
   if (!editing) {
     return (
       <Card onPress={() => { setEditing(true); setQ(''); }}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.md, padding: space.lg }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.md, paddingVertical: space.lg }}>
           <Text style={[type.caption, { color: c.textMuted, width: 42 }]}>{label.toUpperCase()}</Text>
           <View style={{ flex: 1 }}>
             <Text style={[type.body, { color: value ? c.text : c.textSubtle }]} numberOfLines={1}>{value?.name ?? 'Search for a place'}</Text>
@@ -339,14 +339,14 @@ function PlaceField({ label, value, onChange, near, offerHere }: { label: string
 
   return (
     <Card>
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.md, paddingHorizontal: space.lg, height: 52, borderBottomWidth: 0.5, borderBottomColor: c.border }}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.md, height: 52, borderBottomWidth: 0.5, borderBottomColor: c.border }}>
         <Text style={[type.caption, { color: c.textMuted, width: 42 }]}>{label.toUpperCase()}</Text>
         <TextInput autoFocus value={q} onChangeText={setQ} placeholder="Address, place or city" placeholderTextColor={c.textSubtle} accessibilityLabel={`${label} place`}
           style={{ flex: 1, fontFamily: font.regular, fontSize: 16, color: c.text }} />
         <Pressable onPress={() => setEditing(false)} hitSlop={10}><Text style={[type.subhead, { color: a.accent }]}>Cancel</Text></Pressable>
       </View>
       {offerHere ? (
-        <Pressable onPress={() => void useHere()} style={{ flexDirection: 'row', alignItems: 'center', gap: space.md, padding: space.lg, borderBottomWidth: results.length ? 0.5 : 0, borderBottomColor: c.border }}>
+        <Pressable onPress={() => void useHere()} style={{ flexDirection: 'row', alignItems: 'center', gap: space.md, paddingVertical: space.lg, borderBottomWidth: results.length ? 0.5 : 0, borderBottomColor: c.border }}>
           <Icon name="location" size={18} color={a.accent} />
           <Text style={[type.bodyStrong, { color: a.accent }]}>{busy ? 'Finding you…' : 'Use my current location'}</Text>
         </Pressable>

@@ -106,8 +106,8 @@ export default function Learn() {
           return (
             <Card key={t.id} style={{ padding: 0 }}>
               <Pressable onPress={() => { void Haptics.selectionAsync(); setOpen(isOpen ? null : t.id); }} accessibilityRole="button" accessibilityState={{ expanded: isOpen }}
-                style={{ flexDirection: 'row', alignItems: 'center', gap: space.md, padding: space.lg }}>
-                <View style={{ width: 44, height: 44, borderRadius: 14, backgroundColor: a.soft, alignItems: 'center', justifyContent: 'center' }}>
+                style={{ flexDirection: 'row', alignItems: 'center', gap: space.md, paddingVertical: space.lg }}>
+                <View style={{ width: 44, height: 44, borderRadius: 6, backgroundColor: a.soft, alignItems: 'center', justifyContent: 'center' }}>
                   <Text style={{ fontSize: 22 }}>{t.emoji}</Text>
                 </View>
                 <View style={{ flex: 1 }}>
@@ -117,7 +117,7 @@ export default function Learn() {
                 <Text style={[type.title3, { color: c.textSubtle }]}>{isOpen ? '−' : '+'}</Text>
               </Pressable>
               {isOpen ? (
-                <Animated.View entering={FadeIn.duration(220)} style={{ paddingHorizontal: space.lg, paddingBottom: space.lg, gap: 10 }}>
+                <Animated.View entering={FadeIn.duration(220)} style={{ paddingBottom: space.lg, gap: 10 }}>
                   {t.points.map((p) => (
                     <View key={p} style={{ flexDirection: 'row', gap: 8 }}>
                       <Text style={{ color: a.accent }}>•</Text>

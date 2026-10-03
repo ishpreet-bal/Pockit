@@ -12,7 +12,7 @@ import { setAppearance, space, type, useAppearance, useColors, type Appearance }
 function Toggle({ title, detail, value, onChange, disabled, last }: { title: string; detail: string; value: boolean; onChange: (v: boolean) => void; disabled?: boolean; last?: boolean }) {
   const c = useColors();
   return (
-    <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.md, padding: space.lg, borderBottomWidth: last ? 0 : 0.5, borderBottomColor: c.border, opacity: disabled ? 0.5 : 1 }}>
+    <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.md, paddingVertical: space.lg, borderBottomWidth: last ? 0 : 0.5, borderBottomColor: c.border, opacity: disabled ? 0.5 : 1 }}>
       <View style={{ flex: 1 }}>
         <Text style={[type.body, { color: c.text }]}>{title}</Text>
         <Text style={[type.footnote, { color: c.textMuted, marginTop: 2, lineHeight: 18 }]}>{detail}</Text>
@@ -72,7 +72,7 @@ export default function Settings() {
       </Card>
       {note ? <Text style={[type.footnote, { color: c.textMuted, marginTop: space.sm, marginLeft: 4 }]} onPress={note.includes('iPhone Settings') ? () => Linking.openSettings() : undefined}>{note}</Text> : null}
       <SectionHeader title="Account" />
-      <Card style={{ padding: space.lg, gap: 4 }}>
+      <Card style={{ paddingVertical: space.lg, gap: 4 }}>
         <Text style={[type.body, { color: c.text }]}>{me?.name ?? 'You'}</Text>
         <Text style={[type.footnote, { color: c.textMuted }]}>{me?.email}</Text>
       </Card>

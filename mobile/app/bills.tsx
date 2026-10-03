@@ -86,7 +86,7 @@ export default function Bills() {
           {bills.length ? <Text style={[type.subhead, { color: c.textMuted, marginBottom: space.lg }]}>{formatMoney(monthly, { cents: false })} a month in regular bills</Text> : null}
 
           {adding ? (
-            <Card style={{ padding: space.lg, gap: space.md, marginBottom: space.lg }}>
+            <Card style={{ paddingVertical: space.lg, gap: space.md, marginBottom: space.lg }}>
               <Field label="Name" value={name} onChangeText={setName} placeholder="Gym" autoFocus />
               <View style={{ flexDirection: 'row', gap: space.md }}>
                 <View style={{ flex: 3 }}><Field label="Amount" prefix="$" value={amount} onChangeText={setAmount} keyboardType="decimal-pad" placeholder="0" /></View>

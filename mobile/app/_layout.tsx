@@ -2,13 +2,7 @@ import { useEffect } from 'react';
 import { DarkTheme, DefaultTheme, Stack, ThemeProvider } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import * as SplashScreen from 'expo-splash-screen';
-import {
-  useFonts,
-  BricolageGrotesque_400Regular,
-  BricolageGrotesque_500Medium,
-  BricolageGrotesque_600SemiBold,
-  BricolageGrotesque_700Bold,
-} from '@expo-google-fonts/bricolage-grotesque';
+import { useFonts, Tinos_400Regular, Tinos_400Regular_Italic, Tinos_700Bold } from '@expo-google-fonts/tinos';
 import 'react-native-reanimated';
 import { setAppearance, useColors, useIsDark } from '@/theme/tokens';
 import { getAppearance } from '@/lib/prefs';
@@ -22,12 +16,7 @@ export const unstable_settings = { initialRouteName: '(tabs)' };
 void SplashScreen.preventAutoHideAsync();
 
 export default function RootLayout() {
-  const [loaded] = useFonts({
-    BricolageGrotesque_400Regular,
-    BricolageGrotesque_500Medium,
-    BricolageGrotesque_600SemiBold,
-    BricolageGrotesque_700Bold,
-  });
+  const [loaded] = useFonts({ Tinos_400Regular, Tinos_400Regular_Italic, Tinos_700Bold });
   const c = useColors();
   const dark = useIsDark();
 

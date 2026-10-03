@@ -48,7 +48,7 @@ function SignOut() {
   const { signOut, me, demo, exitDemo } = useSession();
   return (
     <>
-      <Box style={{ marginTop: space.xxl, padding: space.lg, alignItems: 'center' }} onPress={async () => { if (demo) exitDemo(); else await signOut(); router.replace('/welcome'); }}>
+      <Box style={{ marginTop: space.xxl, paddingVertical: space.lg, alignItems: 'center' }} onPress={async () => { if (demo) exitDemo(); else await signOut(); router.replace('/welcome'); }}>
         <Text style={[type.bodyStrong, { color: c.negative }]}>{demo ? 'Exit demo' : 'Sign out'}</Text>
       </Box>
       {me?.email && !demo ? <Text style={[type.caption, { color: c.textSubtle, textAlign: 'center', marginTop: space.sm }]}>Signed in as {me.email}</Text> : null}

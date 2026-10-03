@@ -2,58 +2,51 @@ import { useSyncExternalStore } from 'react';
 import { useColorScheme } from 'react-native';
 
 /**
- * Pockit's design system: "Lilac".
+ * Pockit's design system: "Runway".
  *
- * Clean and calm, one strong number per screen, warmth from wording rather than
- * decoration. Light and dark follow the phone's setting.
+ * Your money as a countdown to payday. Warm black, one burnt-orange accent,
+ * and a single serif face for everything — big plain numbers, small spaced-out
+ * capitals for labels, hairlines instead of boxes. Light mode is the same idea
+ * on warm paper.
  *
- * Each section has its own accent so you always know where you are:
- * Home is lilac, Spending rose, Goals teal, Invest blue. The accent tints the tab
- * icon, the chart, progress bars and links on that section — nothing else.
+ * Every section shares the one accent: colour means "this matters", never
+ * "which tab you're on".
  */
 
 export type Section = 'home' | 'spending' | 'goals' | 'invest' | 'more';
 
-const light = {
-  bg: '#fbfbfd',
-  surface: '#ffffff',
-  surface2: '#f1eff8',
-  border: '#ebe8f3',
-  text: '#15131c',
-  textMuted: '#716c80',
-  textSubtle: '#9a95a8',
-  positive: '#1f9d57',
-  negative: '#d6344c',
-  warning: '#b7791f',
-  section: {
-    home: { accent: '#6d4aff', soft: '#f1edff' },
-    spending: { accent: '#e0457b', soft: '#fdecf2' },
-    goals: { accent: '#0f9488', soft: '#e3f6f3' },
-    invest: { accent: '#2f6bff', soft: '#e9f0ff' },
-    more: { accent: '#5b566a', soft: '#f1eff5' },
-  },
+const ACCENT_DARK = '#da5100';
+const ACCENT_LIGHT = '#c04600';
+const sections = (accent: string, soft: string) => ({
+  home: { accent, soft }, spending: { accent, soft }, goals: { accent, soft }, invest: { accent, soft }, more: { accent, soft },
+});
+
+const dark = {
+  bg: '#0e0f0c',
+  surface: '#141511',
+  surface2: '#1b1d18',
+  border: '#262822',
+  text: '#eceee6',
+  textMuted: '#8a8e80',
+  textSubtle: '#5c6055',
+  positive: ACCENT_DARK,
+  negative: '#ff5d6c',
+  warning: '#e8b04a',
+  section: sections(ACCENT_DARK, '#241a12'),
 };
 
-// Dark keeps the structure of the "Harbour" direction, but on a neutral violet-black
-// rather than navy, so the section colours stay the only colour on screen.
-const dark: typeof light = {
-  bg: '#0f0e14',
-  surface: '#18171f',
-  surface2: '#23222c',
-  border: '#27262f',
-  text: '#f3f1f8',
-  textMuted: '#9a96a8',
-  textSubtle: '#6f6b7d',
-  positive: '#6ee7a8',
-  negative: '#ff7a8a',
-  warning: '#f5c26b',
-  section: {
-    home: { accent: '#a794ff', soft: '#221d3a' },
-    spending: { accent: '#ff7aa6', soft: '#351b26' },
-    goals: { accent: '#4fd1c0', soft: '#132c2a' },
-    invest: { accent: '#7aa2ff', soft: '#172240' },
-    more: { accent: '#b9b4c8', soft: '#24222c' },
-  },
+const light: typeof dark = {
+  bg: '#f3f0e8',
+  surface: '#f8f6f0',
+  surface2: '#e8e4d9',
+  border: '#d9d4c7',
+  text: '#17160f',
+  textMuted: '#6d685b',
+  textSubtle: '#a39d8e',
+  positive: ACCENT_LIGHT,
+  negative: '#c9283b',
+  warning: '#9a6a12',
+  section: sections(ACCENT_LIGHT, '#f1e1d3'),
 };
 
 export type Palette = typeof light;
@@ -77,26 +70,29 @@ export function useColors(): Palette {
   return useIsDark() ? dark : light;
 }
 
+/** One serif, two weights. (Tinos: the classic newspaper serif, the same on every phone.) */
 export const font = {
-  regular: 'BricolageGrotesque_400Regular',
-  medium: 'BricolageGrotesque_500Medium',
-  semibold: 'BricolageGrotesque_600SemiBold',
-  bold: 'BricolageGrotesque_700Bold',
+  regular: 'Tinos_400Regular',
+  medium: 'Tinos_400Regular',
+  semibold: 'Tinos_700Bold',
+  bold: 'Tinos_700Bold',
+  italic: 'Tinos_400Regular_Italic',
 };
 
-/** Apple's text sizes, set in Bricolage Grotesque. */
 export const type = {
-  hero: { fontFamily: font.bold, fontSize: 46, letterSpacing: -1.4, fontVariant: ['tabular-nums' as const] },
-  largeTitle: { fontFamily: font.bold, fontSize: 32, letterSpacing: -0.8 },
-  title2: { fontFamily: font.bold, fontSize: 24, letterSpacing: -0.4 },
-  title3: { fontFamily: font.semibold, fontSize: 19 },
-  headline: { fontFamily: font.semibold, fontSize: 17 },
-  body: { fontFamily: font.regular, fontSize: 16 },
-  bodyStrong: { fontFamily: font.medium, fontSize: 16 },
-  subhead: { fontFamily: font.regular, fontSize: 15 },
-  footnote: { fontFamily: font.regular, fontSize: 13 },
-  caption: { fontFamily: font.medium, fontSize: 12 },
+  hero: { fontFamily: font.bold, fontSize: 60, letterSpacing: -2.5, lineHeight: 66, fontVariant: ['tabular-nums' as const] },
+  largeTitle: { fontFamily: font.bold, fontSize: 34, letterSpacing: -1 },
+  title2: { fontFamily: font.bold, fontSize: 26, letterSpacing: -0.6 },
+  title3: { fontFamily: font.regular, fontSize: 20 },
+  headline: { fontFamily: font.bold, fontSize: 18 },
+  body: { fontFamily: font.regular, fontSize: 17 },
+  bodyStrong: { fontFamily: font.regular, fontSize: 17 },
+  subhead: { fontFamily: font.regular, fontSize: 16 },
+  footnote: { fontFamily: font.regular, fontSize: 14 },
+  /** Small spaced capitals: dates, labels, tabs. Pass text already upper-cased or use `label`. */
+  caption: { fontFamily: font.regular, fontSize: 12, letterSpacing: 1.4 },
+  label: { fontFamily: font.regular, fontSize: 12, letterSpacing: 1.6, textTransform: 'uppercase' as const },
 };
 
 export const space = { xs: 4, sm: 8, md: 12, lg: 16, xl: 22, xxl: 28 };
-export const radius = { control: 12, tile: 11, card: 20, pill: 999 };
+export const radius = { control: 6, tile: 6, card: 0, pill: 999 };

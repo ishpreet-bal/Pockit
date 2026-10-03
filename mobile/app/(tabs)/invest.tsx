@@ -12,11 +12,8 @@ export default function Invest() {
   const { data, error, refreshing, refresh } = useSummary();
   const c = useColors();
   return (
-    <Screen section="invest" title="Invest" onRefresh={refresh} refreshing={refreshing} right={<SearchButton />}>
+    <Screen section="invest" title="Invest (demo)" eyebrow="Still being built — follow along and learn" onRefresh={refresh} refreshing={refreshing} right={<SearchButton />}>
       {PREVIEW ? <PreviewBadge /> : null}
-      <View style={{ alignSelf: 'flex-start', backgroundColor: c.section.invest.soft, borderRadius: 8, paddingHorizontal: 8, paddingVertical: 3, marginTop: -space.sm, marginBottom: space.md }}>
-        <Text style={[type.caption, { color: c.section.invest.accent }]}>DEMO · STILL BEING BUILT</Text>
-      </View>
       <LearnCard />
       <StaleNote message={data ? error : null} />
       {data ? <Body d={data} /> : <Loading error={error} />}
@@ -29,7 +26,7 @@ function Line({ symbol, name, value, pct, last }: { symbol: string; name: string
   const a = useAccent();
   return (
     <Pressable accessibilityRole="button" onPress={() => router.push({ pathname: '/stock/[symbol]', params: { symbol } })} style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1 })}>
-    <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.md, padding: space.lg, borderBottomWidth: last ? 0 : 0.5, borderBottomColor: c.border }}>
+    <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.md, paddingVertical: space.lg, borderBottomWidth: last ? 0 : 0.5, borderBottomColor: c.border }}>
       <View style={{ width: 40, height: 40, borderRadius: 12, backgroundColor: a.soft, alignItems: 'center', justifyContent: 'center' }}>
         <Text style={[type.caption, { color: a.accent, fontSize: 10 }]} numberOfLines={1}>{symbol.slice(0, 5)}</Text>
       </View>
@@ -70,7 +67,7 @@ function Body({ d }: { d: Summary }) {
       ) : (
         <>
           <EmptyCard title="Nothing invested yet" body="Search any stock or fund and tap Watch to follow it. What you own is added under Accounts." />
-          <Card style={{ padding: space.lg, marginTop: 12, alignItems: 'center' }} onPress={() => router.push('/search')}>
+          <Card style={{ paddingVertical: space.lg, marginTop: 12, alignItems: 'center' }} onPress={() => router.push('/search')}>
             <Text style={[type.bodyStrong, { color: c.section.invest.accent }]}>Search stocks & funds</Text>
           </Card>
         </>
@@ -95,7 +92,7 @@ function SearchButton() {
   const a = useAccent();
   return (
     <Pressable onPress={() => router.push('/search')} accessibilityRole="button" accessibilityLabel="Search stocks and funds" hitSlop={8}
-      style={{ width: 42, height: 42, borderRadius: 14, backgroundColor: a.soft, alignItems: 'center', justifyContent: 'center' }}>
+      style={{ width: 34, height: 34, borderRadius: 17, borderWidth: 1, borderColor: a.accent, alignItems: 'center', justifyContent: 'center' }}>
       <Icon name="magnifyingglass" size={19} color={a.accent} />
     </Pressable>
   );
@@ -109,7 +106,7 @@ function LearnCard() {
   if (hidden) return null;
   return (
     <Card>
-      <View style={{ padding: space.lg }}>
+      <View style={{ paddingVertical: space.lg }}>
         <Text style={[type.headline, { color: c.text }]}>Want to learn about investing?</Text>
         <Text style={[type.subhead, { color: c.textMuted, marginTop: 4, lineHeight: 20 }]}>Stocks, ETFs, bonds, crypto — what they are, in plain words. Ask the tutor anything.</Text>
         <View style={{ flexDirection: 'row', gap: space.lg, marginTop: space.md }}>

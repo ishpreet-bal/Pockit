@@ -83,7 +83,7 @@ export default function Budget() {
           </Text>
           <Card style={{ marginTop: space.lg }}>
             {lines.map((l, i) => (
-              <View key={l.id} style={{ flexDirection: 'row', alignItems: 'center', gap: space.md, paddingHorizontal: space.lg, paddingVertical: 10, borderBottomWidth: i < lines.length - 1 ? 0.5 : 0, borderBottomColor: c.border }}>
+              <View key={l.id} style={{ flexDirection: 'row', alignItems: 'center', gap: space.md, paddingVertical: 10, borderBottomWidth: i < lines.length - 1 ? 0.5 : 0, borderBottomColor: c.border }}>
                 <Text style={{ fontSize: 18, width: 26 }}>{l.icon ?? '•'}</Text>
                 <View style={{ flex: 1 }}>
                   <Text style={[type.body, { color: c.text }]}>{l.name}</Text>
@@ -121,7 +121,7 @@ export default function Budget() {
             {planned.map((l, i) => {
               const over = l.spentMinor > l.planMinor!;
               return (
-                <View key={l.id} style={{ paddingHorizontal: space.lg, paddingVertical: 12, borderBottomWidth: i < planned.length - 1 ? 0.5 : 0, borderBottomColor: c.border }}>
+                <View key={l.id} style={{ paddingVertical: 12, borderBottomWidth: i < planned.length - 1 ? 0.5 : 0, borderBottomColor: c.border }}>
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.md }}>
                     <Text style={{ fontSize: 17 }}>{l.icon ?? '•'}</Text>
                     <Text style={[type.body, { color: c.text, flex: 1 }]}>{l.name}</Text>
@@ -157,7 +157,7 @@ function TripCard() {
   const a = useAccent();
   return (
     <Card style={{ marginTop: space.xl }} onPress={() => router.push('/trip')}>
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.md, padding: space.lg }}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.md, paddingVertical: space.lg }}>
         <View style={{ width: 42, height: 42, borderRadius: 13, backgroundColor: a.soft, alignItems: 'center', justifyContent: 'center' }}>
           <Icon name="car" size={22} color={a.accent} />
         </View>

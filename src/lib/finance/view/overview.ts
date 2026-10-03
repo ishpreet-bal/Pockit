@@ -1,7 +1,7 @@
 import 'server-only';
 import { sumMinor, absMinor } from '@/lib/money';
 import { WorkspaceRepo } from '@/lib/data/repository';
-import { spendingByCategory, rollUpCategories, monthlySeries, periodTotals } from '@/lib/finance/ledger';
+import { spendingByCategory, rollUpCategories, monthlySeries, periodTotals, countsAsSpending, spendingAmount } from '@/lib/finance/ledger';
 import { todayIn, startOfMonth, endOfMonth, addMonths, previousPeriod } from '@/lib/finance/period';
 import { detectRecurring } from '@/lib/finance/recurring';
 import { manualScheduleToSeries } from '@/lib/finance/schedule';
@@ -177,6 +177,12 @@ export async function buildOverview(repo: WorkspaceRepo, timezone: string, local
       shareOfSpend: spendTotal > 0n ? Number((c.amountMinor * 100n) / spendTotal) : 0,
     })),
     spendTotal,
+    /** What went out on each day of this period, for the app's spending calendar. */
+    dailySpend: (() => {
+      const byDay = new Map<string, bigint>();
+      for (const t of postedThisPeriod) if (countsAsSpending(t)) byDay.set(t.postedDate, (byDay.get(t.postedDate) ?? 0n) + spendingAmount(t));
+      return [...byDay].map(([date, amountMinor]) => ({ date, amountMinor })).sort((a, b) => a.date.localeCompare(b.date));
+    })(),
     /** Every top-level expense category with this month's spend, including $0 — what a budget is planned over. */
     expenseCategories: categories
       .filter((c) => c.parentId === null && c.kind === 'expense')

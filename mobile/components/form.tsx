@@ -1,5 +1,5 @@
 import { forwardRef, useState, type ReactNode } from 'react';
-import { ActivityIndicator, KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, TextInput, View, type TextInputProps } from 'react-native';
+import { ActivityIndicator, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View, type TextInputProps } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
 import { font, radius, space, type, useColors, useIsDark, type Section } from '@/theme/tokens';
@@ -39,9 +39,9 @@ export function Button({
   const dark = useIsDark();
   const tint = accent ?? c.section.home.accent;
   const off = disabled || loading;
-  const bg = variant === 'primary' ? tint : variant === 'secondary' ? c.surface2 : 'transparent';
-  // Dark mode's accents are light, so the label goes dark to keep contrast.
-  const fg = variant === 'primary' ? (dark ? c.bg : '#ffffff') : variant === 'secondary' ? c.text : tint;
+  const bg = variant === 'primary' ? tint : 'transparent';
+  void dark;
+  const fg = variant === 'primary' ? '#ffffff' : variant === 'secondary' ? c.text : tint;
   return (
     <Pressable
       accessibilityRole="button"
@@ -49,12 +49,12 @@ export function Button({
       disabled={off}
       onPress={() => { void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); onPress(); }}
       style={({ pressed }) => ({
-        height: 54, borderRadius: 16, alignItems: 'center', justifyContent: 'center',
-        backgroundColor: bg, opacity: disabled ? 0.4 : pressed ? 0.85 : 1,
-        transform: [{ scale: pressed ? 0.98 : 1 }],
+        height: 54, borderRadius: radius.control, alignItems: 'center', justifyContent: 'center',
+        backgroundColor: bg, opacity: disabled ? 0.4 : pressed ? 0.8 : 1,
+        borderWidth: variant === 'secondary' ? StyleSheet.hairlineWidth : 0, borderColor: c.border,
       })}
     >
-      {loading ? <ActivityIndicator color={fg} /> : <Text style={{ fontFamily: font.semibold, fontSize: 17, color: fg }}>{label}</Text>}
+      {loading ? <ActivityIndicator color={fg} /> : <Text style={{ fontFamily: font.regular, fontSize: 14, letterSpacing: 1.6, color: fg }}>{label.toUpperCase()}</Text>}
     </Pressable>
   );
 }
@@ -65,10 +65,10 @@ export const Field = forwardRef<TextInput, TextInputProps & { label: string; err
     const [focused, setFocused] = useState(false);
     return (
       <View>
-        <Text style={[type.footnote, { color: c.textMuted, marginBottom: 6 }]}>{label}</Text>
+        <Text style={[type.label, { color: c.textMuted, marginBottom: 2 }]}>{label}</Text>
         <View style={{
-          flexDirection: 'row', alignItems: 'center', height: 54, borderRadius: 14, paddingHorizontal: space.lg,
-          backgroundColor: c.surface, borderWidth: 1.5,
+          flexDirection: 'row', alignItems: 'center', height: 54, paddingHorizontal: 2,
+          borderBottomWidth: 1.5,
           borderColor: error ? c.negative : focused ? c.section[section].accent : c.border,
         }}>
           {prefix ? <Text style={{ fontFamily: font.medium, fontSize: 18, color: c.textMuted, marginRight: 4 }}>{prefix}</Text> : null}
@@ -97,12 +97,12 @@ export function Chip({ label, selected, onPress, section = 'home' }: { label: st
       accessibilityState={{ selected }}
       onPress={() => { void Haptics.selectionAsync(); onPress(); }}
       style={{
-        paddingHorizontal: 16, paddingVertical: 11, borderRadius: radius.pill,
-        backgroundColor: selected ? a.soft : c.surface,
-        borderWidth: 1.5, borderColor: selected ? a.accent : c.border,
+        paddingHorizontal: 14, paddingVertical: 10, borderRadius: radius.control,
+        backgroundColor: selected ? a.soft : 'transparent',
+        borderWidth: 1, borderColor: selected ? a.accent : c.border,
       }}
     >
-      <Text style={{ fontFamily: font.medium, fontSize: 15, color: selected ? a.accent : c.text }}>{label}</Text>
+      <Text style={{ fontFamily: font.regular, fontSize: 16, color: selected ? a.accent : c.text }}>{label}</Text>
     </Pressable>
   );
 }

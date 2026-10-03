@@ -21,6 +21,9 @@ export interface Summary {
   spending: {
     spentMinor: number;
     spentDeltaMinor: number | null;
+    periodStart?: string;
+    periodEnd?: string;
+    daily?: { date: string; amountMinor: number }[];
     budgetMinor: number | null;
     categories: { id: string; name: string; icon: string | null; amountMinor: number; budgetMinor: number | null }[];
     recent: { id: string; name: string; date: string; amountMinor: number; icon: string | null; category: string | null }[];

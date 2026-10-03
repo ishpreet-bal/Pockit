@@ -121,14 +121,14 @@ function Body({ stock, setStock }: { stock: Stock; setStock: (s: Stock) => void 
       {stock.owned ? (
         <>
           <SectionHeader title="You own" />
-          <Card style={{ padding: space.lg }}>
+          <Card style={{ paddingVertical: space.lg }}>
             <Text style={[type.headline, { color: c.text }]}>{stock.owned.units} {stock.owned.units === 1 ? 'share' : 'shares'} · {formatMoney(stock.owned.valueMinor, { cents: false })}</Text>
           </Card>
         </>
       ) : null}
 
       <SectionHeader title="About" />
-      <Card style={{ padding: space.lg, gap: 8 }}>
+      <Card style={{ paddingVertical: space.lg, gap: 8 }}>
         {stock.description ? <Text style={[type.subhead, { color: c.text, lineHeight: 21 }]} numberOfLines={6}>{stock.description}</Text> : null}
         {[
           ['Type', stock.kind === 'etf' ? 'Fund (ETF)' : stock.kind === 'crypto' ? 'Crypto' : 'Stock'],

@@ -101,7 +101,7 @@ function Body({ goal, refresh }: { goal: G; refresh: () => Promise<void> }) {
 
       <View style={{ marginTop: space.xl, gap: space.md }}>
         {mode === 'add' ? (
-          <Card style={{ padding: space.lg, gap: space.md }}>
+          <Card style={{ paddingVertical: space.lg, gap: space.md }}>
             <ChipRow>
               {[25, 50, 100, 250].map((n) => <Chip section="goals" key={n} label={`+$${n}`} selected={amount === String(n)} onPress={() => setAmount(String(n))} />)}
             </ChipRow>
@@ -111,7 +111,7 @@ function Body({ goal, refresh }: { goal: G; refresh: () => Promise<void> }) {
             <Button label="Cancel" variant="plain" accent={a.accent} onPress={() => setMode('view')} />
           </Card>
         ) : mode === 'edit' ? (
-          <Card style={{ padding: space.lg, gap: space.md }}>
+          <Card style={{ paddingVertical: space.lg, gap: space.md }}>
             <Field section="goals" label="Target amount" prefix="$" value={target} onChangeText={setTarget} keyboardType="decimal-pad" />
             <Text style={[type.footnote, { color: c.textMuted }]}>Finish by</Text>
             <ChipRow>

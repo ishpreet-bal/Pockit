@@ -54,7 +54,7 @@ export function AddButton() {
   const a = useAccent();
   return (
     <Pressable onPress={() => router.push('/add')} accessibilityRole="button" accessibilityLabel="Add a purchase" hitSlop={8}
-      style={{ width: 42, height: 42, borderRadius: 14, backgroundColor: a.soft, alignItems: 'center', justifyContent: 'center' }}>
+      style={{ width: 34, height: 34, borderRadius: 17, borderWidth: 1, borderColor: a.accent, alignItems: 'center', justifyContent: 'center' }}>
       <Icon name="plus" size={20} color={a.accent} />
     </Pressable>
   );

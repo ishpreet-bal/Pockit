@@ -48,7 +48,7 @@ export function PockButton({ onPress }: { onPress?: () => void }) {
         nod.value = withSequence(withTiming(-10, { duration: 90 }), withSpring(0, { damping: 6 }));
         onPress?.();
       }}
-      style={{ width: 42, height: 42, borderRadius: 14, backgroundColor: a.soft, alignItems: 'center', justifyContent: 'center' }}
+      style={{ width: 34, height: 34, borderRadius: 17, borderWidth: 1, borderColor: a.accent, alignItems: 'center', justifyContent: 'center' }}
     >
       <Animated.View style={style}><PockMark color={a.accent} /></Animated.View>
     </Pressable>
