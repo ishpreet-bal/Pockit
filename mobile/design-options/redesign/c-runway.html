@@ -1,0 +1,61 @@
+<!doctype html><html><head><meta charset="utf-8">
+
+<style>@font-face{font-family:'JetBrains Mono';font-style:normal;font-weight:400;src:url(file:///tmp/claude-0/-home-user-Pockit/fa178032-3cde-5edd-9635-791c664ddc08/scratchpad/fonts/node_modules/@fontsource/jetbrains-mono/files/jetbrains-mono-latin-400-normal.woff2)}@font-face{font-family:'JetBrains Mono';font-style:normal;font-weight:500;src:url(file:///tmp/claude-0/-home-user-Pockit/fa178032-3cde-5edd-9635-791c664ddc08/scratchpad/fonts/node_modules/@fontsource/jetbrains-mono/files/jetbrains-mono-latin-500-normal.woff2)}@font-face{font-family:'JetBrains Mono';font-style:normal;font-weight:700;src:url(file:///tmp/claude-0/-home-user-Pockit/fa178032-3cde-5edd-9635-791c664ddc08/scratchpad/fonts/node_modules/@fontsource/jetbrains-mono/files/jetbrains-mono-latin-700-normal.woff2)}@font-face{font-family:'Inter Tight';font-style:normal;font-weight:400;src:url(file:///tmp/claude-0/-home-user-Pockit/fa178032-3cde-5edd-9635-791c664ddc08/scratchpad/fonts/node_modules/@fontsource/inter-tight/files/inter-tight-latin-400-normal.woff2)}@font-face{font-family:'Inter Tight';font-style:normal;font-weight:500;src:url(file:///tmp/claude-0/-home-user-Pockit/fa178032-3cde-5edd-9635-791c664ddc08/scratchpad/fonts/node_modules/@fontsource/inter-tight/files/inter-tight-latin-500-normal.woff2)}@font-face{font-family:'Inter Tight';font-style:normal;font-weight:600;src:url(file:///tmp/claude-0/-home-user-Pockit/fa178032-3cde-5edd-9635-791c664ddc08/scratchpad/fonts/node_modules/@fontsource/inter-tight/files/inter-tight-latin-600-normal.woff2)}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#1a1b17;display:flex;gap:40px;padding:40px;font-family:'Inter Tight',sans-serif;color:#eceee6}
+.phone{width:390px;height:844px;background:#0e0f0c;border-radius:44px;overflow:hidden;position:relative;padding:60px 24px 0}
+.top{display:flex;justify-content:space-between;font:500 12px 'JetBrains Mono';color:#7d8174;letter-spacing:.06em}
+.v{font:700 64px 'JetBrains Mono';letter-spacing:-3px;margin-top:22px;color:#c6f432}
+.k{font:500 15px 'Inter Tight';color:#a7ab9d;margin-top:4px}
+.track{position:relative;margin-top:34px;height:440px;padding-left:76px}
+.line{position:absolute;left:58px;top:6px;bottom:6px;width:2px;background:linear-gradient(#c6f432,#3b4a10)}
+.ev{position:absolute;left:0;right:0;display:flex;align-items:center}
+.ev .d{width:46px;font:500 11px 'JetBrains Mono';color:#7d8174;text-align:right}
+.ev .dot{position:absolute;left:52px;width:14px;height:14px;border-radius:50%;background:#0e0f0c;border:2px solid #c6f432}
+.ev .body{margin-left:76px;flex:1;display:flex;justify-content:space-between;font:500 15px 'Inter Tight'}
+.ev .bal{font:500 12px 'JetBrains Mono';color:#7d8174;display:block;margin-top:2px}
+.ev .amt{font:500 14px 'JetBrains Mono';color:#ff7a59}
+.ev.now .dot{background:#c6f432;box-shadow:0 0 0 6px rgba(198,244,50,.18)}
+.ev.pay .dot{border-color:#eceee6;background:#eceee6}
+.ev.pay .amt{color:#c6f432}
+.tabs{position:absolute;bottom:0;left:0;right:0;height:84px;border-top:1px solid #23251f;display:flex;justify-content:space-around;padding-top:16px;font:500 12px 'JetBrains Mono';color:#5f6357;letter-spacing:.06em}
+.tabs .on{color:#c6f432}
+.days{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;margin-top:22px}
+.days div{aspect-ratio:1;border-radius:8px;background:#1b1d18;font:500 10px 'JetBrains Mono';color:#7d8174;padding:5px}
+table{width:100%;border-collapse:collapse;margin-top:26px;font:500 14px 'JetBrains Mono'}
+td{padding:11px 0;border-bottom:1px solid #23251f}
+td:first-child{font:500 15px 'Inter Tight'}
+td.r{text-align:right}
+.lbl{font:500 11px 'JetBrains Mono';color:#7d8174;letter-spacing:.08em;margin-top:28px}
+</style></head><body>
+<div class="phone">
+  <div class="top"><span>THU 02 OCT</span><span>POCKIT</span></div>
+  <div class="v">$1,240</div>
+  <div class="k">runway to payday · 8 days · $155/day</div>
+  <div class="track"><div class="line"></div>
+    <div class="ev now" style="top:0"><span class="d">TODAY</span><span class="dot"></span><div class="body"><span>You are here<span class="bal">bal $1,409</span></span></div></div>
+    <div class="ev" style="top:110px"><span class="d">OCT 06</span><span class="dot"></span><div class="body"><span>Rogers<span class="bal">→ $1,344</span></span><span class="amt">−65.00</span></div></div>
+    <div class="ev" style="top:180px"><span class="d">OCT 08</span><span class="dot"></span><div class="body"><span>Spotify<span class="bal">→ $1,332</span></span><span class="amt">−11.99</span></div></div>
+    <div class="ev" style="top:250px"><span class="d">OCT 09</span><span class="dot"></span><div class="body"><span>Toronto Hydro<span class="bal">→ $1,240</span></span><span class="amt">−92.00</span></div></div>
+    <div class="ev pay" style="top:350px"><span class="d">OCT 10</span><span class="dot"></span><div class="body"><span>Payday<span class="bal">→ $3,340</span></span><span class="amt">+2,100</span></div></div>
+  </div>
+  <div class="tabs"><span class="on">RUNWAY</span><span>SPEND</span><span>GOALS</span><span>INVEST</span></div>
+</div>
+<div class="phone">
+  <div class="top"><span>OCTOBER</span><span>PLAN $1,630</span></div>
+  <div class="v" style="color:#eceee6">$1,053</div>
+  <div class="k">spent · <span style="color:#c6f432">$577 left</span> · 9 days</div>
+  <div class="days">
+    <div style="background:#c6f432;color:#0e0f0c">1</div><div style="background:#7f9a22;color:#0e0f0c">2</div><div style="background:#3b4a10">3</div><div style="background:#5b7218">4</div><div style="background:#2a3410">5</div><div style="background:#3b4a10">6</div><div style="background:#7f9a22;color:#0e0f0c">7</div>
+    <div>8</div><div>9</div><div>10</div><div>11</div><div>12</div><div>13</div><div>14</div>
+  </div>
+  <div class="lbl">BY CATEGORY</div>
+  <table>
+    <tr><td>Groceries</td><td class="r">482</td><td class="r" style="color:#7d8174">/550</td></tr>
+    <tr><td>Eating out</td><td class="r" style="color:#ff7a59">315</td><td class="r" style="color:#7d8174">/250</td></tr>
+    <tr><td>Transport</td><td class="r">189</td><td class="r" style="color:#7d8174">/300</td></tr>
+    <tr><td>Coffee</td><td class="r">67</td><td class="r" style="color:#7d8174">/80</td></tr>
+  </table>
+  <div class="tabs"><span>RUNWAY</span><span class="on">SPEND</span><span>GOALS</span><span>INVEST</span></div>
+</div>
+</body></html>
