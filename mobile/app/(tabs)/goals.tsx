@@ -2,6 +2,7 @@ import { Text, View } from 'react-native';
 import { Card, EmptyCard, Loading, formatMoney, PreviewBadge, ProgressBar, Screen, StaleNote, useAccent } from '@/components/ui';
 import { PREVIEW } from '@/lib/session';
 import { router } from 'expo-router';
+import { TourTarget } from '@/lib/tour';
 import { Pressable } from 'react-native';
 import { Icon } from '@/components/Icon';
 import { useSummary, type Summary } from '@/lib/summary';
@@ -14,7 +15,7 @@ export default function Goals() {
     <Screen section="goals" title="Goals" onRefresh={refresh} refreshing={refreshing} right={<NewGoalButton />}>
       {PREVIEW ? <PreviewBadge /> : null}
       <StaleNote message={data ? error : null} />
-      {data ? <Body d={data} /> : <Loading error={error} />}
+      <TourTarget id="goals">{data ? <Body d={data} /> : <Loading error={error} />}</TourTarget>
     </Screen>
   );
 }

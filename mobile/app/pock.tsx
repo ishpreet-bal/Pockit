@@ -1,3 +1,4 @@
+import { TourTarget } from '@/lib/tour';
 import { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
@@ -24,7 +25,7 @@ const STARTERS = [
  * which grounds them in this account's real numbers. Opened from a goal, the goal
  * travels along as the subject so "can I finish this sooner?" needs no explaining.
  */
-export default function Pock() {
+export default function Pock({ embedded = false }: { embedded?: boolean }) {
   const c = useColors();
   const a = c.section.home;
   const insets = useSafeAreaInsets();
@@ -81,7 +82,7 @@ export default function Pock() {
   return (
     <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1, backgroundColor: c.bg }}>
       <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingTop: insets.top + space.sm, paddingHorizontal: space.xl, paddingBottom: space.md, borderBottomWidth: 0.5, borderBottomColor: c.border }}>
-        <Pressable onPress={() => router.back()} hitSlop={12} accessibilityLabel="Close"><Text style={[type.body, { color: a.accent }]}>Done</Text></Pressable>
+        {embedded ? <View style={{ width: 20 }} /> : <Pressable onPress={() => router.back()} hitSlop={12} accessibilityLabel="Close"><Text style={[type.body, { color: a.accent }]}>Done</Text></Pressable>}
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
           <PockMark size={22} color={a.accent} />
           <Text style={[type.headline, { color: c.text }]}>{learn ? 'Investing tutor' : 'Pock'}</Text>
@@ -99,13 +100,13 @@ export default function Pock() {
               <Text style={[type.title3, { color: c.text, textAlign: 'center' }]}>{learn ? 'Ask me anything about investing' : anchor ? `Ask about ${anchor.label ?? 'this goal'}` : 'Ask me about your money'}</Text>
               <Text style={[type.subhead, { color: c.textMuted, textAlign: 'center', lineHeight: 21 }]}>{learn ? 'Stocks, ETFs, TFSAs, budgeting — any money question, explained simply. For learning, not advice.' : 'I can see your bills, spending and goals, and I explain things plainly. I never move money.'}</Text>
             </View>
-            <View style={{ gap: 8 }}>
+            <TourTarget id="askBox" style={{ gap: 8 }}>
               {starters.map((s) => (
                 <Pressable key={s} onPress={() => void ask(s)} style={({ pressed }) => ({ padding: 14, borderRadius: 6, backgroundColor: c.surface, borderWidth: 1, borderColor: c.border, opacity: pressed ? 0.7 : 1 })}>
                   <Text style={[type.subhead, { color: c.text }]}>{s}</Text>
                 </Pressable>
               ))}
-            </View>
+            </TourTarget>
           </View>
         ) : messages.map((m, i) => (
           <Animated.View key={i} entering={FadeInUp.duration(250)} style={{ alignSelf: m.role === 'user' ? 'flex-end' : 'flex-start', maxWidth: '85%' }}>
@@ -137,7 +138,7 @@ export default function Pock() {
           {left} free question{left === 1 ? '' : 's'} left this month · <Text style={{ color: a.accent }} onPress={() => router.push('/plus')}>Go unlimited</Text>
         </Text>
       ) : null}
-      <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: 8, paddingTop: space.sm, paddingBottom: Math.max(insets.bottom, space.md), borderTopWidth: 0.5, borderTopColor: c.border }}>
+      <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: 8, paddingTop: space.sm, paddingHorizontal: space.lg, paddingBottom: embedded ? 96 : Math.max(insets.bottom, space.md), borderTopWidth: 0.5, borderTopColor: c.border }}>
         <TextInput value={draft} onChangeText={setDraft} placeholder={learn ? 'Ask about investing or money' : 'Ask anything about your money'} placeholderTextColor={c.textSubtle} multiline
           accessibilityLabel="Your question" onSubmitEditing={() => void ask(draft)} blurOnSubmit
           style={{ flex: 1, maxHeight: 120, minHeight: 44, borderRadius: radius.control, backgroundColor: c.surface2, paddingHorizontal: 14, paddingTop: 11, paddingBottom: 11, fontFamily: font.regular, fontSize: 16, color: c.text, ...(Platform.OS === 'web' ? ({ outlineStyle: 'none' } as object) : {}) }} />

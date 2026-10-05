@@ -38,6 +38,15 @@ const WEB: Record<string, string> = {
   'laptopcomputer': 'laptop_mac',
   'bubble.left': 'chat_bubble',
   'location': 'near_me',
+  'house': 'home',
+  'creditcard': 'credit_card',
+  'person.crop.circle': 'account_circle',
+  'list.bullet': 'list',
+  'doc.text': 'description',
+  'calendar.badge.clock': 'event_upcoming',
+  'sparkles': 'auto_awesome',
+  'book': 'menu_book',
+  'xmark': 'close',
   'map': 'map',
 };
 

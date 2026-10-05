@@ -53,7 +53,8 @@ export type Palette = typeof light;
 
 /** Light, dark, or follow the phone. Set from Settings; 'system' unless the person chose otherwise. */
 export type Appearance = 'system' | 'light' | 'dark';
-let appearance: Appearance = 'system';
+// Pockit is designed dark-first; light and "match phone" are a choice in Settings.
+let appearance: Appearance = 'dark';
 const listeners = new Set<() => void>();
 export function setAppearance(next: Appearance) { appearance = next; listeners.forEach((l) => l()); }
 export function useAppearance(): Appearance {
@@ -80,7 +81,7 @@ export const font = {
 };
 
 export const type = {
-  hero: { fontFamily: font.bold, fontSize: 60, letterSpacing: -2.5, lineHeight: 66, fontVariant: ['tabular-nums' as const] },
+  hero: { fontFamily: font.bold, fontSize: 44, letterSpacing: -1.6, lineHeight: 50, fontVariant: ['tabular-nums' as const] },
   largeTitle: { fontFamily: font.bold, fontSize: 34, letterSpacing: -1 },
   title2: { fontFamily: font.bold, fontSize: 26, letterSpacing: -0.6 },
   title3: { fontFamily: font.regular, fontSize: 20 },

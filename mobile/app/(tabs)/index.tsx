@@ -3,8 +3,10 @@ import { Pressable, Text, View } from 'react-native';
 import { Button, Field, FormError, toMinor } from '@/components/form';
 import { api } from '@/lib/api';
 import { router } from 'expo-router';
-import { Card, Loading, formatMoney, PreviewBadge, Row, Screen, SectionHeader, StaleNote, useAccent } from '@/components/ui';
-import { PockButton } from '@/components/Pock';
+import { Card, Loading, formatMoney, PreviewBadge, Row, Screen, SectionHeader, Shortcuts, StaleNote, useAccent } from '@/components/ui';
+import { PockMark } from '@/components/Pock';
+import { Icon } from '@/components/Icon';
+import { TourTarget, useTour } from '@/lib/tour';
 import { useSession, PREVIEW } from '@/lib/session';
 import { useSummary, type Summary } from '@/lib/summary';
 import { font, space, type, useColors } from '@/theme/tokens';
@@ -15,20 +17,21 @@ let tourOffered = false;
 
 export default function Home() {
   const { me, demo } = useSession();
+  const tour = useTour();
   // The walkthrough opens by itself the first time: after setup, or when someone
   // starts the demo. Skipping it counts as seeing it.
   useEffect(() => {
     if (tourOffered || !me) return;
     if (demo || me.tourDone === false) {
       tourOffered = true;
-      const t = setTimeout(() => router.push('/tour'), 600);
+      const t = setTimeout(() => tour.offer(), 900);
       return () => clearTimeout(t);
     }
   }, [me, demo]);
   const { data, error, refreshing, refresh } = useSummary();
   const first = me?.name?.split(' ')[0];
   return (
-    <Screen section="home" title={data ? todayLine(data.today) : 'Pockit'} eyebrow={first ? `Hi ${first}` : undefined} right={<PockButton onPress={() => router.push('/pock')} />} onRefresh={refresh} refreshing={refreshing}>
+    <Screen section="home" title={data ? todayLine(data.today) : 'Pockit'} eyebrow={first ? `Hi ${first}` : undefined} right={<ProfileButton />} onRefresh={refresh} refreshing={refreshing}>
       {PREVIEW ? <PreviewBadge /> : null}
       <StaleNote message={data ? error : null} />
       {data ? <Body d={data} /> : <Loading error={error} />}
@@ -83,20 +86,32 @@ function Body({ d }: { d: Summary }) {
 
   return (
     <>
+      <TourTarget id="hero">
       <Text style={[type.hero, { color: h.short ? c.negative : a.accent }]} accessibilityLabel={`${h.short ? 'Short by' : 'Safe to spend'} ${formatMoney(Math.abs(h.safeToSpendMinor), { cents: false })}`}>
         {h.short ? '−' : ''}{formatMoney(Math.abs(h.safeToSpendMinor), { cents: false })}
       </Text>
       <Text style={[type.subhead, { color: c.textMuted, marginTop: 4 }]}>
-        {h.short ? 'short of your bills before payday' : days ? `runway to payday · ${days} day${days === 1 ? '' : 's'} · ${formatMoney(Math.max(0, h.safeToSpendMinor) / days, { cents: false })}/day` : 'safe to spend after your bills'}
+        {h.short ? 'short of your bills before payday' : days ? `safe to spend · ${days} day${days === 1 ? '' : 's'} to payday · ${formatMoney(Math.max(0, h.safeToSpendMinor) / days, { cents: false })}/day` : 'safe to spend after your bills'}
       </Text>
+      </TourTarget>
+
+      <TourTarget id="shortcuts">
+        <Shortcuts items={[
+          { icon: 'plus', label: 'Add', onPress: () => router.push('/add') },
+          { icon: 'calendar', label: 'Bills', onPress: () => router.push('/bills') },
+          { icon: 'chart.bar', label: 'Budget', onPress: () => router.push('/budget') },
+          { icon: 'car', label: 'Trip', onPress: () => router.push('/trip') },
+        ]} />
+      </TourTarget>
 
       {!d.hasBalance && !PREVIEW ? <BalanceCard /> : null}
 
-      <View style={{ marginTop: 34 }}>
+      <SectionHeader title="To payday" action="All bills" onAction={() => router.push('/bills')} />
+      <TourTarget id="runway">
         {stops.map((st, i) => (
           <StopRow key={st.key} stop={st} first={i === 0} last={i === stops.length - 1} onPress={st.kind === 'bill' ? () => router.push('/bills') : undefined} />
         ))}
-      </View>
+      </TourTarget>
       {!h.nextIncome ? (
         <Text style={[type.footnote, { color: c.textMuted, marginTop: space.md, lineHeight: 20 }]}>
           Add your pay under Bills & income and this becomes a countdown to payday.
@@ -106,9 +121,16 @@ function Body({ d }: { d: Summary }) {
         <Text style={[type.footnote, { color: c.textMuted, marginTop: space.sm }]}>Nothing due before payday.</Text>
       ) : null}
 
-      <Text style={{ fontFamily: font.italic, fontSize: 17, lineHeight: 24, color: c.textMuted, marginTop: 30, borderLeftWidth: 2, borderLeftColor: a.accent, paddingLeft: 12 }}>
-        {tip(d)}
-      </Text>
+      <TourTarget id="pockNote">
+        <Pressable onPress={() => router.navigate('/ask')} accessibilityRole="button" accessibilityLabel="Ask Pock"
+          style={({ pressed }) => ({ flexDirection: 'row', gap: 12, alignItems: 'flex-start', marginTop: 28, paddingVertical: 14, paddingHorizontal: 14, borderRadius: 10, backgroundColor: c.surface, borderWidth: 0.5, borderColor: c.border, opacity: pressed ? 0.7 : 1 })}>
+          <PockMark size={20} color={a.accent} />
+          <View style={{ flex: 1 }}>
+            <Text style={{ fontFamily: font.italic, fontSize: 16, lineHeight: 22, color: c.text }}>{tip(d)}</Text>
+            <Text style={[type.caption, { color: a.accent, marginTop: 8 }]}>ASK POCK →</Text>
+          </View>
+        </Pressable>
+      </TourTarget>
 
       <SectionHeader title="Also" />
       <Card>
@@ -128,8 +150,8 @@ function StopRow({ stop, first, last, onPress }: { stop: Stop; first: boolean; l
     ? { backgroundColor: a.accent, borderColor: a.accent }
     : stop.kind === 'pay' ? { backgroundColor: c.text, borderColor: c.text } : { backgroundColor: c.bg, borderColor: a.accent };
   return (
-    <Pressable onPress={onPress} disabled={!onPress} style={({ pressed }) => ({ flexDirection: 'row', minHeight: stop.kind === 'now' ? 92 : 74, opacity: pressed ? 0.6 : 1 })}>
-      <Text style={[type.caption, { width: 54, color: stop.kind === 'now' ? c.text : c.textMuted, textAlign: 'right', paddingTop: 2 }]}>{stop.label}</Text>
+    <Pressable onPress={onPress} disabled={!onPress} style={({ pressed }) => ({ flexDirection: 'row', minHeight: stop.kind === 'now' ? 62 : 54, opacity: pressed ? 0.6 : 1 })}>
+      <Text style={[type.caption, { fontSize: 11, width: 54, color: stop.kind === 'now' ? c.text : c.textMuted, textAlign: 'right', paddingTop: 2 }]}>{stop.label}</Text>
       <View style={{ width: 40, alignItems: 'center' }}>
         <View style={{ position: 'absolute', top: first ? 9 : 0, bottom: last ? undefined : 0, height: last ? 9 : undefined, width: 2, backgroundColor: a.accent, opacity: stop.kind === 'pay' ? 0.35 : 0.8 }} />
         {stop.kind === 'now' ? <View style={{ position: 'absolute', top: -2, width: 22, height: 22, borderRadius: 11, backgroundColor: a.soft }} /> : null}
@@ -137,11 +159,11 @@ function StopRow({ stop, first, last, onPress }: { stop: Stop; first: boolean; l
       </View>
       <View style={{ flex: 1, flexDirection: 'row', justifyContent: 'space-between' }}>
         <View style={{ flex: 1, paddingRight: 8 }}>
-          <Text style={[type.body, { color: c.text }]} numberOfLines={1}>{stop.title}</Text>
-          <Text style={[type.caption, { color: c.textMuted, marginTop: 4 }]}>{stop.kind === 'now' ? 'BAL ' : '→ '}{formatMoney(stop.after, { cents: false })}</Text>
+          <Text style={[type.subhead, { color: c.text }]} numberOfLines={1}>{stop.title}</Text>
+          <Text style={[type.caption, { fontSize: 11, color: c.textMuted, marginTop: 2 }]}>{stop.kind === 'now' ? 'BAL ' : '→ '}{formatMoney(stop.after, { cents: false })}</Text>
         </View>
         {stop.amount !== null ? (
-          <Text style={[type.subhead, { color: stop.amount > 0 ? a.accent : c.negative, fontVariant: ['tabular-nums'] }]}>
+          <Text style={[type.footnote, { color: stop.amount > 0 ? a.accent : c.negative, fontVariant: ['tabular-nums'] }]}>
             {stop.amount > 0 ? '+' : '−'}{formatMoney(Math.abs(stop.amount)).replace('$', '')}
           </Text>
         ) : null}
@@ -175,5 +197,16 @@ function BalanceCard() {
       <FormError message={error} />
       <Button label="Save" loading={busy} disabled={toMinor(amount) === null} onPress={save} />
     </Card>
+  );
+}
+
+/** You — settings, accounts and the rest live behind your profile, like any app. */
+function ProfileButton() {
+  const c = useColors();
+  return (
+    <Pressable onPress={() => router.push('/more')} hitSlop={10} accessibilityRole="button" accessibilityLabel="Profile and settings"
+      style={({ pressed }) => ({ width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: c.border, opacity: pressed ? 0.6 : 1 })}>
+      <Icon name="person.crop.circle" size={20} color={c.textMuted} />
+    </Pressable>
   );
 }

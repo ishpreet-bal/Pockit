@@ -1,10 +1,11 @@
 import { Text, View } from 'react-native';
-import { Card, EmptyCard, Loading, formatMoney, friendlyDate, PreviewBadge, Row, Screen, SectionHeader, StaleNote, useAccent } from '@/components/ui';
+import { Card, Shortcuts, EmptyCard, Loading, formatMoney, friendlyDate, PreviewBadge, Row, Screen, SectionHeader, StaleNote, useAccent } from '@/components/ui';
 import { PREVIEW } from '@/lib/session';
 import { useSummary, type Summary } from '@/lib/summary';
 import { space, type, useColors } from '@/theme/tokens';
 import { router } from 'expo-router';
 import { AddButton } from '../transactions';
+import { TourTarget } from '@/lib/tour';
 
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 
@@ -40,7 +41,16 @@ function Body({ d }: { d: Summary }) {
         <Text style={[type.footnote, { color: c.textSubtle, marginTop: 2 }]}>{formatMoney(Math.abs(s.spentDeltaMinor), { cents: false })} {s.spentDeltaMinor <= 0 ? 'less' : 'more'} than last month</Text>
       ) : null}
 
-      <MonthGrid d={d} />
+      <TourTarget id="spendTools">
+        <Shortcuts items={[
+          { icon: 'chart.bar', label: 'Budget', onPress: () => router.push('/budget') },
+          { icon: 'calendar', label: 'Bills', onPress: () => router.push('/bills') },
+          { icon: 'list.bullet', label: 'Purchases', onPress: () => router.push('/transactions') },
+          { icon: 'car', label: 'Trip', onPress: () => router.push('/trip') },
+        ]} />
+      </TourTarget>
+
+      <TourTarget id="calendar"><MonthGrid d={d} /></TourTarget>
 
       <SectionHeader title="By category" action={s.budgetMinor ? 'Plan' : 'Make a plan'} onAction={() => router.push('/budget')} />
       {s.categories.length ? (
@@ -88,14 +98,14 @@ function MonthGrid({ d }: { d: Summary }) {
   const days: string[] = [];
   for (let t = new Date(`${start}T12:00:00Z`); t <= new Date(`${end}T12:00:00Z`) && days.length < 42; t = new Date(t.getTime() + 86_400_000)) days.push(t.toISOString().slice(0, 10));
   return (
-    <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginTop: space.xl, marginHorizontal: -3 }} accessibilityLabel="Spending by day this month">
+    <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginTop: space.xxl, marginHorizontal: -2 }} accessibilityLabel="Spending by day this month">
       {days.map((day) => {
         const amt = byDay.get(day) ?? 0;
         const future = day > d.today;
         const level = amt ? 0.25 + 0.75 * (amt / max) : 0;
         return (
-          <View key={day} style={{ width: `${100 / 7}%`, padding: 3 }}>
-            <View style={{ aspectRatio: 1, borderRadius: 6, padding: 5, backgroundColor: future ? 'transparent' : c.surface2, borderWidth: future ? 0.5 : 0, borderColor: c.border, overflow: 'hidden' }}>
+          <View key={day} style={{ width: `${100 / 7}%`, padding: 2 }}>
+            <View style={{ height: 34, borderRadius: 5, padding: 4, backgroundColor: future ? 'transparent' : c.surface2, borderWidth: future ? 0.5 : 0, borderColor: c.border, overflow: 'hidden' }}>
               {level ? <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: a.accent, opacity: level }} /> : null}
               <Text style={[type.caption, { fontSize: 10, letterSpacing: 0, color: level > 0.6 ? '#fff' : day === d.today ? c.text : c.textMuted }]}>{Number(day.slice(8))}</Text>
             </View>

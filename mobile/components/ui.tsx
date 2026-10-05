@@ -1,6 +1,7 @@
 import { createContext, useContext, useState, type ReactNode } from 'react';
 import { ActivityIndicator, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View, type ViewStyle } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import Animated, { FadeInDown } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 import { router } from 'expo-router';
 import { radius, space, type, useColors, type Section } from '@/theme/tokens';
@@ -45,7 +46,8 @@ export function Screen({
           </View>
           {right}
         </View>
-        {children}
+        {/* Every page eases in, so moving around feels like one continuous app. */}
+        <Animated.View entering={FadeInDown.duration(320)}>{children}</Animated.View>
       </ScrollView>
     </SectionContext.Provider>
   );
@@ -227,3 +229,26 @@ export function Loading({ error }: { error: string | null }) {
   );
 }
 
+
+/**
+ * A row of round shortcuts under a page's headline — the doors from one page
+ * into the tools that belong with it (Instagram-style: explore from where you are).
+ */
+export function Shortcuts({ items }: { items: { icon: string; label: string; onPress: () => void }[] }) {
+  const c = useColors();
+  const a = useAccent();
+  return (
+    <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: space.xl }}>
+      {items.map((it) => (
+        <Pressable key={it.label} accessibilityRole="button" accessibilityLabel={it.label}
+          onPress={() => { void Haptics.selectionAsync(); it.onPress(); }}
+          style={({ pressed }) => ({ alignItems: 'center', gap: 7, width: `${100 / items.length}%`, opacity: pressed ? 0.6 : 1, transform: [{ scale: pressed ? 0.94 : 1 }] })}>
+          <View style={{ width: 50, height: 50, borderRadius: 25, borderWidth: StyleSheet.hairlineWidth * 2, borderColor: c.border, backgroundColor: c.surface, alignItems: 'center', justifyContent: 'center' }}>
+            <Icon name={it.icon} size={20} color={a.accent} />
+          </View>
+          <Text style={[type.footnote, { fontSize: 12, color: c.textMuted }]} numberOfLines={1}>{it.label}</Text>
+        </Pressable>
+      ))}
+    </View>
+  );
+}

@@ -9,6 +9,7 @@ import { getAppearance } from '@/lib/prefs';
 import { SessionProvider } from '@/lib/session';
 import { SummaryProvider } from '@/lib/summary';
 import { AppLock } from '@/lib/lock';
+import { TourProvider } from '@/lib/tour';
 
 export { ErrorBoundary } from 'expo-router';
 export const unstable_settings = { initialRouteName: '(tabs)' };
@@ -36,7 +37,8 @@ export default function RootLayout() {
       <ThemeProvider value={theme}>
         <StatusBar style={dark ? 'light' : 'dark'} />
         <AppLock>
-        <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: c.bg } }}>
+        <TourProvider>
+        <Stack screenOptions={{ headerShown: false, animation: 'slide_from_right', contentStyle: { backgroundColor: c.bg } }}>
           <Stack.Screen name="(tabs)" />
           <Stack.Screen name="welcome" options={{ animation: 'fade' }} />
           <Stack.Screen name="sign-up" />
@@ -55,10 +57,12 @@ export default function RootLayout() {
           <Stack.Screen name="dev" />
           <Stack.Screen name="learn" />
           <Stack.Screen name="budget" />
+          <Stack.Screen name="more" />
+          <Stack.Screen name="accounts" />
           <Stack.Screen name="trip" />
           <Stack.Screen name="vehicle" options={{ presentation: 'modal' }} />
-          <Stack.Screen name="tour" options={{ presentation: 'fullScreenModal', animation: 'fade' }} />
         </Stack>
+        </TourProvider>
         </AppLock>
       </ThemeProvider>
       </SummaryProvider>

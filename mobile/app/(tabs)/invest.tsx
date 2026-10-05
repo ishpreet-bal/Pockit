@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
 import { router } from 'expo-router';
+import { TourTarget } from '@/lib/tour';
 import { Icon } from '@/components/Icon';
 import { Card, EmptyCard, Loading, formatMoney, PreviewBadge, Screen, SectionHeader, StaleNote, useAccent } from '@/components/ui';
 import { PREVIEW } from '@/lib/session';
@@ -14,7 +15,7 @@ export default function Invest() {
   return (
     <Screen section="invest" title="Invest (demo)" eyebrow="Still being built — follow along and learn" onRefresh={refresh} refreshing={refreshing} right={<SearchButton />}>
       {PREVIEW ? <PreviewBadge /> : null}
-      <LearnCard />
+      <TourTarget id="learn"><LearnCard /></TourTarget>
       <StaleNote message={data ? error : null} />
       {data ? <Body d={data} /> : <Loading error={error} />}
     </Screen>

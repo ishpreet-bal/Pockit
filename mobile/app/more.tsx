@@ -1,5 +1,7 @@
 import { Card, Row, Screen, SectionHeader } from '@/components/ui';
-import { Text } from 'react-native';
+import { Linking, Text } from 'react-native';
+import { API_URL } from '@/lib/api';
+import { useTour } from '@/lib/tour';
 import { router } from 'expo-router';
 import { Card as Box } from '@/components/ui';
 import { useSession } from '@/lib/session';
@@ -8,13 +10,13 @@ import { space, type, useColors } from '@/theme/tokens';
 const ITEMS = [
   { icon: 'repeat', title: 'Bills', detail: 'Rent, phone, subscriptions' },
   { icon: 'building.columns', title: 'Accounts', detail: 'Chequing, savings, credit' },
-  { icon: 'square.and.arrow.down', title: 'Import', detail: 'Bring in a bank statement' },
+  { icon: 'square.and.arrow.down', title: 'Import', detail: 'Bring in a bank statement (on the website)' },
   { icon: 'gearshape', title: 'Settings', detail: 'Face ID and bill reminders' },
 ];
 
 export default function More() {
   return (
-    <Screen section="more" title="More">
+    <Screen section="more" title="You" back>
       <Body />
     </Screen>
   );
@@ -22,19 +24,26 @@ export default function More() {
 
 function Body() {
   const c = useColors();
+  const tour = useTour();
+  const go = (title: string) => {
+    if (title === 'Bills') return router.push('/bills');
+    if (title === 'Accounts') return router.push('/accounts');
+    if (title === 'Settings') return router.push('/settings');
+    // Statements are read on the website, where there's room to review every line.
+    void Linking.openURL(`${API_URL}/import`);
+  };
   return (
     <>
       <Card>
         <Row icon="chart.bar" title="Budget" detail="A monthly plan for each category" value="›" valueColor={c.textSubtle} onPress={() => router.push('/budget')} />
         <Row icon="car" title="Plan a trip" detail="Gas cost for a drive or your commute" value="›" valueColor={c.textSubtle} onPress={() => router.push('/trip')} />
-        <Row icon="bubble.left" title="Ask Pock" detail="Questions about your money" value="›" valueColor={c.textSubtle} onPress={() => router.push('/pock')} />
-        <Row icon="star" title="Take the tour" detail="A one-minute look around Pockit" value="›" valueColor={c.textSubtle} last onPress={() => router.push('/tour')} />
+        <Row icon="star" title="Take the tour" detail="A 30-second look around Pockit" value="›" valueColor={c.textSubtle} last onPress={() => { router.navigate('/'); setTimeout(() => tour.start(), 350); }} />
       </Card>
       <PlusRow />
       <SectionHeader title="Manage" />
       <Card>
         {ITEMS.map((it, i) => (
-          <Row key={it.title} icon={it.icon} title={it.title} detail={it.detail} value="›" valueColor={c.textSubtle} last={i === ITEMS.length - 1} onPress={it.title === 'Bills' ? () => router.push('/bills') : it.title === 'Settings' ? () => router.push('/settings') : () => {}} />
+          <Row key={it.title} icon={it.icon} title={it.title} detail={it.detail} value="›" valueColor={c.textSubtle} last={i === ITEMS.length - 1} onPress={() => go(it.title)} />
         ))}
       </Card>
       <DevRow />
