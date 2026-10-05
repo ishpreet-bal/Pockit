@@ -45,6 +45,22 @@ const nextConfig: NextConfig = {
           { key: 'Strict-Transport-Security', value: 'max-age=63072000; includeSubDomains; preload' },
         ],
       },
+      {
+        // The app's browser version, so /preview can show it in a phone frame on the same site.
+        source: '/app/:path*',
+        headers: [
+          { key: 'Content-Security-Policy', value: csp.replace("frame-ancestors 'none'", "frame-ancestors 'self'") },
+          { key: 'X-Frame-Options', value: 'SAMEORIGIN' },
+        ],
+      },
+    ];
+  },
+  async rewrites() {
+    // The app (public/app) is a single-page app: any /app/... address loads its index.
+    return [
+      { source: '/app', destination: '/app/index.html' },
+      { source: '/app/:path*', destination: '/app/index.html' },
+      { source: '/preview', destination: '/preview.html' },
     ];
   },
 };

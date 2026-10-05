@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pockit — app preview</title>
+<style>
+  html, body { margin: 0; height: 100%; background: #1a1b17; color: #8a8e80; font: 13px Georgia, 'Times New Roman', serif; }
+  body { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; padding: 20px; box-sizing: border-box; }
+  .phone { width: 390px; height: 844px; max-height: calc(100vh - 80px); border-radius: 46px; padding: 12px; background: #000; display: flex; flex-direction: column; box-sizing: border-box; box-shadow: 0 0 0 2px #2c2d28, 0 30px 80px rgba(0,0,0,.5); }
+  iframe { width: 100%; height: calc(100% - 34px); border: 0; border-radius: 0 0 36px 36px; background: #0e0f0c; }
+  .status { height: 34px; display: flex; align-items: center; justify-content: space-between; padding: 0 28px; color: #eceee6; font: 600 14px -apple-system, 'Segoe UI', sans-serif; }
+  .bar { display: flex; gap: 18px; letter-spacing: .12em; text-transform: uppercase; font-size: 11px; }
+  a { color: #da5100; text-decoration: none; }
+</style>
+</head>
+<body>
+  <div class="phone"><div class="status"><span id="clock">9:41</span><span>●●● ▮</span></div><iframe src="/app" title="Pockit app"></iframe></div>
+  <div class="bar"><span>Pockit app preview</span><a href="/app" target="_blank">Open full screen</a><a href="#" onclick="document.querySelector('iframe').src='/app';return false">Restart</a></div>
+<script>
+  const tick = () => { document.getElementById('clock').textContent = new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }).replace(/\s?[AP]M/i, ''); };
+  tick(); setInterval(tick, 30000);
+</script>
+</body>
+</html>

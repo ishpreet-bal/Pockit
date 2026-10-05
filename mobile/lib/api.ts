@@ -4,21 +4,26 @@ import { Platform } from 'react-native';
 /**
  * Talking to the Pockit server.
  *
- * The session token lives in the iOS Keychain (expo-secure-store), never in plain
- * storage. On web — used only for design screenshots — it falls back to memory.
+ * The session token lives in the iOS Keychain (expo-secure-store). In the browser
+ * preview it lives in this tab's session storage — gone when the tab closes.
  */
 export const API_URL = (process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:3000').replace(/\/$/, '');
 
 const KEY = 'pockit.session';
 let memoryToken: string | null = null;
+const tab = () => { try { return typeof sessionStorage === 'undefined' ? null : sessionStorage; } catch { return null; } };
 
 export async function readToken(): Promise<string | null> {
-  if (Platform.OS === 'web') return memoryToken;
+  if (Platform.OS === 'web') return memoryToken ?? tab()?.getItem(KEY) ?? null;
   return SecureStore.getItemAsync(KEY);
 }
 
 export async function writeToken(token: string | null): Promise<void> {
-  if (Platform.OS === 'web') { memoryToken = token; return; }
+  if (Platform.OS === 'web') {
+    memoryToken = token;
+    try { if (token) tab()?.setItem(KEY, token); else tab()?.removeItem(KEY); } catch { /* private mode */ }
+    return;
+  }
   if (token) await SecureStore.setItemAsync(KEY, token, { keychainAccessible: SecureStore.WHEN_UNLOCKED_THIS_DEVICE_ONLY });
   else await SecureStore.deleteItemAsync(KEY);
 }
