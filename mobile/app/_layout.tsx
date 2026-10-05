@@ -16,7 +16,9 @@ export const unstable_settings = { initialRouteName: '(tabs)' };
 void SplashScreen.preventAutoHideAsync();
 
 export default function RootLayout() {
-  const [loaded] = useFonts({ Tinos_400Regular, Tinos_400Regular_Italic, Tinos_700Bold });
+  const [fontsLoaded, fontError] = useFonts({ Tinos_400Regular, Tinos_400Regular_Italic, Tinos_700Bold });
+  // A font that fails to load must not leave a blank screen; the system serif stands in.
+  const loaded = fontsLoaded || Boolean(fontError);
   const c = useColors();
   const dark = useIsDark();
 
