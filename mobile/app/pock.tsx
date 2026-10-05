@@ -84,8 +84,8 @@ export default function Pock({ embedded = false }: { embedded?: boolean }) {
       <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingTop: insets.top + space.sm, paddingHorizontal: space.xl, paddingBottom: space.md, borderBottomWidth: 0.5, borderBottomColor: c.border }}>
         {embedded ? <View style={{ width: 20 }} /> : <Pressable onPress={() => router.back()} hitSlop={12} accessibilityLabel="Close"><Text style={[type.body, { color: a.accent }]}>Done</Text></Pressable>}
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-          <PockMark size={22} color={a.accent} />
-          <Text style={[type.headline, { color: c.text }]}>{learn ? 'Investing tutor' : 'Pock'}</Text>
+          <PockMark size={22} color={a.accent} glasses={learn} />
+          <Text style={[type.headline, { color: c.text }]}>Ask Pock</Text>
         </View>
         <Pressable onPress={() => { setMessages([]); setThreadId(undefined); }} hitSlop={12} accessibilityLabel="New conversation" disabled={!messages.length}>
           <Icon name="square.and.pencil" size={20} color={messages.length ? a.accent : c.surface2} />
@@ -96,7 +96,7 @@ export default function Pock({ embedded = false }: { embedded?: boolean }) {
         {messages.length === 0 ? (
           <View style={{ flex: 1, justifyContent: 'center', gap: space.lg }}>
             <View style={{ alignItems: 'center', gap: space.md }}>
-              <View style={{ width: 72, height: 72, borderRadius: 22, backgroundColor: a.soft, alignItems: 'center', justifyContent: 'center' }}><PockMark size={40} color={a.accent} /></View>
+              <View style={{ width: 72, height: 72, borderRadius: 22, backgroundColor: a.soft, alignItems: 'center', justifyContent: 'center' }}><PockMark size={40} color={a.accent} glasses={learn} /></View>
               <Text style={[type.title3, { color: c.text, textAlign: 'center' }]}>{learn ? 'Ask me anything about investing' : anchor ? `Ask about ${anchor.label ?? 'this goal'}` : 'Ask me about your money'}</Text>
               <Text style={[type.subhead, { color: c.textMuted, textAlign: 'center', lineHeight: 21 }]}>{learn ? 'Stocks, ETFs, TFSAs, budgeting — any money question, explained simply. For learning, not advice.' : 'I can see your bills, spending and goals, and I explain things plainly. I never move money.'}</Text>
             </View>

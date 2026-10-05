@@ -1,9 +1,11 @@
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
-import { router } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
+import { getText, lessonsRead, setText } from '@/lib/prefs';
+import { TOPICS, type Level } from '../learn';
 import { TourTarget } from '@/lib/tour';
 import { Icon } from '@/components/Icon';
-import { Card, EmptyCard, Loading, formatMoney, PreviewBadge, Screen, SectionHeader, StaleNote, useAccent } from '@/components/ui';
+import { Card, Shortcuts, EmptyCard, Loading, formatMoney, PreviewBadge, Screen, SectionHeader, StaleNote, useAccent } from '@/components/ui';
 import { PREVIEW } from '@/lib/session';
 import { useSummary, type Summary } from '@/lib/summary';
 import { space, type, useColors } from '@/theme/tokens';
@@ -12,13 +14,90 @@ import { space, type, useColors } from '@/theme/tokens';
 export default function Invest() {
   const { data, error, refreshing, refresh } = useSummary();
   const c = useColors();
+  // Unknown until they say. The demo shows the full tab straight away.
+  const [level, setLevel] = useState<Level | null | undefined>(PREVIEW ? 'beginner' : undefined);
+  const [done, setDone] = useState<string[]>([]);
+  useFocusEffect(useCallback(() => {
+    void lessonsRead().then(setDone);
+    if (!PREVIEW) void getText('investLevel').then((v) => setLevel((v as Level | null) ?? null));
+  }, []));
+  const choose = (l: Level | null) => { setLevel(l); void setText('investLevel', l); };
+
   return (
-    <Screen section="invest" title="Invest (demo)" eyebrow="Still being built — follow along and learn" onRefresh={refresh} refreshing={refreshing} right={<SearchButton />}>
+    <Screen section="invest" title="Invest (demo)" eyebrow="Still being built — follow along and learn" onRefresh={refresh} refreshing={refreshing} right={level ? <SearchButton /> : undefined}>
       {PREVIEW ? <PreviewBadge /> : null}
-      <TourTarget id="learn"><LearnCard /></TourTarget>
-      <StaleNote message={data ? error : null} />
-      {data ? <Body d={data} /> : <Loading error={error} />}
+      {level === undefined ? null : level === null ? <LevelPicker onPick={choose} /> : (
+        <>
+          {level !== 'advanced' ? <TourTarget id="learn"><Path level={level} done={done} /></TourTarget> : null}
+          <StaleNote message={data ? error : null} />
+          {level === 'beginner' && data && !data.invest.holdings.length && !PREVIEW ? (
+            <Text style={[type.footnote, { color: c.textMuted, marginTop: space.xl, lineHeight: 20 }]}>When you’re ready, search any stock or fund above and tap Watch to follow it — no money involved.</Text>
+          ) : data ? <Body d={data} /> : <Loading error={error} />}
+          <Pressable onPress={() => choose(null)} hitSlop={8} style={{ alignSelf: 'center', marginTop: space.xxl }} accessibilityRole="button">
+            <Text style={[type.label, { color: c.textMuted }]}>Change my level</Text>
+          </Pressable>
+        </>
+      )}
     </Screen>
+  );
+}
+
+/** First visit: where are you with investing? Everything after is shaped by the answer. */
+function LevelPicker({ onPick }: { onPick: (l: Level) => void }) {
+  const c = useColors();
+  const a = useAccent();
+  const options: { level: Level; title: string; body: string }[] = [
+    { level: 'beginner', title: 'Brand new', body: 'Start from zero — what stocks and ETFs are, and how people begin.' },
+    { level: 'intermediate', title: 'I know the basics', body: 'Fees, picking a mix, which account first, investing regularly.' },
+    { level: 'advanced', title: 'I’m experienced', body: 'Skip the lessons — just follow your stocks and funds.' },
+  ];
+  return (
+    <View>
+      <Text style={[type.title2, { color: c.text }]}>Where are you with investing?</Text>
+      <Text style={[type.subhead, { color: c.textMuted, marginTop: 8, lineHeight: 22 }]}>Pick what fits and Pockit will meet you there. You can change it any time.</Text>
+      <View style={{ marginTop: space.xl, gap: 10 }}>
+        {options.map((o) => (
+          <Pressable key={o.level} onPress={() => onPick(o.level)} accessibilityRole="button"
+            style={({ pressed }) => ({ padding: space.lg, borderRadius: 10, borderWidth: 1, borderColor: pressed ? a.accent : c.border, backgroundColor: c.surface, opacity: pressed ? 0.85 : 1 })}>
+            <Text style={[type.headline, { color: c.text }]}>{o.title}</Text>
+            <Text style={[type.footnote, { color: c.textMuted, marginTop: 4, lineHeight: 20 }]}>{o.body}</Text>
+          </Pressable>
+        ))}
+      </View>
+      <Text style={[type.footnote, { color: c.textSubtle, marginTop: space.lg, lineHeight: 20 }]}>Pockit is for learning and following — it never buys or sells anything.</Text>
+    </View>
+  );
+}
+
+/** Your lessons, in order: how far along you are and the next one to read. */
+function Path({ level, done }: { level: Level; done: string[] }) {
+  const c = useColors();
+  const a = useAccent();
+  const lessons = TOPICS.filter((t) => t.level === level);
+  const read = lessons.filter((t) => done.includes(t.id)).length;
+  const next = lessons.find((t) => !done.includes(t.id));
+  return (
+    <View>
+      <Text style={[type.label, { color: c.textMuted }]}>{level === 'beginner' ? 'Your first steps' : 'Going further'}</Text>
+      <Text style={[type.hero, { color: c.text, marginTop: 6 }]}>{read}<Text style={{ color: c.textSubtle }}>/{lessons.length}</Text></Text>
+      <Text style={[type.subhead, { color: c.textMuted }]}>{read === lessons.length ? 'All read — nice work.' : 'lessons read · about a minute each'}</Text>
+      <View style={{ height: 3, backgroundColor: c.surface2, marginTop: space.md }}>
+        <View style={{ height: 3, width: `${(read / lessons.length) * 100}%`, backgroundColor: a.accent }} />
+      </View>
+      {next ? (
+        <Pressable onPress={() => router.push({ pathname: '/learn', params: { level, topic: next.id } })} accessibilityRole="button"
+          style={({ pressed }) => ({ marginTop: space.xl, padding: space.lg, borderRadius: 10, backgroundColor: c.surface, borderWidth: 0.5, borderColor: c.border, opacity: pressed ? 0.75 : 1 })}>
+          <Text style={[type.caption, { color: a.accent }]}>NEXT UP</Text>
+          <Text style={[type.headline, { color: c.text, marginTop: 4 }]}>{next.title}</Text>
+          <Text style={[type.footnote, { color: c.textMuted, marginTop: 2 }]}>{next.line}</Text>
+        </Pressable>
+      ) : null}
+      <Shortcuts items={[
+        { icon: 'book', label: 'All lessons', onPress: () => router.push({ pathname: '/learn', params: { level } }) },
+        { icon: 'sparkles', label: 'Ask Pock', onPress: () => router.push({ pathname: '/pock', params: { mode: 'learn' } }) },
+        { icon: 'magnifyingglass', label: 'Look up', onPress: () => router.push('/search') },
+      ]} />
+    </View>
   );
 }
 
@@ -96,25 +175,5 @@ function SearchButton() {
       style={{ width: 34, height: 34, borderRadius: 17, borderWidth: 1, borderColor: a.accent, alignItems: 'center', justifyContent: 'center' }}>
       <Icon name="magnifyingglass" size={19} color={a.accent} />
     </Pressable>
-  );
-}
-
-/** Asks first — the lessons are only there if they're curious. */
-function LearnCard() {
-  const c = useColors();
-  const a = useAccent();
-  const [hidden, setHidden] = useState(false);
-  if (hidden) return null;
-  return (
-    <Card>
-      <View style={{ paddingVertical: space.lg }}>
-        <Text style={[type.headline, { color: c.text }]}>Want to learn about investing?</Text>
-        <Text style={[type.subhead, { color: c.textMuted, marginTop: 4, lineHeight: 20 }]}>Stocks, ETFs, bonds, crypto — what they are, in plain words. Ask the tutor anything.</Text>
-        <View style={{ flexDirection: 'row', gap: space.lg, marginTop: space.md }}>
-          <Pressable accessibilityRole="button" onPress={() => router.push('/learn')}><Text style={[type.bodyStrong, { color: a.accent }]}>Yes, show me</Text></Pressable>
-          <Pressable accessibilityRole="button" onPress={() => setHidden(true)}><Text style={[type.bodyStrong, { color: c.textMuted }]}>Not now</Text></Pressable>
-        </View>
-      </View>
-    </Card>
   );
 }

@@ -1,3 +1,4 @@
+import { LESSONS } from './lessons';
 import 'server-only';
 
 /**
@@ -80,4 +81,8 @@ HOW YOU TEACH
 - Use a small worked example with round numbers when it helps ("If you put $100 a month into…").
 - Be balanced: say what can go wrong as well as what can go right. Mention fees and risk.
 - You are educational, not a financial adviser. Never tell someone to buy or sell a specific investment, never promise returns, and never predict prices. If asked "should I buy X?", explain how to think about it and suggest that personal advice comes from a licensed adviser.
-- If the person's own numbers are provided below, you may refer to them gently, but don't lecture.`;
+- If the person's own numbers are provided below, you may refer to them gently, but don't lecture.
+- The lessons below are what the person may have just read in the app. Stay consistent with them, build on them, and point to the lesson by name when it helps ("there's more in the Fees and MERs lesson"). Yearly limits change — say so and point to CRA My Account rather than quoting a number as certain.
+
+THE APP'S LESSONS
+${LESSONS.map((l) => `## ${l.title} (${l.level})\n${l.sections.map((s) => `${s.heading}: ${s.text}`).join('\n')}\nRisk: ${l.risk}`).join('\n\n')}`;

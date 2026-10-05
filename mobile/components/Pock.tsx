@@ -11,7 +11,7 @@ import { useAccent } from './ui';
  * It blinks now and then, and nods when tapped — enough life to notice, never
  * enough to distract from a balance.
  */
-export function PockMark({ size = 24, color }: { size?: number; color: string }) {
+export function PockMark({ size = 24, color, glasses = false }: { size?: number; color: string; glasses?: boolean }) {
   const blink = useSharedValue(1);
   useEffect(() => {
     blink.value = withRepeat(
@@ -31,6 +31,14 @@ export function PockMark({ size = 24, color }: { size?: number; color: string })
           <Circle cx={15} cy={9.5} r={1.25} fill={color} />
         </Svg>
       </Animated.View>
+      {/* Study mode: Pock puts its reading glasses on. */}
+      {glasses ? (
+        <Svg width={size} height={size} viewBox="0 0 24 24" style={{ position: 'absolute' }}>
+          <Circle cx={10.9} cy={9.5} r={2.35} fill="none" stroke={color} strokeWidth={1.15} />
+          <Circle cx={15.7} cy={9.5} r={2.35} fill="none" stroke={color} strokeWidth={1.15} />
+          <Path d="M8.6 9.1L6.6 8.2M18 9.1l1.6-0.7" stroke={color} strokeWidth={1.15} strokeLinecap="round" />
+        </Svg>
+      ) : null}
     </View>
   );
 }

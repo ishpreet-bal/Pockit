@@ -62,3 +62,14 @@ describe('the app’s copy', () => {
     expect(readFileSync('mobile/lib/fuel.ts', 'utf8')).toBe(readFileSync('src/lib/trip/fuel.ts', 'utf8'));
   });
 });
+
+describe('investing lessons', () => {
+  it('the app and Pock read the same lessons', async () => {
+    const { readFileSync } = await import('node:fs');
+    expect(readFileSync('mobile/data/lessons.ts', 'utf8')).toBe(readFileSync('src/lib/pock/lessons.ts', 'utf8'));
+  });
+  it('Pock’s learning brief carries every lesson', async () => {
+    const { LEARN_BRIEF } = await import('../pock/brief');
+    for (const t of ['Stocks', 'Crypto', 'Fees and MERs', 'Which account first?']) expect(LEARN_BRIEF).toContain(`## ${t}`);
+  });
+});

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Pressable, ScrollView, Text, TextInput, View } from 'react-native';
+import { Platform, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import { router } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { Button, Chip, ChipRow, FormError } from '@/components/form';
@@ -28,6 +28,8 @@ export default function Add() {
   const [meta, setMeta] = useState<Pick<TxnPage, 'categories' | 'accounts'> | null>(PREVIEW ? previewTransactions : null);
   const [kind, setKind] = useState<'expense' | 'income'>('expense');
   const [amount, setAmount] = useState('');
+  const [naming, setNaming] = useState(false);
+  const [newName, setNewName] = useState('');
   const [what, setWhat] = useState('');
   const [categoryId, setCategoryId] = useState<string | null>(null);
   const [date, setDate] = useState(daysAgo(0));
@@ -63,6 +65,19 @@ export default function Add() {
   const categories = (meta?.categories ?? []).filter((x) => x.kind === kind && x.parentId === null);
   const amountNumber = Number(amount.replace(/[^0-9.]/g, ''));
   const ready = amountNumber > 0 && what.trim().length > 0 && Boolean(accountId);
+
+  async function addCategory() {
+    const name = newName.trim();
+    if (!name) return;
+    try {
+      const made = PREVIEW
+        ? { id: `custom-${Date.now()}`, name, kind, parentId: null, icon: null }
+        : (await api<{ category: TxnPage['categories'][number] }>('/api/mobile/categories', { body: { name, kind } })).category;
+      setMeta((m) => m && !m.categories.some((x) => x.id === made.id) ? { ...m, categories: [...m.categories, made as TxnPage['categories'][number]] } : m);
+      setCategoryId(made.id); setNaming(false); setNewName('');
+      void Haptics.selectionAsync();
+    } catch (e) { setError(e instanceof Error ? e.message : 'That category couldn’t be added.'); }
+  }
 
   async function save() {
     setBusy(true); setError(null);
@@ -101,9 +116,10 @@ export default function Add() {
         <View style={{ alignItems: 'center' }}>
           <View style={{ flexDirection: 'row', alignItems: 'center' }}>
             <Text style={{ fontFamily: font.bold, fontSize: 46, color: amount ? c.text : c.textSubtle }}>$</Text>
-            <TextInput value={amount} onChangeText={setAmount} placeholder="0" placeholderTextColor={c.textSubtle} keyboardType="decimal-pad" autoFocus
-              accessibilityLabel="Amount" // Sized to its digits so the $ stays beside the number instead of being pushed aside.
-              style={{ fontFamily: font.bold, fontSize: 56, color: c.text, width: Math.max(1, amount.length || 1) * 34 + 8, textAlign: 'left' }} />
+            <TextInput value={amount} onChangeText={(t) => setAmount(cleanAmount(t))} placeholder="0" placeholderTextColor={c.textSubtle} keyboardType="decimal-pad" inputMode="decimal" autoFocus
+              accessibilityLabel="Amount" maxLength={10}
+              // Sized to its digits so the $ stays beside the number; no box, no browser outline.
+              style={[{ fontFamily: font.bold, fontSize: 56, color: c.text, width: Math.max(1, amount.length || 1) * 32 + 12, textAlign: 'left', borderWidth: 0, padding: 0, backgroundColor: 'transparent' }, Platform.OS === 'web' && ({ outlineStyle: 'none' } as object)]} />
           </View>
         </View>
 
@@ -129,9 +145,19 @@ export default function Add() {
             <Text style={[type.footnote, { color: c.textMuted, marginBottom: 8 }]}>Category</Text>
             <ChipRow>
               {categories.map((cat) => (
-                <Chip section="spending" key={cat.id} label={`${cat.icon ?? ''} ${cat.name}`.trim()} selected={categoryId === cat.id} onPress={() => setCategoryId(categoryId === cat.id ? null : cat.id)} />
+                <Chip section="spending" key={cat.id} label={cat.name} selected={categoryId === cat.id} onPress={() => setCategoryId(categoryId === cat.id ? null : cat.id)} />
               ))}
+              {!naming ? <Chip section="spending" label="+ New" selected={false} onPress={() => setNaming(true)} /> : null}
             </ChipRow>
+            {naming ? (
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 10 }}>
+                <TextInput value={newName} onChangeText={setNewName} placeholder="Name it — e.g. Gym, Pets, Gifts" placeholderTextColor={c.textSubtle} autoFocus maxLength={40}
+                  accessibilityLabel="New category name" onSubmitEditing={() => void addCategory()}
+                  style={[{ flex: 1, height: 44, borderBottomWidth: 1.5, borderBottomColor: c.section.spending.accent, fontFamily: font.regular, fontSize: 16, color: c.text }, Platform.OS === 'web' && ({ outlineStyle: 'none' } as object)]} />
+                <Pressable onPress={() => void addCategory()} hitSlop={8} accessibilityRole="button"><Text style={[type.label, { color: c.section.spending.accent }]}>Add</Text></Pressable>
+                <Pressable onPress={() => { setNaming(false); setNewName(''); }} hitSlop={8} accessibilityRole="button"><Text style={[type.label, { color: c.textMuted }]}>Cancel</Text></Pressable>
+              </View>
+            ) : null}
           </View>
         ) : null}
 
@@ -150,6 +176,15 @@ export default function Add() {
             <ChipRow>
               {meta.accounts.map((a) => <Chip section="spending" key={a.id} label={a.name} selected={accountId === a.id} onPress={() => setAccountId(a.id)} />)}
             </ChipRow>
+            {naming ? (
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 10 }}>
+                <TextInput value={newName} onChangeText={setNewName} placeholder="Name it — e.g. Gym, Pets, Gifts" placeholderTextColor={c.textSubtle} autoFocus maxLength={40}
+                  accessibilityLabel="New category name" onSubmitEditing={() => void addCategory()}
+                  style={[{ flex: 1, height: 44, borderBottomWidth: 1.5, borderBottomColor: c.section.spending.accent, fontFamily: font.regular, fontSize: 16, color: c.text }, Platform.OS === 'web' && ({ outlineStyle: 'none' } as object)]} />
+                <Pressable onPress={() => void addCategory()} hitSlop={8} accessibilityRole="button"><Text style={[type.label, { color: c.section.spending.accent }]}>Add</Text></Pressable>
+                <Pressable onPress={() => { setNaming(false); setNewName(''); }} hitSlop={8} accessibilityRole="button"><Text style={[type.label, { color: c.textMuted }]}>Cancel</Text></Pressable>
+              </View>
+            ) : null}
           </View>
         ) : null}
 
@@ -164,4 +199,11 @@ export default function Add() {
       </ScrollView>
     </View>
   );
+}
+
+/** Digits and one decimal point, at most two decimals — letters never get in. */
+function cleanAmount(t: string): string {
+  const digits = t.replace(/[^0-9.]/g, '');
+  const [whole, ...rest] = digits.split('.');
+  return rest.length ? `${whole}.${rest.join('').slice(0, 2)}` : whole!;
 }

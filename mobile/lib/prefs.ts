@@ -26,3 +26,23 @@ export async function saveAppearance(value: 'system' | 'light' | 'dark'): Promis
   if (Platform.OS === 'web') { memory.set('appearance', value); return; }
   await SecureStore.setItemAsync('pockit.pref.appearance', value);
 }
+
+/** Small free-text settings kept on this device (investing level, lessons read). */
+export type TextKey = 'investLevel' | 'learnDone';
+export async function getText(key: TextKey): Promise<string | null> {
+  try { return Platform.OS === 'web' ? (globalThis.localStorage?.getItem(`pockit.${key}`) ?? memory.get(key) ?? null) : await SecureStore.getItemAsync(`pockit.pref.${key}`); }
+  catch { return memory.get(key) ?? null; }
+}
+export async function setText(key: TextKey, value: string | null): Promise<void> {
+  try {
+    if (Platform.OS === 'web') { if (value === null) { memory.delete(key); globalThis.localStorage?.removeItem(`pockit.${key}`); } else { memory.set(key, value); globalThis.localStorage?.setItem(`pockit.${key}`, value); } return; }
+    if (value === null) await SecureStore.deleteItemAsync(`pockit.pref.${key}`); else await SecureStore.setItemAsync(`pockit.pref.${key}`, value);
+  } catch { if (value === null) memory.delete(key); else memory.set(key, value); }
+}
+export async function lessonsRead(): Promise<string[]> {
+  try { return JSON.parse((await getText('learnDone')) ?? '[]') as string[]; } catch { return []; }
+}
+export async function markLessonRead(id: string): Promise<void> {
+  const done = await lessonsRead();
+  if (!done.includes(id)) await setText('learnDone', JSON.stringify([...done, id]));
+}
