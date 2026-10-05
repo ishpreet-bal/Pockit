@@ -126,7 +126,7 @@ function Body({ d }: { d: Summary }) {
           style={({ pressed }) => ({ flexDirection: 'row', gap: 12, alignItems: 'flex-start', marginTop: 28, paddingVertical: 14, paddingHorizontal: 14, borderRadius: 10, backgroundColor: c.surface, borderWidth: 0.5, borderColor: c.border, opacity: pressed ? 0.7 : 1 })}>
           <PockMark size={20} color={a.accent} />
           <View style={{ flex: 1 }}>
-            <Text style={{ fontFamily: font.italic, fontSize: 16, lineHeight: 22, color: c.text }}>{tip(d)}</Text>
+            <Text style={{ fontFamily: font.serifItalic, fontSize: 17, lineHeight: 22, color: c.text }}>{tip(d)}</Text>
             <Text style={[type.caption, { color: a.accent, marginTop: 8 }]}>ASK POCK →</Text>
           </View>
         </Pressable>

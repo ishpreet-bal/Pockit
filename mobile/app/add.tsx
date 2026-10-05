@@ -115,11 +115,11 @@ export default function Add() {
 
         <View style={{ alignItems: 'center' }}>
           <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-            <Text style={{ fontFamily: font.bold, fontSize: 46, color: amount ? c.text : c.textSubtle }}>$</Text>
+            <Text style={{ fontFamily: font.serifBold, fontSize: 46, color: amount ? c.text : c.textSubtle }}>$</Text>
             <TextInput value={amount} onChangeText={(t) => setAmount(cleanAmount(t))} placeholder="0" placeholderTextColor={c.textSubtle} keyboardType="decimal-pad" inputMode="decimal" autoFocus
               accessibilityLabel="Amount" maxLength={10}
               // Sized to its digits so the $ stays beside the number; no box, no browser outline.
-              style={[{ fontFamily: font.bold, fontSize: 56, color: c.text, width: Math.max(1, amount.length || 1) * 32 + 12, textAlign: 'left', borderWidth: 0, padding: 0, backgroundColor: 'transparent' }, Platform.OS === 'web' && ({ outlineStyle: 'none' } as object)]} />
+              style={[{ fontFamily: font.serifBold, fontSize: 56, color: c.text, width: Math.max(1, amount.length || 1) * 32 + 12, textAlign: 'left', borderWidth: 0, padding: 0, backgroundColor: 'transparent' }, Platform.OS === 'web' && ({ outlineStyle: 'none' } as object)]} />
           </View>
         </View>
 

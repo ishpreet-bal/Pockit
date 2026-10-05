@@ -71,28 +71,35 @@ export function useColors(): Palette {
   return useIsDark() ? dark : light;
 }
 
-/** One serif, two weights. (Tinos: the classic newspaper serif, the same on every phone.) */
+/**
+ * Two faces, the way Wealthsimple does it: a serif for the big moments —
+ * headlines and the money figures — and a clean sans (DM Sans) for everything
+ * you read and tap.
+ */
 export const font = {
-  regular: 'Tinos_400Regular',
-  medium: 'Tinos_400Regular',
-  semibold: 'Tinos_700Bold',
-  bold: 'Tinos_700Bold',
-  italic: 'Tinos_400Regular_Italic',
+  regular: 'DMSans_400Regular',
+  medium: 'DMSans_500Medium',
+  semibold: 'DMSans_600SemiBold',
+  bold: 'DMSans_700Bold',
+  italic: 'DMSans_400Regular_Italic',
+  serif: 'Tinos_400Regular',
+  serifBold: 'Tinos_700Bold',
+  serifItalic: 'Tinos_400Regular_Italic',
 };
 
 export const type = {
-  hero: { fontFamily: font.bold, fontSize: 44, letterSpacing: -1.6, lineHeight: 50, fontVariant: ['tabular-nums' as const] },
-  largeTitle: { fontFamily: font.bold, fontSize: 34, letterSpacing: -1 },
-  title2: { fontFamily: font.bold, fontSize: 26, letterSpacing: -0.6 },
-  title3: { fontFamily: font.regular, fontSize: 20 },
-  headline: { fontFamily: font.bold, fontSize: 18 },
-  body: { fontFamily: font.regular, fontSize: 17 },
-  bodyStrong: { fontFamily: font.regular, fontSize: 17 },
-  subhead: { fontFamily: font.regular, fontSize: 16 },
-  footnote: { fontFamily: font.regular, fontSize: 14 },
-  /** Small spaced capitals: dates, labels, tabs. Pass text already upper-cased or use `label`. */
-  caption: { fontFamily: font.regular, fontSize: 12, letterSpacing: 1.4 },
-  label: { fontFamily: font.regular, fontSize: 12, letterSpacing: 1.6, textTransform: 'uppercase' as const },
+  hero: { fontFamily: font.serifBold, fontSize: 44, letterSpacing: -1.6, lineHeight: 50, fontVariant: ['tabular-nums' as const] },
+  largeTitle: { fontFamily: font.serifBold, fontSize: 34, letterSpacing: -1 },
+  title2: { fontFamily: font.serifBold, fontSize: 26, letterSpacing: -0.6 },
+  title3: { fontFamily: font.medium, fontSize: 19, letterSpacing: -0.2 },
+  headline: { fontFamily: font.semibold, fontSize: 16, letterSpacing: -0.1 },
+  body: { fontFamily: font.regular, fontSize: 16 },
+  bodyStrong: { fontFamily: font.medium, fontSize: 16 },
+  subhead: { fontFamily: font.regular, fontSize: 15 },
+  footnote: { fontFamily: font.regular, fontSize: 13 },
+  /** Small spaced capitals: dates, labels. Pass text already upper-cased or use `label`. */
+  caption: { fontFamily: font.medium, fontSize: 11, letterSpacing: 1.1 },
+  label: { fontFamily: font.medium, fontSize: 11, letterSpacing: 1.2, textTransform: 'uppercase' as const },
 };
 
 export const space = { xs: 4, sm: 8, md: 12, lg: 16, xl: 22, xxl: 28 };

@@ -4,6 +4,7 @@
   "version": "1.0.0",
   "dependencies": {
     "@expo-google-fonts/bricolage-grotesque": "^0.4.1",
+    "@expo-google-fonts/dm-sans": "^0.4.2",
     "@expo-google-fonts/tinos": "^0.4.2",
     "expo": "~57.0.26",
     "expo-blur": "~57.0.3",

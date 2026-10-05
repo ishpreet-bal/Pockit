@@ -3,6 +3,7 @@ import { DarkTheme, DefaultTheme, Stack, ThemeProvider } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import * as SplashScreen from 'expo-splash-screen';
 import { useFonts, Tinos_400Regular, Tinos_400Regular_Italic, Tinos_700Bold } from '@expo-google-fonts/tinos';
+import { DMSans_400Regular, DMSans_400Regular_Italic, DMSans_500Medium, DMSans_600SemiBold, DMSans_700Bold } from '@expo-google-fonts/dm-sans';
 import 'react-native-reanimated';
 import { setAppearance, useColors, useIsDark } from '@/theme/tokens';
 import { getAppearance } from '@/lib/prefs';
@@ -17,7 +18,7 @@ export const unstable_settings = { initialRouteName: '(tabs)' };
 void SplashScreen.preventAutoHideAsync();
 
 export default function RootLayout() {
-  const [fontsLoaded, fontError] = useFonts({ Tinos_400Regular, Tinos_400Regular_Italic, Tinos_700Bold });
+  const [fontsLoaded, fontError] = useFonts({ Tinos_400Regular, Tinos_400Regular_Italic, Tinos_700Bold, DMSans_400Regular, DMSans_400Regular_Italic, DMSans_500Medium, DMSans_600SemiBold, DMSans_700Bold });
   // A font that fails to load must not leave a blank screen; the system serif stands in.
   const loaded = fontsLoaded || Boolean(fontError);
   const c = useColors();
