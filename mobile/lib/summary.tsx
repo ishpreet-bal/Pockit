@@ -2,7 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useState, type React
 import { api } from './api';
 import { PREVIEW, useSession } from './session';
 import { previewSummary } from '@/data/preview';
-import { syncBillReminders } from './reminders';
+import { checkBudgetAlerts, syncBillReminders } from './reminders';
 
 export interface Summary {
   currency: string;
@@ -71,6 +71,7 @@ export function SummaryProvider({ children }: { children: ReactNode }) {
       setData(next);
       // Fresh bills mean fresh reminders; failures here never block the numbers.
       void syncBillReminders(next).catch(() => {});
+      void checkBudgetAlerts(next).catch(() => {});
       setError(null);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Could not load your numbers.');

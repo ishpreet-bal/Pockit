@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react';
-import { Pressable, Switch, Text, TextInput, View } from 'react-native';
+import { Platform, Pressable, Switch, Text, TextInput, View } from 'react-native';
+import { getPref, setPref } from '@/lib/prefs';
+import { askForNotifications } from '@/lib/reminders';
 import { Icon } from '@/components/Icon';
 import { useTint } from '@/theme/palette';
 import { router } from 'expo-router';
@@ -172,6 +174,7 @@ export default function Budget() {
               {lines.length - planned.length} {lines.length - planned.length === 1 ? 'category isn’t' : 'categories aren’t'} budgeted. Tap Edit to add {lines.length - planned.length === 1 ? 'it' : 'them'}.
             </Text>
           ) : null}
+          <AlertNudge />
           <TripCard />
         </>
       )}
@@ -201,5 +204,21 @@ function TripCard() {
         <Icon name="chevron.right" size={15} color={c.textSubtle} />
       </View>
     </Card>
+  );
+}
+
+/** Budgets work best with a heads-up before it's too late — offer it once, right here. */
+function AlertNudge() {
+  const c = useColors();
+  const a = useAccent();
+  const [on, setOn] = useState<boolean | null>(null);
+  useEffect(() => { void getPref('budgetAlerts').then(setOn); }, []);
+  if (on !== false || Platform.OS === 'web') return null;
+  return (
+    <Pressable accessibilityRole="button" onPress={async () => { if (await askForNotifications()) { await setPref('budgetAlerts', true); setOn(true); } }}
+      style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: space.xl, opacity: pressed ? 0.6 : 1 })}>
+      <Icon name="calendar.badge.clock" size={18} color={a.accent} />
+      <Text style={[type.subhead, { color: a.accent, flex: 1 }]}>Alert me when a category hits 80%</Text>
+    </Pressable>
   );
 }

@@ -4,7 +4,7 @@ import Constants from 'expo-constants';
 import { Card, Screen, SectionHeader, Segmented } from '@/components/ui';
 import { biometricsAvailable, confirmWithBiometrics } from '@/lib/lock';
 import { getPref, saveAppearance, setPref } from '@/lib/prefs';
-import { askForNotifications, syncBillReminders } from '@/lib/reminders';
+import { askForNotifications, checkBudgetAlerts, syncBillReminders, syncWeeklySummary } from '@/lib/reminders';
 import { useSummary } from '@/lib/summary';
 import { useSession } from '@/lib/session';
 import { setAppearance, space, type, useAppearance, useColors, type Appearance } from '@/theme/tokens';
@@ -29,6 +29,8 @@ export default function Settings() {
   const { me } = useSession();
   const [faceId, setFaceId] = useState(false);
   const [reminders, setReminders] = useState(false);
+  const [alerts, setAlerts] = useState(false);
+  const [weekly, setWeekly] = useState(false);
   const [bio, setBio] = useState({ ok: false, label: 'Face ID' });
   const [note, setNote] = useState<string | null>(null);
 
@@ -36,6 +38,8 @@ export default function Settings() {
     void (async () => {
       setFaceId(await getPref('faceId'));
       setReminders(await getPref('billReminders'));
+      setAlerts(await getPref('budgetAlerts'));
+      setWeekly(await getPref('weeklySummary'));
       setBio(await biometricsAvailable());
     })();
   }, []);
@@ -44,6 +48,17 @@ export default function Settings() {
     // Prove it works before relying on it, so nobody locks themselves out.
     if (on && !(await confirmWithBiometrics(`Turn on ${bio.label} for Pockit`))) return;
     await setPref('faceId', on); setFaceId(on);
+  }
+
+  async function changeNotify(key: 'budgetAlerts' | 'weeklySummary', on: boolean) {
+    setNote(null);
+    if (on && !(await askForNotifications())) {
+      setNote('Notifications are off for Pockit. Turn them on in iPhone Settings → Pockit → Notifications.');
+      return;
+    }
+    await setPref(key, on);
+    if (key === 'budgetAlerts') { setAlerts(on); if (on) void checkBudgetAlerts(data); }
+    else { setWeekly(on); void syncWeeklySummary(on); }
   }
 
   async function changeReminders(on: boolean) {
@@ -68,7 +83,9 @@ export default function Settings() {
       </Card>
       <SectionHeader title="Notifications" />
       <Card>
-        <Toggle title="Bill reminders" detail="A heads-up at 9am the day before each bill is due." value={reminders} onChange={changeReminders} disabled={Platform.OS === 'web'} last />
+        <Toggle title="Bill reminders" detail="A heads-up at 9am the day before each bill is due." value={reminders} onChange={changeReminders} disabled={Platform.OS === 'web'} />
+        <Toggle title="Budget alerts" detail="When a category reaches 80% of its budget, and if it goes over." value={alerts} onChange={(v) => void changeNotify('budgetAlerts', v)} disabled={Platform.OS === 'web'} />
+        <Toggle title="Weekly summary" detail="Sundays at 6pm: what went out this week and what’s left." value={weekly} onChange={(v) => void changeNotify('weeklySummary', v)} disabled={Platform.OS === 'web'} last />
       </Card>
       {note ? <Text style={[type.footnote, { color: c.textMuted, marginTop: space.sm, marginLeft: 4 }]} onPress={note.includes('iPhone Settings') ? () => Linking.openSettings() : undefined}>{note}</Text> : null}
       <SectionHeader title="Account" />
