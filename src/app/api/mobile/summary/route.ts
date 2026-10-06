@@ -71,6 +71,7 @@ export async function GET() {
     /** With no money recorded in any account, "safe to spend" has nothing to start from. */
     hasBalance: d.position.cashNowMinor !== 0n,
     bank: { available: plaidConfigured(), connected: banks.length > 0 },
+    space: { name: workspace.name, shared: workspace.kind === 'household' },
 
     home: {
       safeToSpendMinor: n(d.available.amountMinor),

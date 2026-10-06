@@ -11,6 +11,8 @@ export interface Summary {
   hasBalance: boolean;
   /** Bank connection: switched on for this server, and whether this person has connected one. */
   bank?: { available: boolean; connected: boolean };
+  /** The space being viewed — a shared household shows its name on Home. */
+  space?: { name: string; shared: boolean };
   home: {
     safeToSpendMinor: number;
     explanation: string;

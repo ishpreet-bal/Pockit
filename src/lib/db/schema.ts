@@ -19,7 +19,7 @@ export const pockit = pgSchema('pockit');
 /* Enums                                                               */
 /* ------------------------------------------------------------------ */
 
-export const workspaceKind = pockit.enum('workspace_kind', ['personal', 'business']);
+export const workspaceKind = pockit.enum('workspace_kind', ['personal', 'business', 'household']);
 export const memberRole = pockit.enum('member_role', ['owner', 'admin', 'member', 'viewer']);
 export const accountType = pockit.enum('account_type', [
   'chequing', 'savings', 'cash', 'credit_card', 'line_of_credit',
@@ -1133,5 +1133,16 @@ export const bankConnections = pockit.table('bank_connections', {
   status: text('status').notNull().default('active'),
   error: text('error'),
   lastSyncedAt: timestamp('last_synced_at', { withTimezone: true }),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
+/** Single-use invite codes for joining a shared space. */
+export const spaceInvites = pockit.table('space_invites', {
+  code: text('code').primaryKey(),
+  workspaceId: uuid('workspace_id').notNull().references(() => workspaces.id, { onDelete: 'cascade' }),
+  createdBy: uuid('created_by').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+  usedBy: uuid('used_by').references(() => users.id, { onDelete: 'set null' }),
+  usedAt: timestamp('used_at', { withTimezone: true }),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 });

@@ -59,3 +59,21 @@ describe('budget rollover and payday periods', () => {
     expect(p).toEqual({ start: '2026-10-09', end: '2026-10-22' });
   });
 });
+
+describe('splitting a shared space', () => {
+  it('two people: the one who paid less pays the difference', async () => {
+    const { splitEvenly } = await import('./split');
+    const r = splitEvenly([{ id: 'a', name: 'Ish' }, { id: 'b', name: 'Sam' }], new Map([['a', 30000], ['b', 10000]]));
+    expect(r.shareMinor).toBe(20000);
+    expect(r.settle).toEqual([{ from: 'Sam', to: 'Ish', amountMinor: 10000 }]);
+  });
+  it('three people, one paid nothing', async () => {
+    const { splitEvenly } = await import('./split');
+    const r = splitEvenly([{ id: 'a', name: 'A' }, { id: 'b', name: 'B' }, { id: 'c', name: 'C' }], new Map([['a', 60000], ['b', 30000]]));
+    expect(r.settle).toEqual([{ from: 'C', to: 'A', amountMinor: 30000 }]);
+  });
+  it('even spending means nobody owes anything', async () => {
+    const { splitEvenly } = await import('./split');
+    expect(splitEvenly([{ id: 'a', name: 'A' }, { id: 'b', name: 'B' }], new Map([['a', 5000], ['b', 5000]])).settle).toEqual([]);
+  });
+});

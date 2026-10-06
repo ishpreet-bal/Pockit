@@ -61,6 +61,7 @@ export default function RootLayout() {
           <Stack.Screen name="trends" />
           <Stack.Screen name="more" />
           <Stack.Screen name="accounts" />
+          <Stack.Screen name="spaces" />
           <Stack.Screen name="trip" />
           <Stack.Screen name="vehicle" options={{ presentation: 'modal' }} />
         </Stack>

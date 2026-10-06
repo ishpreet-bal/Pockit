@@ -1,3 +1,4 @@
+import { restoreSpace, switchSpace } from './spaces';
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { api, ApiError, readToken, writeToken } from './api';
 import { configurePurchases } from './purchases';
@@ -53,6 +54,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   const refresh = useCallback(async () => {
     if (PREVIEW) return me;
     if (!(await readToken())) { setMe(null); setStatus('signed-out'); return null; }
+    await restoreSpace();
     try {
       const next = await api<Me>('/api/mobile/me');
       setMe(next); setStatus('signed-in');
@@ -74,6 +76,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     exitDemo: () => { PREVIEW = false; setDemo(false); setMe(null); setStatus('signed-out'); },
     adopt: async (token) => { await writeToken(token); return refresh(); },
     signOut: async () => {
+      await switchSpace(null);
       try { await api('/api/mobile/auth/sign-out', { method: 'POST' }); } catch { /* revoke is best effort */ }
       await writeToken(null); setMe(null); setStatus('signed-out');
     },

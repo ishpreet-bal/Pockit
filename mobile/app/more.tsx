@@ -37,6 +37,7 @@ function Body() {
       <Card>
         <Row icon="chart.bar" title="Budget" detail="A monthly plan for each category" value="›" valueColor={c.textSubtle} onPress={() => router.push('/budget')} />
         <Row icon="car" title="Plan a trip" detail="Gas cost for a drive or your commute" value="›" valueColor={c.textSubtle} onPress={() => router.push('/trip')} />
+        <Row icon="person.crop.circle" title="Shared spaces" detail="Budget with a partner or roommates" value="›" valueColor={c.textSubtle} onPress={() => router.push('/spaces')} />
         <Row icon="star" title="Take the tour" detail="A 30-second look around Pockit" value="›" valueColor={c.textSubtle} last onPress={() => { router.navigate('/'); setTimeout(() => tour.start(), 350); }} />
       </Card>
       <PlusRow />

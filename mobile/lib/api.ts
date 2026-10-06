@@ -10,6 +10,11 @@ import { Platform } from 'react-native';
 export const API_URL = (process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:3000').replace(/\/$/, '');
 
 const KEY = 'pockit.session';
+
+/** Which space (Personal, or a shared household) the app is looking at. Sent on every request. */
+let activeSpace: string | null = null;
+export function setActiveSpace(id: string | null) { activeSpace = id; }
+export function getActiveSpace() { return activeSpace; }
 let memoryToken: string | null = null;
 const tab = () => { try { return typeof sessionStorage === 'undefined' ? null : sessionStorage; } catch { return null; } };
 
@@ -42,6 +47,7 @@ export async function api<T = Record<string, unknown>>(path: string, init: { met
       headers: {
         'content-type': 'application/json',
         ...(token ? { authorization: `Bearer ${token}` } : {}),
+        ...(activeSpace ? { 'x-pockit-space': activeSpace } : {}),
       },
       body: init.body ? JSON.stringify(init.body) : undefined,
     });

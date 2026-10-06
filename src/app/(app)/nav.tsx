@@ -12,7 +12,7 @@ import { MORE_ITEMS } from './nav-items';
 import { Mascot } from '@/components/brand/mascot';
 import { cn } from '@/lib/ui/cn';
 
-export interface NavWorkspace { id: string; name: string; kind: 'personal' | 'business'; isDemo: boolean }
+export interface NavWorkspace { id: string; name: string; kind: 'personal' | 'business' | 'household'; isDemo: boolean }
 
 type Icon = ComponentType<{ className?: string; strokeWidth?: number }>;
 

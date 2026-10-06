@@ -32,7 +32,7 @@ export default function Home() {
   const { data, error, refreshing, refresh } = useSummary();
   const first = me?.name?.split(' ')[0];
   return (
-    <Screen section="home" title={data ? todayLine(data.today) : 'Pockit'} eyebrow={first ? `Hi ${first}` : undefined} right={<ProfileButton />} onRefresh={refresh} refreshing={refreshing}>
+    <Screen section="home" title={data ? todayLine(data.today) : 'Pockit'} eyebrow={data?.space?.shared ? `${data.space.name} · shared` : first ? `Hi ${first}` : undefined} right={<ProfileButton />} onRefresh={refresh} refreshing={refreshing}>
       {PREVIEW ? <PreviewBadge /> : null}
       <StaleNote message={data ? error : null} />
       {data ? <Body d={data} /> : <Loading error={error} />}

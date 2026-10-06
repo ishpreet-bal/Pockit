@@ -92,12 +92,12 @@ export default function Budget() {
           <Card style={{ marginTop: space.lg }}>
             {lines.map((l, i) => (
               <View key={l.id} style={{ flexDirection: 'row', alignItems: 'center', gap: space.md, paddingVertical: 10, borderBottomWidth: i < lines.length - 1 ? 0.5 : 0, borderBottomColor: c.border }}>
-                <Text style={{ fontSize: 18, width: 26 }}>{l.icon ?? '•'}</Text>
+                <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: tint(l.name) }} />
                 <View style={{ flex: 1 }}>
                   <Text style={[type.body, { color: c.text }]}>{l.name}</Text>
                   {l.spentMinor > 0 ? <Text style={[type.footnote, { color: c.textMuted }]}>{formatMoney(l.spentMinor, { cents: false })} so far</Text> : null}
                 </View>
-                <View style={{ flexDirection: 'row', alignItems: 'center', width: 110, height: 42, borderRadius: 12, borderWidth: 1, borderColor: c.border, paddingHorizontal: 10, backgroundColor: c.bg }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', width: 124, height: 42, borderRadius: 10, borderWidth: 1, borderColor: c.border, paddingHorizontal: 10, backgroundColor: c.bg }}>
                   <Text style={{ fontFamily: font.medium, color: c.textMuted }}>$</Text>
                   <TextInput
                     accessibilityLabel={`${l.name} budget`}
@@ -106,7 +106,7 @@ export default function Budget() {
                     keyboardType="decimal-pad"
                     placeholder="—"
                     placeholderTextColor={c.textSubtle}
-                    style={{ flex: 1, textAlign: 'right', fontFamily: font.medium, fontSize: 17, color: c.text }}
+                    style={[{ flex: 1, minWidth: 60, height: 40, textAlign: 'right', fontFamily: font.medium, fontSize: 17, color: c.text, padding: 0 }, Platform.OS === 'web' && ({ outlineStyle: 'none' } as object)]}
                   />
                 </View>
               </View>

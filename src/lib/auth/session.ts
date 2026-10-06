@@ -28,7 +28,7 @@ export interface SessionUser {
 export interface WorkspaceSummary {
   id: string;
   name: string;
-  kind: 'personal' | 'business';
+  kind: 'personal' | 'business' | 'household';
   baseCurrency: string;
   isDemo: boolean;
   role: string;
@@ -178,8 +178,10 @@ export async function getActiveWorkspace(
   available: WorkspaceSummary[],
 ): Promise<WorkspaceSummary | null> {
   if (available.length === 0) return null;
+  // The phone app says which space it's looking at with a header; the website uses a cookie.
+  const fromApp = (await headers()).get('x-pockit-space');
   const jar = await cookies();
-  const requested = jar.get(WORKSPACE_COOKIE)?.value;
+  const requested = fromApp || jar.get(WORKSPACE_COOKIE)?.value;
   const match = requested ? available.find((w) => w.id === requested) : undefined;
   return match ?? available[0]!;
 }
