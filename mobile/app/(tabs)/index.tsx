@@ -104,7 +104,7 @@ function Body({ d }: { d: Summary }) {
         ]} />
       </TourTarget>
 
-      {!d.hasBalance && !PREVIEW ? <BalanceCard /> : null}
+      {d.bank?.available && !d.bank.connected && !PREVIEW ? <ConnectBankCard /> : !d.hasBalance && !PREVIEW ? <BalanceCard /> : null}
 
       <SectionHeader title="To payday" action="All bills" onAction={() => router.push('/bills')} />
       <TourTarget id="runway">
@@ -207,6 +207,23 @@ function ProfileButton() {
     <Pressable onPress={() => router.push('/more')} hitSlop={10} accessibilityRole="button" accessibilityLabel="Profile and settings"
       style={({ pressed }) => ({ width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: c.border, opacity: pressed ? 0.6 : 1 })}>
       <Icon name="person.crop.circle" size={20} color={c.textMuted} />
+    </Pressable>
+  );
+}
+
+/** The easiest way to keep Pockit right: let the bank fill it in. */
+function ConnectBankCard() {
+  const c = useColors();
+  const a = useAccent();
+  return (
+    <Pressable onPress={() => router.push('/accounts')} accessibilityRole="button"
+      style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: space.xl, padding: 14, borderRadius: 12, borderWidth: 1, borderColor: a.accent, opacity: pressed ? 0.7 : 1 })}>
+      <Icon name="building.columns" size={20} color={a.accent} />
+      <View style={{ flex: 1 }}>
+        <Text style={[type.headline, { color: c.text }]}>Connect your bank</Text>
+        <Text style={[type.footnote, { color: c.textMuted, marginTop: 2 }]}>Transactions and balances add themselves. Secure, read-only.</Text>
+      </View>
+      <Icon name="chevron.right" size={14} color={c.textSubtle} />
     </Pressable>
   );
 }

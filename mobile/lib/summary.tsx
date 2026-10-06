@@ -9,6 +9,8 @@ export interface Summary {
   today: string;
   hasData: boolean;
   hasBalance: boolean;
+  /** Bank connection: switched on for this server, and whether this person has connected one. */
+  bank?: { available: boolean; connected: boolean };
   home: {
     safeToSpendMinor: number;
     explanation: string;
@@ -79,7 +81,12 @@ export function SummaryProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     // Demo shows sample figures; leaving it (or signing out) must not leave them behind.
     if (PREVIEW) { setData(previewSummary); return; }
-    if (status === 'signed-in') void refresh();
+    if (status === 'signed-in') {
+      void refresh();
+      // Connected banks catch up in the background, then the numbers refresh again.
+      void api<{ synced: { ok: boolean }[] }>('/api/mobile/bank/sync', { method: 'POST' })
+        .then((r) => { if (r.synced.some((x) => x.ok)) void refresh(); }).catch(() => {});
+    }
     else setData(null);
   }, [status, demo, refresh]);
 

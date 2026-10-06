@@ -459,6 +459,8 @@ export const transactions = pockit.table('transactions', {
 
   notes: text('notes'),
   source: transactionSource('source').notNull().default('manual'),
+  /** The bank's own id for a synced transaction (Plaid), so a sync never adds it twice. */
+  externalId: text('external_id'),
   importId: uuid('import_id').references(() => imports.id, { onDelete: 'set null' }),
   receiptId: uuid('receipt_id').references(() => receipts.id, { onDelete: 'set null' }),
 
@@ -1118,3 +1120,18 @@ export const watchlistItems = pockit.table('watchlist_items', {
   note: text('note'),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 }, (t) => [index('watchlist_items_workspace_idx').on(t.workspaceId)]);
+
+/** A connected bank login (Plaid). The access token is encrypted; only the server reads it. */
+export const bankConnections = pockit.table('bank_connections', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  workspaceId: uuid('workspace_id').notNull().references(() => workspaces.id, { onDelete: 'cascade' }),
+  provider: text('provider').notNull().default('plaid'),
+  itemId: text('item_id').notNull(),
+  accessTokenEnc: text('access_token_enc').notNull(),
+  institutionName: text('institution_name'),
+  cursor: text('cursor'),
+  status: text('status').notNull().default('active'),
+  error: text('error'),
+  lastSyncedAt: timestamp('last_synced_at', { withTimezone: true }),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+});
