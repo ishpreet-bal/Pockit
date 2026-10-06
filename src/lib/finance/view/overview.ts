@@ -142,7 +142,13 @@ export async function buildOverview(repo: WorkspaceRepo, timezone: string, local
         percentBps: a.percentBps,
       })),
     };
-    budgetStatus = evaluateBudget(budget, postedThisPeriod, categories, today, period);
+    // A calendar-month budget lines up with the page's month; a payday budget runs
+    // on its own dates. Either way, the history lets a rollover budget carry leftovers.
+    const posted = allTxns.filter((t) => !isScheduled(t, today));
+    const calendar = budget.period === 'monthly' && budget.periodStart.slice(8, 10) === '01';
+    budgetStatus = calendar
+      ? evaluateBudget(budget, postedThisPeriod, categories, today, period, posted)
+      : evaluateBudget(budget, posted, categories, today, undefined, posted);
   }
 
   /* ---- insights: only when they are actionable, never filler ---- */

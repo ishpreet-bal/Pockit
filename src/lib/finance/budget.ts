@@ -175,6 +175,8 @@ export interface BudgetLineStatus {
   projectedOverageMinor: bigint;
   status: 'under' | 'on_track' | 'approaching' | 'over';
   transactionIds: string[];
+  /** Left over from last period and added to this one (rollover budgets). Already included in targetMinor. */
+  carriedMinor: bigint;
 }
 
 export interface BudgetStatus {
@@ -203,8 +205,14 @@ export function evaluateBudget(
   categories: readonly LedgerCategory[],
   today: IsoDate,
   period?: DateRange,
+  /**
+   * Transactions covering the previous period too. Only with these can a rollover
+   * budget work out what was left over — without them nothing is carried.
+   */
+  history?: readonly LedgerTxn[],
 ): BudgetStatus {
   const range = period ?? currentBudgetPeriod(budget, today);
+  const carry = budget.rollover && history ? carriedOver(budget, history, categories, range) : new Map<string, bigint>();
   const inPeriod = txns.filter((t) => t.postedDate >= range.start && t.postedDate <= range.end);
 
   const totals = periodTotals(inPeriod);
@@ -219,7 +227,9 @@ export function evaluateBudget(
   const daysRemaining = Math.max(0, diffDays(today, range.end));
   const categoryById = new Map(categories.map((c) => [c.id, c]));
 
-  const lines: BudgetLineStatus[] = targets.map((target) => {
+  const lines: BudgetLineStatus[] = targets.map((base) => {
+    const carried = carry.get(base.key) ?? 0n;
+    const target = carried ? { ...base, targetMinor: base.targetMinor + carried } : base;
     let spent = 0n;
     let ids: string[] = [];
 
@@ -262,6 +272,7 @@ export function evaluateBudget(
       projectedOverageMinor: projectedOverage,
       status,
       transactionIds: ids,
+      carriedMinor: carried,
     };
   });
 
@@ -276,6 +287,25 @@ export function evaluateBudget(
     lines,
     warnings: buildWarnings(lines, daysRemaining),
   };
+}
+
+/**
+ * What each category line didn't use last period. Underspending carries forward
+ * (capped at one period's amount, so a forgotten budget can't balloon);
+ * overspending doesn't carry as debt — a new period is a fresh start.
+ */
+function carriedOver(budget: BudgetInput, history: readonly LedgerTxn[], categories: readonly LedgerCategory[], range: DateRange): Map<string, bigint> {
+  const out = new Map<string, bigint>();
+  const prev = currentBudgetPeriod(budget, addDays(range.start, -1));
+  if (prev.start < budget.periodStart) return out; // the budget didn't exist yet
+  const inPrev = history.filter((t) => t.postedDate >= prev.start && t.postedDate <= prev.end);
+  const rolled = rollUpCategories(spendingByCategory(inPrev), categories);
+  for (const t of resolveTargets(budget, periodTotals(inPrev).income)) {
+    if (!t.categoryId || t.targetMinor <= 0n) continue;
+    const left = t.targetMinor - (rolled.get(t.categoryId) ?? 0n);
+    if (left > 0n) out.set(t.key, left < t.targetMinor ? left : t.targetMinor);
+  }
+  return out;
 }
 
 function collectDescendantIds(

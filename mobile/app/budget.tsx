@@ -1,11 +1,11 @@
 import { useEffect, useState } from 'react';
-import { Pressable, Text, TextInput, View } from 'react-native';
+import { Pressable, Switch, Text, TextInput, View } from 'react-native';
 import { Icon } from '@/components/Icon';
 import { useTint } from '@/theme/palette';
 import { router } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { Button, FormError, toMinor } from '@/components/form';
-import { Card, Loading, ProgressBar, Screen, formatMoney, useAccent } from '@/components/ui';
+import { Card, Loading, ProgressBar, Screen, SectionHeader, Segmented, formatMoney, useAccent } from '@/components/ui';
 import { api } from '@/lib/api';
 import { PREVIEW } from '@/lib/session';
 import { useSummary } from '@/lib/summary';
@@ -19,10 +19,11 @@ import { font, space, type, useColors } from '@/theme/tokens';
  * rounded up, so there's a sensible starting point to edit.
  */
 
-interface Line { id: string; name: string; icon: string | null; spentMinor: number; planMinor: number | null }
+interface Line { id: string; name: string; icon: string | null; spentMinor: number; planMinor: number | null; carriedMinor?: number }
+interface Settings { rollover: boolean; resetsOn: 'month' | 'payday'; payday: { name: string; period: string } | null; period: { start: string; end: string } | null }
 
 const DEMO: Line[] = [
-  { id: '1', name: 'Groceries', icon: '🛒', spentMinor: 48_210, planMinor: 55_000 },
+  { id: '1', name: 'Groceries', icon: null, spentMinor: 48_210, planMinor: 55_000, carriedMinor: 3_000 },
   { id: '2', name: 'Eating out', icon: '🍽️', spentMinor: 31_540, planMinor: 25_000 },
   { id: '3', name: 'Transport', icon: '🚗', spentMinor: 18_900, planMinor: 30_000 },
   { id: '4', name: 'Coffee', icon: '☕', spentMinor: 6_700, planMinor: 8_000 },
@@ -40,11 +41,14 @@ export default function Budget() {
   const [editing, setEditing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [settings, setSettings] = useState<Settings>(PREVIEW
+    ? { rollover: true, resetsOn: 'month', payday: { name: 'Payday', period: 'biweekly' }, period: { start: '2026-10-01', end: '2026-10-31' } }
+    : { rollover: false, resetsOn: 'month', payday: null, period: null });
 
   useEffect(() => {
     if (PREVIEW) return;
-    api<{ categories: Line[]; hasPlan: boolean }>('/api/mobile/budget')
-      .then((r) => { setLines(r.categories); if (!r.hasPlan) startEditing(r.categories, true); })
+    api<{ categories: Line[]; hasPlan: boolean } & Settings>('/api/mobile/budget')
+      .then((r) => { setLines(r.categories); setSettings({ rollover: r.rollover, resetsOn: r.resetsOn, payday: r.payday, period: r.period }); if (!r.hasPlan) startEditing(r.categories, true); })
       .catch(() => setError('Couldn’t load your budget. Pull down on Spending and try again.'));
   }, []);
 
@@ -61,17 +65,17 @@ export default function Budget() {
     if (PREVIEW) { setLines(next); setEditing(false); return; }
     setSaving(true);
     try {
-      await api('/api/mobile/budget', { method: 'POST', body: { lines: next.filter((l) => l.planMinor).map((l) => ({ categoryId: l.id, amount: l.planMinor! / 100 })) } });
+      await api('/api/mobile/budget', { method: 'POST', body: { lines: next.filter((l) => l.planMinor).map((l) => ({ categoryId: l.id, amount: l.planMinor! / 100 })), rollover: settings.rollover, resetsOn: settings.resetsOn } });
       void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       setLines(next); setEditing(false); refresh();
-    } catch { setError('That didn’t save. Check your connection and try again.'); }
+    } catch (e) { setError(e instanceof Error ? e.message : 'That didn’t save. Check your connection and try again.'); }
     finally { setSaving(false); }
   }
 
   if (!lines) return <Screen section="spending" title="Budget" back><Loading error={error} /></Screen>;
 
   const planned = lines.filter((l) => l.planMinor);
-  const total = planned.reduce((s, l) => s + l.planMinor!, 0);
+  const total = planned.reduce((s, l) => s + l.planMinor! + (l.carriedMinor ?? 0), 0);
   const spent = planned.reduce((s, l) => s + l.spentMinor, 0);
   const draftTotal = lines.reduce((s, l) => s + (toMinor(draft[l.id] ?? '') ?? 0), 0);
 
@@ -106,7 +110,30 @@ export default function Budget() {
               </View>
             ))}
           </Card>
-          <Text style={[type.subhead, { color: c.textMuted, marginTop: space.md, textAlign: 'right' }]}>Total {formatMoney(draftTotal, { cents: false })} a month</Text>
+          <Text style={[type.subhead, { color: c.textMuted, marginTop: space.md, textAlign: 'right' }]}>Total {formatMoney(draftTotal, { cents: false })} {settings.resetsOn === 'payday' ? 'per pay period' : 'a month'}</Text>
+
+          <SectionHeader title="How it works" />
+          <Card>
+            <View style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 12, borderBottomWidth: 0.5, borderBottomColor: c.border }}>
+              <View style={{ flex: 1 }}>
+                <Text style={[type.body, { color: c.text }]}>Carry leftovers over</Text>
+                <Text style={[type.footnote, { color: c.textMuted, marginTop: 2, lineHeight: 18 }]}>Didn’t use it all? The rest adds to next period. Overspending never carries.</Text>
+              </View>
+              <Switch value={settings.rollover} onValueChange={(v) => setSettings({ ...settings, rollover: v })} trackColor={{ true: c.section.spending.accent }} accessibilityLabel="Carry leftovers over" />
+            </View>
+            <View style={{ paddingVertical: 12 }}>
+              <Text style={[type.body, { color: c.text }]}>Starts fresh</Text>
+              <View style={{ marginTop: 8 }}>
+                <Segmented options={['On the 1st', 'On payday'] as const} value={settings.resetsOn === 'payday' ? 'On payday' : 'On the 1st'}
+                  onChange={(v) => setSettings({ ...settings, resetsOn: v === 'On payday' ? 'payday' : 'month' })} />
+              </View>
+              {settings.resetsOn === 'payday' && !settings.payday ? (
+                <Text style={[type.footnote, { color: c.warning, marginTop: 6 }]}>Add your pay under Bills first, so Pockit knows when payday is.</Text>
+              ) : settings.resetsOn === 'payday' ? (
+                <Text style={[type.footnote, { color: c.textMuted, marginTop: 6 }]}>Follows your {settings.payday!.period} pay — every budget restarts the day money comes in.</Text>
+              ) : null}
+            </View>
+          </Card>
           <FormError message={error} />
           <View style={{ gap: space.sm, marginTop: space.lg }}>
             <Button label={saving ? 'Saving…' : 'Save budget'} onPress={() => void save()} disabled={saving} />
@@ -115,23 +142,27 @@ export default function Budget() {
         </>
       ) : (
         <>
-          <Text style={[type.subhead, { color: c.textMuted }]}>Left this month</Text>
+          <Text style={[type.subhead, { color: c.textMuted }]}>{settings.resetsOn === 'payday' ? 'Left until payday' : 'Left this month'}</Text>
           <Text style={[type.hero, { color: total - spent >= 0 ? c.text : c.negative }]}>{formatMoney(Math.abs(total - spent), { cents: false })}{total - spent < 0 ? ' over' : ''}</Text>
           <Text style={[type.footnote, { color: c.textMuted, marginTop: 4 }]}>{formatMoney(spent, { cents: false })} of {formatMoney(total, { cents: false })} spent</Text>
           <View style={{ marginTop: space.lg }}><ProgressBar value={total ? spent / total : 0} height={10} /></View>
           <Card style={{ marginTop: space.xl }}>
             {planned.map((l, i) => {
-              const over = l.spentMinor > l.planMinor!;
+              const cap = l.planMinor! + (l.carriedMinor ?? 0);
+              const over = l.spentMinor > cap;
               return (
                 <View key={l.id} style={{ paddingVertical: 12, borderBottomWidth: i < planned.length - 1 ? 0.5 : 0, borderBottomColor: c.border }}>
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.md }}>
-                    <Text style={{ fontSize: 17 }}>{l.icon ?? '•'}</Text>
-                    <Text style={[type.body, { color: c.text, flex: 1 }]}>{l.name}</Text>
+                    <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: tint(l.name) }} />
+                    <View style={{ flex: 1 }}>
+                      <Text style={[type.body, { color: c.text }]}>{l.name}</Text>
+                      {l.carriedMinor ? <Text style={[type.footnote, { color: c.positive }]}>+{formatMoney(l.carriedMinor, { cents: false })} carried over</Text> : null}
+                    </View>
                     <Text style={[type.subhead, { color: over ? c.negative : c.textMuted }]}>
-                      {over ? `${formatMoney(l.spentMinor - l.planMinor!, { cents: false })} over` : `${formatMoney(l.planMinor! - l.spentMinor, { cents: false })} left`}
+                      {over ? `${formatMoney(l.spentMinor - cap, { cents: false })} over` : `${formatMoney(cap - l.spentMinor, { cents: false })} left`}
                     </Text>
                   </View>
-                  <View style={{ marginTop: 8 }}><ProgressBar color={tint(l.name)} value={l.spentMinor / l.planMinor!} /></View>
+                  <View style={{ marginTop: 8 }}><ProgressBar color={tint(l.name)} value={l.spentMinor / cap} /></View>
                 </View>
               );
             })}
