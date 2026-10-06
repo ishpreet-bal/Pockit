@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Platform, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
+import * as ImagePicker from 'expo-image-picker';
+import { Icon } from '@/components/Icon';
 import { router } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { Button, Chip, ChipRow, FormError } from '@/components/form';
@@ -66,6 +68,35 @@ export default function Add() {
   const amountNumber = Number(amount.replace(/[^0-9.]/g, ''));
   const ready = amountNumber > 0 && what.trim().length > 0 && Boolean(accountId);
 
+  const [scanning, setScanning] = useState(false);
+  async function scan() {
+    setError(null);
+    const pick = Platform.OS === 'web'
+      ? await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], base64: true, quality: 0.6 })
+      : await (async () => {
+          const perm = await ImagePicker.requestCameraPermissionsAsync();
+          return perm.granted
+            ? ImagePicker.launchCameraAsync({ mediaTypes: ['images'], base64: true, quality: 0.6 })
+            : ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], base64: true, quality: 0.6 });
+        })();
+    const asset = pick.canceled ? null : pick.assets[0];
+    if (!asset?.base64) return;
+    setScanning(true);
+    try {
+      const r = PREVIEW
+        ? { merchant: 'No Frills', amount: 64.32, date: daysAgo(0), category: 'Groceries' }
+        : await api<{ merchant: string; amount: number; date: string | null; category: string | null }>('/api/mobile/receipt', {
+            body: { image: asset.base64, mediaType: asset.mimeType === 'image/png' ? 'image/png' : 'image/jpeg', categories: categories.map((x) => x.name) },
+          });
+      setAmount(r.amount.toFixed(2)); picked.current = true; setWhat(r.merchant);
+      if (r.date) setDate(r.date);
+      const cat = categories.find((x) => x.name === r.category);
+      if (cat) setCategoryId(cat.id);
+      void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    } catch (e) { setError(e instanceof Error ? e.message : 'Couldn’t read that receipt.'); }
+    finally { setScanning(false); }
+  }
+
   async function addCategory() {
     const name = newName.trim();
     if (!name) return;
@@ -112,6 +143,14 @@ export default function Add() {
             </Pressable>
           ))}
         </View>
+
+        {kind === 'expense' ? (
+          <Pressable onPress={() => void scan()} disabled={scanning} accessibilityRole="button"
+            style={({ pressed }) => ({ flexDirection: 'row', alignSelf: 'center', alignItems: 'center', gap: 8, paddingHorizontal: 14, paddingVertical: 9, borderRadius: 20, backgroundColor: c.surface2, opacity: pressed || scanning ? 0.6 : 1 })}>
+            <Icon name="doc.text" size={16} color={accent.accent} />
+            <Text style={[type.footnote, { color: c.text }]}>{scanning ? 'Reading your receipt…' : 'Scan a receipt'}</Text>
+          </Pressable>
+        ) : null}
 
         <View style={{ alignItems: 'center' }}>
           <View style={{ flexDirection: 'row', alignItems: 'center' }}>

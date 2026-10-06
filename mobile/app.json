@@ -14,7 +14,8 @@
       "infoPlist": {
         "NSFaceIDUsageDescription": "Pockit uses Face ID to keep your money private when you open the app.",
         "ITSAppUsesNonExemptEncryption": false,
-        "NSLocationWhenInUseUsageDescription": "Pockit uses your location as the starting point when you plan a trip."
+        "NSLocationWhenInUseUsageDescription": "Pockit uses your location as the starting point when you plan a trip.",
+        "NSCameraUsageDescription": "Pockit uses the camera to read receipts, so you don't have to type them."
       }
     },
     "android": {
@@ -61,6 +62,13 @@
         "expo-location",
         {
           "locationWhenInUsePermission": "Pockit uses your location as the starting point when you plan a trip."
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "cameraPermission": "Pockit uses the camera to read receipts, so you don't have to type them.",
+          "photosPermission": "Pockit reads receipt photos you choose, so you don't have to type them."
         }
       ]
     ],
