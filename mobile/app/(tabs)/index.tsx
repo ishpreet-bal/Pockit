@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
 import { Button, Field, FormError, toMinor } from '@/components/form';
 import { api } from '@/lib/api';
+import { useToolTint } from '@/theme/palette';
 import { router } from 'expo-router';
 import { Card, Loading, formatMoney, PreviewBadge, Row, Screen, SectionHeader, Shortcuts, StaleNote, useAccent } from '@/components/ui';
 import { PockMark } from '@/components/Pock';
@@ -83,6 +84,7 @@ function Body({ d }: { d: Summary }) {
   const days = h.nextIncome ? Math.max(1, daysBetween(d.today, h.nextIncome.date)) : null;
   const goal = d.goals.find((g) => !g.achieved) ?? null;
   const stops = runway(d);
+  const tool = useToolTint();
 
   return (
     <>
@@ -97,10 +99,10 @@ function Body({ d }: { d: Summary }) {
 
       <TourTarget id="shortcuts">
         <Shortcuts items={[
-          { icon: 'plus', label: 'Add', onPress: () => router.push('/add') },
-          { icon: 'calendar', label: 'Bills', onPress: () => router.push('/bills') },
-          { icon: 'chart.bar', label: 'Budget', onPress: () => router.push('/budget') },
-          { icon: 'car', label: 'Trip', onPress: () => router.push('/trip') },
+          { icon: 'plus', label: 'Add', color: tool('add'), onPress: () => router.push('/add') },
+          { icon: 'calendar', label: 'Bills', color: tool('bills'), onPress: () => router.push('/bills') },
+          { icon: 'chart.bar', label: 'Budget', color: tool('budget'), onPress: () => router.push('/budget') },
+          { icon: 'car', label: 'Trip', color: tool('trip'), onPress: () => router.push('/trip') },
         ]} />
       </TourTarget>
 

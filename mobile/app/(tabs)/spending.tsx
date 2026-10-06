@@ -1,8 +1,9 @@
 import { Text, View } from 'react-native';
-import { Card, Shortcuts, EmptyCard, Loading, formatMoney, friendlyDate, PreviewBadge, Row, Screen, SectionHeader, StaleNote, useAccent } from '@/components/ui';
+import { Card, ProgressBar, Shortcuts, EmptyCard, Loading, formatMoney, friendlyDate, PreviewBadge, Row, Screen, SectionHeader, StaleNote, useAccent } from '@/components/ui';
 import { PREVIEW } from '@/lib/session';
 import { useSummary, type Summary } from '@/lib/summary';
 import { space, type, useColors } from '@/theme/tokens';
+import { useTint, useToolTint } from '@/theme/palette';
 import { router } from 'expo-router';
 import { AddButton } from '../transactions';
 import { TourTarget } from '@/lib/tour';
@@ -26,6 +27,8 @@ function Body({ d }: { d: Summary }) {
   const a = useAccent();
   const s = d.spending;
   const left = s.budgetMinor !== null ? s.budgetMinor - s.spentMinor : null;
+  const tool = useToolTint();
+  const tint = useTint();
   const end = s.periodEnd ?? d.today;
   const daysLeft = Math.max(0, Math.round((new Date(`${end}T12:00:00Z`).getTime() - new Date(`${d.today}T12:00:00Z`).getTime()) / 86_400_000));
 
@@ -43,10 +46,10 @@ function Body({ d }: { d: Summary }) {
 
       <TourTarget id="spendTools">
         <Shortcuts items={[
-          { icon: 'chart.bar', label: 'Budget', onPress: () => router.push('/budget') },
-          { icon: 'calendar', label: 'Bills', onPress: () => router.push('/bills') },
-          { icon: 'list.bullet', label: 'Purchases', onPress: () => router.push('/transactions') },
-          { icon: 'car', label: 'Trip', onPress: () => router.push('/trip') },
+          { icon: 'chart.bar', label: 'Budget', color: tool('budget'), onPress: () => router.push('/budget') },
+          { icon: 'calendar', label: 'Bills', color: tool('bills'), onPress: () => router.push('/bills') },
+          { icon: 'chart.line.uptrend.xyaxis', label: 'Trends', color: tool('lessons'), onPress: () => router.push('/trends') },
+          { icon: 'list.bullet', label: 'Purchases', color: tool('purchases'), onPress: () => router.push('/transactions') },
         ]} />
       </TourTarget>
 
@@ -58,12 +61,16 @@ function Body({ d }: { d: Summary }) {
           {s.categories.map((cat, i) => {
             const over = cat.budgetMinor !== null && cat.amountMinor > cat.budgetMinor;
             return (
-              <View key={cat.id} style={{ flexDirection: 'row', alignItems: 'baseline', paddingVertical: 14, borderBottomWidth: i < s.categories.length - 1 ? 0.5 : 0, borderBottomColor: c.border }}>
+              <View key={cat.id} style={{ paddingVertical: 12, borderBottomWidth: i < s.categories.length - 1 ? 0.5 : 0, borderBottomColor: c.border }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: tint(cat.name), marginRight: 10 }} />
                 <Text style={[type.body, { color: c.text, flex: 1 }]} numberOfLines={1}>{cat.name}</Text>
                 <Text style={[type.body, { color: over ? c.negative : c.text, fontVariant: ['tabular-nums'] }]}>{formatMoney(cat.amountMinor, { cents: false }).replace('$', '')}</Text>
                 <Text style={[type.body, { color: c.textMuted, width: 64, textAlign: 'right', fontVariant: ['tabular-nums'] }]}>
                   {cat.budgetMinor ? `/${Math.round(cat.budgetMinor / 100)}` : `${Math.round((cat.amountMinor / Math.max(1, s.spentMinor)) * 100)}%`}
                 </Text>
+              </View>
+              <View style={{ marginTop: 8, marginLeft: 20 }}><ProgressBar color={tint(cat.name)} height={4} value={cat.budgetMinor ? cat.amountMinor / cat.budgetMinor : cat.amountMinor / Math.max(1, s.spentMinor)} /></View>
               </View>
             );
           })}
@@ -77,7 +84,7 @@ function Body({ d }: { d: Summary }) {
       {s.recent.length ? (
         <Card>
           {s.recent.map((t, i) => (
-            <Row key={t.id} icon="cart" title={t.name} detail={`${friendlyDate(t.date, d.today)}${t.category ? ` · ${t.category}` : ''}`} value={formatMoney(t.amountMinor, { signed: true })} valueColor={t.amountMinor > 0 ? c.positive : undefined} last={i === s.recent.length - 1} />
+            <Row key={t.id} icon="cart" color={tint(t.category)} title={t.name} detail={`${friendlyDate(t.date, d.today)}${t.category ? ` · ${t.category}` : ''}`} value={formatMoney(t.amountMinor, { signed: true })} valueColor={t.amountMinor > 0 ? c.positive : undefined} last={i === s.recent.length - 1} />
           ))}
         </Card>
       ) : (

@@ -1,6 +1,7 @@
 import { Text, View } from 'react-native';
 import { Card, EmptyCard, Loading, formatMoney, PreviewBadge, ProgressBar, Screen, StaleNote, useAccent } from '@/components/ui';
 import { PREVIEW } from '@/lib/session';
+import { useTint } from '@/theme/palette';
 import { router } from 'expo-router';
 import { TourTarget } from '@/lib/tour';
 import { Pressable } from 'react-native';
@@ -33,6 +34,7 @@ function byDate(iso: string | null) {
 
 function Body({ d }: { d: Summary }) {
   const c = useColors();
+  const tint = useTint();
   const a = useAccent();
   if (d.goals.length === 0) {
     return (
@@ -67,7 +69,7 @@ function Body({ d }: { d: Summary }) {
                 </View>
                 <Text style={[type.caption, { color: tone }]}>{STATUS[g.status]}</Text>
               </View>
-              <View style={{ marginTop: 14 }}><ProgressBar value={g.currentMinor / Math.max(1, g.targetMinor)} height={8} /></View>
+              <View style={{ marginTop: 14 }}><ProgressBar color={tint(g.name)} value={g.currentMinor / Math.max(1, g.targetMinor)} height={8} /></View>
               <Text style={[type.footnote, { color: c.textMuted, marginTop: 8 }]}>
                 {g.targetMinor === 0 ? 'Add an amount to start tracking' : `${formatMoney(g.currentMinor, { cents: false })} of ${formatMoney(g.targetMinor, { cents: false })}`}
                 {g.monthlyMinor && !g.achieved ? ` · ${formatMoney(g.monthlyMinor, { cents: false })}/month` : ''}

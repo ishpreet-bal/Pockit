@@ -1,5 +1,6 @@
 import { useCallback, useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
+import { useToolTint } from '@/theme/palette';
 import { router, useFocusEffect } from 'expo-router';
 import { getText, lessonsRead, setText } from '@/lib/prefs';
 import { TOPICS, type Level } from '../learn';
@@ -76,6 +77,7 @@ function Path({ level, done }: { level: Level; done: string[] }) {
   const lessons = TOPICS.filter((t) => t.level === level);
   const read = lessons.filter((t) => done.includes(t.id)).length;
   const next = lessons.find((t) => !done.includes(t.id));
+  const tool = useToolTint();
   return (
     <View>
       <Text style={[type.label, { color: c.textMuted }]}>{level === 'beginner' ? 'Your first steps' : 'Going further'}</Text>
@@ -93,9 +95,9 @@ function Path({ level, done }: { level: Level; done: string[] }) {
         </Pressable>
       ) : null}
       <Shortcuts items={[
-        { icon: 'book', label: 'All lessons', onPress: () => router.push({ pathname: '/learn', params: { level } }) },
-        { icon: 'sparkles', label: 'Ask Pock', onPress: () => router.push({ pathname: '/pock', params: { mode: 'learn' } }) },
-        { icon: 'magnifyingglass', label: 'Look up', onPress: () => router.push('/search') },
+        { icon: 'book', label: 'All lessons', color: tool('lessons'), onPress: () => router.push({ pathname: '/learn', params: { level } }) },
+        { icon: 'sparkles', label: 'Ask Pock', color: tool('ask'), onPress: () => router.push({ pathname: '/pock', params: { mode: 'learn' } }) },
+        { icon: 'magnifyingglass', label: 'Look up', color: tool('lookup'), onPress: () => router.push('/search') },
       ]} />
     </View>
   );

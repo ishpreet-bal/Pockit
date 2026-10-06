@@ -58,6 +58,7 @@ export default function RootLayout() {
           <Stack.Screen name="dev" />
           <Stack.Screen name="learn" />
           <Stack.Screen name="budget" />
+          <Stack.Screen name="trends" />
           <Stack.Screen name="more" />
           <Stack.Screen name="accounts" />
           <Stack.Screen name="trip" />

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Platform, Pressable, Text, TextInput, View } from 'react-native';
+import { useTint } from '@/theme/palette';
 import { router } from 'expo-router';
 import { Card, EmptyCard, formatMoney, friendlyDate, Loading, Row, Screen, useAccent } from '@/components/ui';
 import { Icon } from '@/components/Icon';
@@ -90,6 +91,7 @@ function Search({ value, onChange }: { value: string; onChange: (v: string) => v
 
 function List({ page, query }: { page: TxnPage; query: string }) {
   const c = useColors();
+  const tint = useTint();
   const q = query.trim().toLowerCase();
   const rows = q ? page.transactions.filter((t) => t.name.toLowerCase().includes(q) || (t.category ?? '').toLowerCase().includes(q)) : page.transactions;
   const today = todayIso();
@@ -113,7 +115,7 @@ function List({ page, query }: { page: TxnPage; query: string }) {
           <Text style={[type.caption, { color: c.textMuted, marginBottom: 6, marginLeft: 4 }]}>{friendlyDate(date, today).toUpperCase()}</Text>
           <Card>
             {list.map((t, i) => (
-              <Row key={t.id} icon="cart" emoji={t.icon} title={t.name} detail={t.category ?? 'Uncategorised'}
+              <Row key={t.id} icon="cart" color={tint(t.category)} title={t.name} detail={t.category ?? 'Uncategorised'}
                 value={formatMoney(t.amountMinor, { signed: true })} valueColor={t.amountMinor > 0 ? c.positive : undefined} last={i === list.length - 1} />
             ))}
           </Card>

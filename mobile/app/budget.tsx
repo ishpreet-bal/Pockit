@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Pressable, Text, TextInput, View } from 'react-native';
 import { Icon } from '@/components/Icon';
+import { useTint } from '@/theme/palette';
 import { router } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { Button, FormError, toMinor } from '@/components/form';
@@ -32,6 +33,7 @@ const roundUp = (minor: number) => Math.ceil(minor / 2_500) * 25; // to the next
 
 export default function Budget() {
   const c = useColors();
+  const tint = useTint();
   const { refresh } = useSummary();
   const [lines, setLines] = useState<Line[] | null>(PREVIEW ? DEMO : null);
   const [draft, setDraft] = useState<Record<string, string>>({});
@@ -129,7 +131,7 @@ export default function Budget() {
                       {over ? `${formatMoney(l.spentMinor - l.planMinor!, { cents: false })} over` : `${formatMoney(l.planMinor! - l.spentMinor, { cents: false })} left`}
                     </Text>
                   </View>
-                  <View style={{ marginTop: 8 }}><ProgressBar value={l.spentMinor / l.planMinor!} /></View>
+                  <View style={{ marginTop: 8 }}><ProgressBar color={tint(l.name)} value={l.spentMinor / l.planMinor!} /></View>
                 </View>
               );
             })}

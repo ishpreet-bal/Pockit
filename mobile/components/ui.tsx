@@ -4,7 +4,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 import { router } from 'expo-router';
-import { radius, space, type, useColors, type Section } from '@/theme/tokens';
+import { radius, space, type, useColors, useIsDark, type Section } from '@/theme/tokens';
+import { soft } from '@/theme/palette';
 import { Icon } from './Icon';
 import { useSession } from '@/lib/session';
 
@@ -84,17 +85,25 @@ export function SectionHeader({ title, action, onAction }: { title: string; acti
 
 /** One line in a list: title and detail on the left, the figure on the right. No icons. */
 export function Row({
-  icon, emoji, title, detail, value, valueColor, last, onPress,
+  icon, emoji, title, detail, value, valueColor, last, onPress, color,
 }: {
   icon: string; emoji?: string | null; title: string; detail?: string; value?: string; valueColor?: string; last?: boolean; onPress?: () => void;
+  /** A category colour: shows a small round badge with the first letter. */
+  color?: string;
 }) {
   const c = useColors();
+  const dark = useIsDark();
   void icon; void emoji;
   return (
     <Pressable
       onPress={onPress ? () => { void Haptics.selectionAsync(); onPress(); } : undefined}
       style={({ pressed }) => [s.row, !last && { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: c.border }, pressed && onPress && { opacity: 0.6 }]}
     >
+      {color ? (
+        <View style={{ width: 34, height: 34, borderRadius: 12, backgroundColor: soft(color, dark), alignItems: 'center', justifyContent: 'center' }}>
+          <Text style={[type.headline, { color, fontSize: 14 }]}>{title.trim().charAt(0).toUpperCase()}</Text>
+        </View>
+      ) : null}
       <View style={{ flex: 1 }}>
         <Text style={[type.body, { color: c.text }]} numberOfLines={1}>{title}</Text>
         {detail ? <Text style={[type.footnote, { color: c.textMuted, marginTop: 1 }]}>{detail}</Text> : null}
@@ -104,12 +113,12 @@ export function Row({
   );
 }
 
-export function ProgressBar({ value, height = 6 }: { value: number; height?: number }) {
+export function ProgressBar({ value, height = 6, color }: { value: number; height?: number; color?: string }) {
   const c = useColors();
   const a = useAccent();
   return (
-    <View style={{ height: Math.min(height, 3), backgroundColor: c.surface2, overflow: 'hidden' }}>
-      <View style={{ width: `${Math.max(0, Math.min(1, value)) * 100}%`, height: '100%', backgroundColor: value > 1 ? c.negative : a.accent }} />
+    <View style={{ height: Math.min(height, 6), borderRadius: 6, backgroundColor: c.surface2, overflow: 'hidden' }}>
+      <View style={{ width: `${Math.max(0, Math.min(1, value)) * 100}%`, height: '100%', borderRadius: 6, backgroundColor: value > 1 ? c.negative : color ?? a.accent }} />
     </View>
   );
 }
@@ -234,17 +243,18 @@ export function Loading({ error }: { error: string | null }) {
  * A row of round shortcuts under a page's headline — the doors from one page
  * into the tools that belong with it (Instagram-style: explore from where you are).
  */
-export function Shortcuts({ items }: { items: { icon: string; label: string; onPress: () => void }[] }) {
+export function Shortcuts({ items }: { items: { icon: string; label: string; onPress: () => void; color?: string }[] }) {
   const c = useColors();
   const a = useAccent();
+  const dark = useIsDark();
   return (
     <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: space.xl }}>
       {items.map((it) => (
         <Pressable key={it.label} accessibilityRole="button" accessibilityLabel={it.label}
           onPress={() => { void Haptics.selectionAsync(); it.onPress(); }}
           style={({ pressed }) => ({ alignItems: 'center', gap: 7, width: `${100 / items.length}%`, opacity: pressed ? 0.6 : 1, transform: [{ scale: pressed ? 0.94 : 1 }] })}>
-          <View style={{ width: 50, height: 50, borderRadius: 25, borderWidth: StyleSheet.hairlineWidth * 2, borderColor: c.border, backgroundColor: c.surface, alignItems: 'center', justifyContent: 'center' }}>
-            <Icon name={it.icon} size={20} color={a.accent} />
+          <View style={{ width: 52, height: 52, borderRadius: 18, backgroundColor: it.color ? soft(it.color, dark) : c.surface, alignItems: 'center', justifyContent: 'center' }}>
+            <Icon name={it.icon} size={21} color={it.color ?? a.accent} />
           </View>
           <Text style={[type.footnote, { fontSize: 12, color: c.textMuted }]} numberOfLines={1}>{it.label}</Text>
         </Pressable>
