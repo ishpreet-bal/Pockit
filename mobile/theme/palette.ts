@@ -4,14 +4,14 @@ import { useIsDark } from './tokens';
  * The friendly colours: six, one per kind of spending, so Groceries is always
  * green and Eating out always coral wherever they appear. Picked and checked
  * with a colour-vision validator so neighbouring colours stay distinguishable
- * for colourblind people too, on navy and on paper. Charts show the top six
+ * for colourblind people too, on black and on cream. Charts show the top six
  * and fold the rest into a neutral "Other".
  *
  * Slots: 0 rose · 1 sun · 2 sky · 3 coral · 4 lilac · 5 mint
  */
 const DARK = ['#c94a8f', '#b78e00', '#1c91ef', '#dd5540', '#a66eef', '#00a676'];
 const LIGHT = ['#c23881', '#d09b00', '#22a7f6', '#f67255', '#885edc', '#009251'];
-export const OTHER = { dark: '#5b6787', light: '#a39d8e' };
+export const OTHER = { dark: '#6b6f63', light: '#a39d8e' };
 
 const NAMED: Record<string, number> = {
   groceries: 5, food: 5, health: 5, medical: 5, pharmacy: 5, fitness: 5, gym: 5,

@@ -15,48 +15,48 @@ import { useColorScheme } from 'react-native';
 
 export type Section = 'home' | 'spending' | 'goals' | 'invest' | 'more';
 
-const ACCENT_DARK = '#f0703a';
+const ACCENT_DARK = '#da5100';
 const ACCENT_LIGHT = '#c04600';
 const sections = (accent: string, soft: string) => ({
   home: { accent, soft }, spending: { accent, soft }, goals: { accent, soft }, invest: { accent, soft }, more: { accent, soft },
 });
 
 const dark = {
-  // Deep navy rather than black: calmer, warmer, and the orange accent sits on it naturally.
-  bg: '#131c33',
-  surface: '#1b2643',
-  surface2: '#24304f',
-  border: '#2d3a5c',
-  // Soft cream text instead of stark white, with blue-grey for quieter lines.
-  text: '#f4efe6',
-  textMuted: '#a7b1cb',
-  textSubtle: '#6f7b9b',
+  // Warm black, with cards a step lighter so they read as soft shapes.
+  bg: '#0e0f0c',
+  surface: '#1a1b17',
+  surface2: '#24261f',
+  border: '#2b2d27',
+  text: '#eceee6',
+  textMuted: '#9a9e90',
+  textSubtle: '#62665a',
   positive: '#3ccf91',
-  negative: '#ff7b88',
-  warning: '#f2c14e',
-  section: sections(ACCENT_DARK, '#3a2a2c'),
+  negative: '#ff6b78',
+  warning: '#e8b04a',
+  section: sections(ACCENT_DARK, '#2a1a10'),
 };
 
 const light: typeof dark = {
+  // Warm cream paper, with near-white cards on top.
   bg: '#f6f3ec',
-  surface: '#f8f6f0',
-  surface2: '#e8e4d9',
-  border: '#d9d4c7',
-  text: '#17160f',
+  surface: '#fffcf6',
+  surface2: '#ece7dc',
+  border: '#e2dccf',
+  text: '#1c1a15',
   textMuted: '#6d685b',
   textSubtle: '#a39d8e',
   positive: '#1d8a5b',
   negative: '#c9283b',
   warning: '#9a6a12',
-  section: sections(ACCENT_LIGHT, '#f1e1d3'),
+  section: sections(ACCENT_LIGHT, '#f6e2d2'),
 };
 
 export type Palette = typeof light;
 
 /** Light, dark, or follow the phone. Set from Settings; 'system' unless the person chose otherwise. */
 export type Appearance = 'system' | 'light' | 'dark';
-// Pockit is designed dark-first; light and "match phone" are a choice in Settings.
-let appearance: Appearance = 'dark';
+// Pockit opens in warm cream (light); dark and "match phone" are a choice in Settings.
+let appearance: Appearance = 'light';
 const listeners = new Set<() => void>();
 export function setAppearance(next: Appearance) { appearance = next; listeners.forEach((l) => l()); }
 export function useAppearance(): Appearance {

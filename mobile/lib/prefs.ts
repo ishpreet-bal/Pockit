@@ -19,7 +19,7 @@ export async function setPref(key: PrefKey, on: boolean): Promise<void> {
 /** Light / dark / match the phone. */
 export async function getAppearance(): Promise<'system' | 'light' | 'dark'> {
   const raw = Platform.OS === 'web' ? memory.get('appearance') : await SecureStore.getItemAsync('pockit.pref.appearance');
-  return raw === 'light' || raw === 'system' ? raw : 'dark';
+  return raw === 'dark' || raw === 'system' ? raw : 'light';
 }
 
 export async function saveAppearance(value: 'system' | 'light' | 'dark'): Promise<void> {
