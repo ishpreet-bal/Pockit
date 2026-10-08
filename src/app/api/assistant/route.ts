@@ -43,7 +43,7 @@ export async function POST(request: Request) {
     return NextResponse.json(
       {
         error:
-          'The assistant needs an AI provider that supports tool use. Add an ANTHROPIC_API_KEY to enable it. ' +
+          'The assistant needs an AI provider that supports tool use. Add an ANTHROPIC_API_KEY or OPENAI_API_KEY to enable it. ' +
           'Everything else in Pockit works without one.',
       },
       { status: 503 },

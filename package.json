@@ -39,6 +39,7 @@
     "lucide-react": "^0.550.0",
     "nanoid": "^6.0.1",
     "next": "15.5.25",
+    "openai": "^7.30.1",
     "papaparse": "5.7.0",
     "postgres": "3.4.9",
     "qrcode": "^1.5.4",

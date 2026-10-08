@@ -1,7 +1,7 @@
 /**
  * A provider failure, in words a person can act on.
  *
- * The raw Anthropic error — `400 {"type":"error","error":{...}}` — was reaching the
+ * The raw provider error — `400 {"type":"error","error":{...}}` — was reaching the
  * chat panel verbatim. That is useless to someone asking about their budget and
  * leaks request ids besides. The account owner still needs the real reason, so it
  * is kept in `detail` for Settings → Integrations and the server log, and the person
@@ -18,18 +18,24 @@ export interface ProviderProblem {
 export function describeProviderError(error: unknown): ProviderProblem {
   const raw = error instanceof Error ? error.message : String(error);
   const text = raw.toLowerCase();
+  // OpenAI's errors name OpenAI or its error codes; anything else is Anthropic's.
+  const openai = text.includes('openai') || text.includes('insufficient_quota') || text.includes('incorrect api key') || text.includes('model_not_found');
+  const key = openai ? 'OPENAI_API_KEY' : 'ANTHROPIC_API_KEY';
+  const site = openai ? 'platform.openai.com' : 'console.anthropic.com';
+  const modelVar = openai ? 'OPENAI_MODEL' : 'AI_MODEL';
 
-  if (text.includes('credit balance is too low') || text.includes('billing')) {
+  // Checked before the rate limit: OpenAI reports an empty account as a 429.
+  if (text.includes('credit balance is too low') || text.includes('billing') || text.includes('insufficient_quota') || text.includes('exceeded your current quota')) {
     return {
       message: 'Pock is resting — the AI account behind this app has run out of credit. Everything else in Pockit still works.',
-      detail: 'The Anthropic account has no credit left. Add credit at console.anthropic.com → Plans & Billing; no redeploy is needed.',
+      detail: `The ${openai ? 'OpenAI' : 'Anthropic'} account has no credit left. Add credit at ${site} → Billing; no redeploy is needed.`,
       status: 503,
     };
   }
-  if (text.includes('authentication') || text.includes('invalid x-api-key') || text.includes('401')) {
+  if (text.includes('authentication') || text.includes('invalid x-api-key') || text.includes('incorrect api key') || text.includes('401')) {
     return {
       message: 'Pock is not connected properly right now. Everything else in Pockit still works.',
-      detail: 'ANTHROPIC_API_KEY was rejected. Re-copy it from console.anthropic.com, check for stray quotes or spaces, and redeploy.',
+      detail: `${key} was rejected. Re-copy it from ${site}, check for stray quotes or spaces, and redeploy.`,
       status: 503,
     };
   }
@@ -40,10 +46,10 @@ export function describeProviderError(error: unknown): ProviderProblem {
       status: 503,
     };
   }
-  if (text.includes('model') && (text.includes('not found') || text.includes('404'))) {
+  if (text.includes('model') && (text.includes('not found') || text.includes('does not exist') || text.includes('404'))) {
     return {
       message: 'Pock is not connected properly right now. Everything else in Pockit still works.',
-      detail: 'The configured AI_MODEL does not exist for this account. Unset AI_MODEL to use the default.',
+      detail: `The configured ${modelVar} does not exist for this account. Unset ${modelVar} to use the default.`,
       status: 503,
     };
   }

@@ -23,7 +23,9 @@ const serverSchema = z.object({
   ANTHROPIC_API_KEY: blankToUndefined(z.string().optional()),
   OPENAI_API_KEY: blankToUndefined(z.string().optional()),
   AI_PROVIDER: blankToUndefined(z.enum(['anthropic', 'openai', 'heuristic', 'auto']).default('auto')),
+  /** The Claude model. OpenAI has its own, so switching provider needs no other change. */
   AI_MODEL: blankToUndefined(z.string().optional()),
+  OPENAI_MODEL: blankToUndefined(z.string().optional()),
 
   STORAGE_DRIVER: blankToUndefined(z.enum(['postgres', 'supabase', 'vercel_blob']).default('postgres')),
   SUPABASE_URL: blankToUndefined(z.string().optional()),

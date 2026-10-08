@@ -1,17 +1,22 @@
 import { NextResponse } from 'next/server';
 import Anthropic from '@anthropic-ai/sdk';
 import { zodOutputFormat } from '@anthropic-ai/sdk/helpers/zod';
+import OpenAI from 'openai';
+import { zodTextFormat } from 'openai/helpers/zod';
 import { z } from 'zod';
 import { requireAuthApi } from '@/lib/auth/api';
 import { env } from '@/lib/env';
 import { checkRateLimit } from '@/lib/auth/rate-limit';
+import { getAiProvider } from '@/lib/ai';
+import { DEFAULT_OPENAI_MODEL } from '@/lib/ai/openai';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
 
 /**
  * Read a receipt photo: store, total, date and a likely category, so adding a
- * purchase is one photo. The photo is sent to Claude and not kept.
+ * purchase is one photo. The photo is sent to the configured AI provider (Claude or
+ * OpenAI) and not kept.
  */
 
 const Receipt = z.object({
@@ -31,31 +36,20 @@ const body = z.object({
 export async function POST(request: Request) {
   const ctx = await requireAuthApi();
   if ('response' in ctx) return ctx.response;
-  if (!env.ANTHROPIC_API_KEY) return NextResponse.json({ error: 'Receipt scanning isn’t switched on yet.' }, { status: 503 });
+  const provider = getAiProvider().name;
+  if (provider !== 'anthropic' && provider !== 'openai') return NextResponse.json({ error: 'Receipt scanning isn’t switched on yet.' }, { status: 503 });
   const limit = await checkRateLimit(`receipt:${ctx.user.id}`, 30, 60 * 60);
   if (!limit.allowed) return NextResponse.json({ error: 'That’s a lot of receipts — try again in a bit.' }, { status: 429 });
   const parsed = body.safeParse(await request.json().catch(() => null));
   if (!parsed.success) return NextResponse.json({ error: 'That photo couldn’t be read. Try a clearer one.' }, { status: 400 });
   const { image, mediaType, categories } = parsed.data;
+  const prompt = `Read this receipt. Categories to choose from: ${categories.join(', ') || 'none given'}. Today is ${new Date().toISOString().slice(0, 10)}.`;
 
-  const client = new Anthropic({ apiKey: env.ANTHROPIC_API_KEY });
   try {
-    const response = await client.messages.parse({
-      model: env.AI_MODEL ?? 'claude-opus-5-5',
-      max_tokens: 2000,
-      output_config: { effort: 'low', format: zodOutputFormat(Receipt) },
-      messages: [{
-        role: 'user',
-        content: [
-          { type: 'image', source: { type: 'base64', media_type: mediaType, data: image } },
-          { type: 'text', text: `Read this receipt. Categories to choose from: ${categories.join(', ') || 'none given'}. Today is ${new Date().toISOString().slice(0, 10)}.` },
-        ],
-      }],
-    });
-    if (response.stop_reason === 'refusal' || !response.parsed_output) {
-      return NextResponse.json({ error: 'Couldn’t read that receipt. Try a straighter, brighter photo.' }, { status: 422 });
-    }
-    const r = response.parsed_output;
+    const r = provider === 'openai'
+      ? await readWithOpenAi(image, mediaType, prompt)
+      : await readWithClaude(image, mediaType, prompt);
+    if (!r) return NextResponse.json({ error: 'Couldn’t read that receipt. Try a straighter, brighter photo.' }, { status: 422 });
     if (!r.isReceipt) return NextResponse.json({ error: 'That doesn’t look like a receipt.' }, { status: 422 });
     return NextResponse.json({
       merchant: r.merchant.trim(),
@@ -64,8 +58,52 @@ export async function POST(request: Request) {
       category: categories.includes(r.category) ? r.category : null,
     });
   } catch (e) {
-    if (e instanceof Anthropic.RateLimitError) return NextResponse.json({ error: 'Busy right now — try again in a minute.' }, { status: 429 });
-    if (e instanceof Anthropic.APIError) return NextResponse.json({ error: 'Receipt reading failed. Add it by hand for now.' }, { status: 502 });
+    // An empty OpenAI account is also a 429, but waiting a minute will not fix it.
+    const outOfCredit = e instanceof OpenAI.APIError && e.code === 'insufficient_quota';
+    if (!outOfCredit && (e instanceof Anthropic.RateLimitError || e instanceof OpenAI.RateLimitError)) {
+      return NextResponse.json({ error: 'Busy right now — try again in a minute.' }, { status: 429 });
+    }
+    if (e instanceof Anthropic.APIError || e instanceof OpenAI.APIError) {
+      return NextResponse.json({ error: 'Receipt reading failed. Add it by hand for now.' }, { status: 502 });
+    }
     throw e;
   }
+}
+
+type MediaType = z.infer<typeof body>['mediaType'];
+
+/** Null when the model declined or returned nothing usable. */
+async function readWithClaude(image: string, mediaType: MediaType, prompt: string): Promise<z.infer<typeof Receipt> | null> {
+  const client = new Anthropic({ apiKey: env.ANTHROPIC_API_KEY });
+  const response = await client.messages.parse({
+    model: env.AI_MODEL ?? 'claude-opus-5-5',
+    max_tokens: 2000,
+    output_config: { effort: 'low', format: zodOutputFormat(Receipt) },
+    messages: [{
+      role: 'user',
+      content: [
+        { type: 'image', source: { type: 'base64', media_type: mediaType, data: image } },
+        { type: 'text', text: prompt },
+      ],
+    }],
+  });
+  return response.stop_reason === 'refusal' ? null : response.parsed_output ?? null;
+}
+
+async function readWithOpenAi(image: string, mediaType: MediaType, prompt: string): Promise<z.infer<typeof Receipt> | null> {
+  const client = new OpenAI({ apiKey: env.OPENAI_API_KEY });
+  const response = await client.responses.parse({
+    model: env.OPENAI_MODEL ?? DEFAULT_OPENAI_MODEL,
+    max_output_tokens: 2000,
+    text: { format: zodTextFormat(Receipt, 'receipt') },
+    input: [{
+      role: 'user',
+      content: [
+        { type: 'input_image', detail: 'high', image_url: `data:${mediaType};base64,${image}` },
+        { type: 'input_text', text: prompt },
+      ],
+    }],
+  });
+  // A refusal comes back as a refusal item with no parsed output.
+  return response.output_parsed ?? null;
 }

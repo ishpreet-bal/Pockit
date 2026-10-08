@@ -21,7 +21,7 @@ export default async function AssistantPage() {
             <EmptyState
               icon="✦"
               title="The assistant needs an AI provider"
-              description="Add an ANTHROPIC_API_KEY to your environment and the assistant will answer questions using real queries against your ledger — every number it gives comes from a query you can open and check. Everything else in Pockit works without a key."
+              description="Add an ANTHROPIC_API_KEY or OPENAI_API_KEY to your environment and the assistant will answer questions using real queries against your ledger — every number it gives comes from a query you can open and check. Everything else in Pockit works without a key."
               action={<LinkButton href="/overview" variant="primary">Back to overview</LinkButton>}
             />
           </Card>

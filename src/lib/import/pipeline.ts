@@ -165,7 +165,7 @@ async function runExtraction(
   if (extracted.length === 0 && (needsVision || parsed.text)) {
     if (needsVision && !provider.capabilities.vision) {
       throw new AiUnavailableError(
-        'Reading this file needs a vision-capable AI provider. Add an ANTHROPIC_API_KEY, or upload a CSV, Excel or text-based PDF instead.',
+        'Reading this file needs a vision-capable AI provider. Add an ANTHROPIC_API_KEY or OPENAI_API_KEY, or upload a CSV, Excel or text-based PDF instead.',
       );
     }
 
