@@ -41,7 +41,7 @@ export default function Learn() {
         {list.map((t, i) => {
           const isOpen = open === t.id;
           return (
-            <Card key={t.id} style={{ padding: 0 }}>
+            <Card key={t.id}>
               <Pressable onPress={() => { void Haptics.selectionAsync(); setOpen(isOpen ? null : t.id); }} accessibilityRole="button" accessibilityState={{ expanded: isOpen }}
                 style={{ flexDirection: 'row', alignItems: 'center', gap: space.md, paddingVertical: space.lg }}>
                 <View style={{ width: 30, height: 30, borderRadius: 15, borderWidth: 1, borderColor: done.includes(t.id) ? a.accent : c.border, backgroundColor: done.includes(t.id) ? a.accent : 'transparent', alignItems: 'center', justifyContent: 'center' }}>

@@ -56,7 +56,7 @@ export function Screen({
 
 export function Card({ children, style, onPress }: { children: ReactNode; style?: ViewStyle; onPress?: () => void }) {
   const c = useColors();
-  const base = [s.card, { borderColor: c.border }, style];
+  const base = [s.card, { backgroundColor: c.surface }, style];
   if (!onPress) return <View style={base}>{children}</View>;
   return (
     <Pressable
@@ -188,8 +188,8 @@ export function PreviewBadge() {
 
 const s = StyleSheet.create({
   titleRow: { flexDirection: 'row', alignItems: 'center', minHeight: 30, marginBottom: space.xl },
-  // No boxes: a group is held together by a hairline above and below.
-  card: { borderTopWidth: StyleSheet.hairlineWidth, borderBottomWidth: StyleSheet.hairlineWidth, overflow: 'hidden' },
+  // Soft rounded cards: friendly, and they hold a group together without lines.
+  card: { borderRadius: radius.card, paddingHorizontal: space.lg, overflow: 'hidden' },
   sectionHeader: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', marginTop: 36, marginBottom: space.sm },
   row: { flexDirection: 'row', alignItems: 'center', gap: space.md, paddingVertical: 14 },
   iconTile: { width: 36, height: 36, borderRadius: radius.tile, alignItems: 'center', justifyContent: 'center' },
@@ -210,7 +210,7 @@ export function friendlyDate(iso: string, today: string): string {
 export function EmptyCard({ title, body }: { title: string; body: string }) {
   const c = useColors();
   return (
-    <View style={[s.card, { borderColor: c.border, paddingVertical: space.xl }]}>
+    <View style={[s.card, { backgroundColor: c.surface, paddingVertical: space.xl }]}>
       <Text style={[type.headline, { color: c.text }]}>{title}</Text>
       <Text style={[type.footnote, { color: c.textMuted, marginTop: 6, lineHeight: 20 }]}>{body}</Text>
     </View>
@@ -222,7 +222,7 @@ export function StaleNote({ message }: { message: string | null }) {
   const c = useColors();
   if (!message) return null;
   return (
-    <View style={{ borderLeftWidth: 2, borderLeftColor: c.warning, paddingLeft: 10, paddingVertical: 4, marginBottom: space.md }}>
+    <View style={{ backgroundColor: c.surface, borderRadius: 12, padding: 10, marginBottom: space.md }}>
       <Text style={[type.footnote, { color: c.textMuted }]}>{message}</Text>
     </View>
   );

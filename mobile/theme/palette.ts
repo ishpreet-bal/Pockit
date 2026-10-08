@@ -1,19 +1,25 @@
 import { useIsDark } from './tokens';
 
 /**
- * The friendly colours: one per category, so Groceries is always green and
- * Eating out always coral, wherever they appear. Bright enough to cheer the page
- * up, soft enough to sit on warm black (and a little deeper on paper).
+ * The friendly colours: six, one per kind of spending, so Groceries is always
+ * green and Eating out always coral wherever they appear. Picked and checked
+ * with a colour-vision validator so neighbouring colours stay distinguishable
+ * for colourblind people too, on navy and on paper. Charts show the top six
+ * and fold the rest into a neutral "Other".
+ *
+ * Slots: 0 rose · 1 sun · 2 sky · 3 coral · 4 lilac · 5 mint
  */
-const DARK = ['#ff8a65', '#ffc75a', '#6fdc9a', '#5ec8f2', '#a98bff', '#ff7fb6', '#4fd1c5', '#c4e26a', '#f2a65a', '#8fa8ff'];
-const LIGHT = ['#e8603c', '#d99a12', '#2fa866', '#1f97c9', '#7a5cf0', '#e0508f', '#14998d', '#7fa21c', '#c97a26', '#4e6ee8'];
+const DARK = ['#c94a8f', '#b78e00', '#1c91ef', '#dd5540', '#a66eef', '#00a676'];
+const LIGHT = ['#c23881', '#d09b00', '#22a7f6', '#f67255', '#885edc', '#009251'];
+export const OTHER = { dark: '#5b6787', light: '#a39d8e' };
 
 const NAMED: Record<string, number> = {
-  groceries: 2, food: 2, restaurants: 0, 'eating out': 0, takeaway: 0, coffee: 8,
-  transportation: 3, transport: 3, gas: 3, transit: 3, parking: 3,
-  housing: 4, rent: 4, 'rent or mortgage': 4, bills: 1, utilities: 1, phone: 1, internet: 1, subscriptions: 5,
-  shopping: 5, clothing: 5, electronics: 9, entertainment: 6, travel: 6, health: 7, medical: 7, fitness: 7, gym: 7,
-  education: 9, 'debt payments': 9, 'gifts & giving': 5, other: 9,
+  groceries: 5, food: 5, health: 5, medical: 5, pharmacy: 5, fitness: 5, gym: 5,
+  restaurants: 3, 'eating out': 3, takeaway: 3, entertainment: 3, events: 3,
+  transportation: 2, transport: 2, gas: 2, transit: 2, parking: 2, travel: 2,
+  housing: 4, rent: 4, 'rent or mortgage': 4, education: 4, 'debt payments': 4,
+  bills: 1, utilities: 1, phone: 1, internet: 1, coffee: 1,
+  shopping: 0, clothing: 0, subscriptions: 0, 'gifts & giving': 0, electronics: 0,
 };
 
 function index(key: string): number {
@@ -35,9 +41,30 @@ export function useTint() {
 export const soft = (hex: string, dark: boolean) => `${hex}${dark ? '26' : '22'}`;
 
 /** Fixed colours for the shortcut doors, so each tool is recognisable at a glance. */
-export const TOOL = { add: 0, bills: 3, budget: 2, trip: 4, purchases: 1, lessons: 6, ask: 0, lookup: 3 } as const;
+export const TOOL = { add: 3, bills: 2, budget: 5, trip: 4, purchases: 1, lessons: 4, ask: 3, lookup: 2 } as const;
 export function useToolTint() {
   const dark = useIsDark();
   const list = dark ? DARK : LIGHT;
   return (tool: keyof typeof TOOL) => list[TOOL[tool]]!;
+}
+
+/**
+ * Colours for one chart: each category keeps its own colour where it can, and
+ * two categories that would share a colour get different ones — a chart never
+ * shows two series in the same colour. Anything past six is "Other".
+ */
+export function useChartTints() {
+  const dark = useIsDark();
+  const list = dark ? DARK : LIGHT;
+  return (names: string[]) => {
+    const used = new Set<number>();
+    const out = new Map<string, string>();
+    for (const n of names) {
+      let i = index(n);
+      if (used.size >= list.length) { out.set(n, dark ? OTHER.dark : OTHER.light); continue; }
+      while (used.has(i)) i = (i + 1) % list.length;
+      used.add(i); out.set(n, list[i]!);
+    }
+    return out;
+  };
 }

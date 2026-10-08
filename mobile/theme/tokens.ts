@@ -15,35 +15,37 @@ import { useColorScheme } from 'react-native';
 
 export type Section = 'home' | 'spending' | 'goals' | 'invest' | 'more';
 
-const ACCENT_DARK = '#da5100';
+const ACCENT_DARK = '#f0703a';
 const ACCENT_LIGHT = '#c04600';
 const sections = (accent: string, soft: string) => ({
   home: { accent, soft }, spending: { accent, soft }, goals: { accent, soft }, invest: { accent, soft }, more: { accent, soft },
 });
 
 const dark = {
-  bg: '#0e0f0c',
-  surface: '#141511',
-  surface2: '#1b1d18',
-  border: '#262822',
-  text: '#eceee6',
-  textMuted: '#8a8e80',
-  textSubtle: '#5c6055',
-  positive: ACCENT_DARK,
-  negative: '#ff5d6c',
-  warning: '#e8b04a',
-  section: sections(ACCENT_DARK, '#241a12'),
+  // Deep navy rather than black: calmer, warmer, and the orange accent sits on it naturally.
+  bg: '#131c33',
+  surface: '#1b2643',
+  surface2: '#24304f',
+  border: '#2d3a5c',
+  // Soft cream text instead of stark white, with blue-grey for quieter lines.
+  text: '#f4efe6',
+  textMuted: '#a7b1cb',
+  textSubtle: '#6f7b9b',
+  positive: '#3ccf91',
+  negative: '#ff7b88',
+  warning: '#f2c14e',
+  section: sections(ACCENT_DARK, '#3a2a2c'),
 };
 
 const light: typeof dark = {
-  bg: '#f3f0e8',
+  bg: '#f6f3ec',
   surface: '#f8f6f0',
   surface2: '#e8e4d9',
   border: '#d9d4c7',
   text: '#17160f',
   textMuted: '#6d685b',
   textSubtle: '#a39d8e',
-  positive: ACCENT_LIGHT,
+  positive: '#1d8a5b',
   negative: '#c9283b',
   warning: '#9a6a12',
   section: sections(ACCENT_LIGHT, '#f1e1d3'),
@@ -98,9 +100,10 @@ export const type = {
   subhead: { fontFamily: font.regular, fontSize: 15 },
   footnote: { fontFamily: font.regular, fontSize: 13 },
   /** Small spaced capitals: dates, labels. Pass text already upper-cased or use `label`. */
-  caption: { fontFamily: font.medium, fontSize: 11, letterSpacing: 1.1 },
-  label: { fontFamily: font.medium, fontSize: 11, letterSpacing: 1.2, textTransform: 'uppercase' as const },
+  caption: { fontFamily: font.medium, fontSize: 11, letterSpacing: 0.8 },
+  /** Section and screen labels: plain sentence case, never shouty capitals. */
+  label: { fontFamily: font.semibold, fontSize: 14, letterSpacing: 0 },
 };
 
 export const space = { xs: 4, sm: 8, md: 12, lg: 16, xl: 22, xxl: 28 };
-export const radius = { control: 6, tile: 6, card: 0, pill: 999 };
+export const radius = { control: 14, tile: 12, card: 18, pill: 999 };

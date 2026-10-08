@@ -51,10 +51,10 @@ export function Button({
       style={({ pressed }) => ({
         height: 54, borderRadius: radius.control, alignItems: 'center', justifyContent: 'center',
         backgroundColor: bg, opacity: disabled ? 0.4 : pressed ? 0.8 : 1,
-        borderWidth: variant === 'secondary' ? StyleSheet.hairlineWidth : 0, borderColor: c.border,
+        borderWidth: variant === 'secondary' ? 1 : 0, borderColor: c.border,
       })}
     >
-      {loading ? <ActivityIndicator color={fg} /> : <Text style={{ fontFamily: font.regular, fontSize: 14, letterSpacing: 1.6, color: fg }}>{label.toUpperCase()}</Text>}
+      {loading ? <ActivityIndicator color={fg} /> : <Text style={{ fontFamily: font.semibold, fontSize: 16, color: fg }}>{label}</Text>}
     </Pressable>
   );
 }

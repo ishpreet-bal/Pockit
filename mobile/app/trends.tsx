@@ -4,7 +4,7 @@ import Animated, { FadeIn } from 'react-native-reanimated';
 import { Card, Loading, Screen, SectionHeader, formatMoney } from '@/components/ui';
 import { api } from '@/lib/api';
 import { PREVIEW } from '@/lib/session';
-import { soft, useTint } from '@/theme/palette';
+import { OTHER, soft, useChartTints } from '@/theme/palette';
 import { space, type, useColors, useIsDark } from '@/theme/tokens';
 
 /**
@@ -31,7 +31,7 @@ const MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct
 export default function TrendsScreen() {
   const c = useColors();
   const dark = useIsDark();
-  const tint = useTint();
+  const chartTints = useChartTints();
   const [t, setT] = useState<Trends | null>(PREVIEW ? DEMO : null);
   const [error, setError] = useState<string | null>(null);
   const [focus, setFocus] = useState<string | null>(null);
@@ -42,7 +42,13 @@ export default function TrendsScreen() {
   }, []);
 
   if (!t) return <Screen section="spending" title="Trends" back><Loading error={error} /></Screen>;
-  const shown = focus ? t.categories.filter((x) => x.id === focus) : t.categories;
+  // Six colours, then "Other": a chart never repeats a colour or invents a seventh.
+  const top = t.categories.slice(0, 6);
+  const rest = t.categories.slice(6);
+  const series = rest.length ? [...top, { id: '__other', name: 'Other', months: t.months.map((_, i) => rest.reduce((s2, x) => s2 + x.months[i]!, 0)) }] : top;
+  const colour = chartTints(top.map((x) => x.name));
+  const colourOf = (name: string) => colour.get(name) ?? (dark ? OTHER.dark : OTHER.light);
+  const shown = focus ? series.filter((x) => x.id === focus) : series;
   const monthTotals = t.months.map((_, i) => shown.reduce((s, x) => s + x.months[i]!, 0));
   const max = Math.max(1, ...monthTotals);
   const avg = monthTotals.slice(0, -1).reduce((a, b) => a + b, 0) / Math.max(1, monthTotals.length - 1);
@@ -57,8 +63,9 @@ export default function TrendsScreen() {
         {t.months.map((m, i) => (
           <View key={m} style={{ flex: 1, alignItems: 'center', gap: 6 }}>
             <View style={{ width: '100%', height: 140, justifyContent: 'flex-end' }}>
-              <Animated.View entering={FadeIn.delay(i * 60).duration(300)} style={{ borderRadius: 8, overflow: 'hidden', height: `${(monthTotals[i]! / max) * 100}%` }}>
-                {shown.map((x) => x.months[i]! > 0 ? <View key={x.id} style={{ flex: x.months[i]!, backgroundColor: tint(x.name), opacity: i === t.months.length - 1 ? 1 : 0.85 }} /> : null)}
+              <Animated.View entering={FadeIn.delay(i * 60).duration(300)} style={{ gap: 2, height: `${(monthTotals[i]! / max) * 100}%` }}>
+                {/* Largest at the bottom; a 2px gap between pieces keeps neighbours apart. */}
+                {[...shown].reverse().map((x) => x.months[i]! > 0 ? <View key={x.id} style={{ flex: x.months[i]!, minHeight: 3, borderRadius: 4, backgroundColor: colourOf(x.name) }} /> : null)}
               </Animated.View>
             </View>
             <Text style={[type.caption, { color: i === t.months.length - 1 ? c.text : c.textMuted, letterSpacing: 0 }]}>{MON[Number(m.slice(5)) - 1]}</Text>
@@ -79,13 +86,13 @@ export default function TrendsScreen() {
 
       <SectionHeader title="By category" action={focus ? 'Show all' : undefined} onAction={() => setFocus(null)} />
       <Card>
-        {t.categories.map((x, i) => {
+        {series.map((x, i) => {
           const now = x.months[x.months.length - 1]!;
           const usual = x.months.slice(0, -1).reduce((a, b) => a + b, 0) / Math.max(1, x.months.length - 1);
           return (
             <Pressable key={x.id} onPress={() => setFocus(focus === x.id ? null : x.id)} accessibilityRole="button"
-              style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 13, borderBottomWidth: i < t.categories.length - 1 ? 0.5 : 0, borderBottomColor: c.border, opacity: pressed ? 0.6 : focus && focus !== x.id ? 0.45 : 1 })}>
-              <View style={{ width: 12, height: 12, borderRadius: 6, backgroundColor: tint(x.name) }} />
+              style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 13, borderBottomWidth: i < series.length - 1 ? 0.5 : 0, borderBottomColor: c.border, opacity: pressed ? 0.6 : focus && focus !== x.id ? 0.45 : 1 })}>
+              <View style={{ width: 12, height: 12, borderRadius: 4, backgroundColor: colourOf(x.name) }} />
               <View style={{ flex: 1 }}>
                 <Text style={[type.body, { color: c.text }]}>{x.name}</Text>
                 <Text style={[type.footnote, { color: c.textMuted }]}>usually {formatMoney(usual, { cents: false })}</Text>

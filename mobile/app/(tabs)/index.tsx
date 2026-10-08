@@ -49,11 +49,11 @@ function tip(d: Summary): string {
   return 'You’re on track this month.';
 }
 
-const DAYS = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
 const MON = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
 const at = (iso: string) => new Date(`${iso}T12:00:00Z`);
-export const stamp = (iso: string) => `${MON[at(iso).getUTCMonth()]} ${String(at(iso).getUTCDate()).padStart(2, '0')}`;
-export const todayLine = (iso: string) => `${DAYS[at(iso).getUTCDay()]} ${String(at(iso).getUTCDate()).padStart(2, '0')} ${MON[at(iso).getUTCMonth()]}`;
+export const stamp = (iso: string) => `${MON[at(iso).getUTCMonth()]![0]}${MON[at(iso).getUTCMonth()]!.slice(1).toLowerCase()} ${at(iso).getUTCDate()}`;
+export const todayLine = (iso: string) => `${DAYS_LONG[at(iso).getUTCDay()]}, ${stamp(iso)}`;
+const DAYS_LONG = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 const daysBetween = (a: string, b: string) => Math.round((at(b).getTime() - at(a).getTime()) / 86_400_000);
 
 interface Stop { key: string; date: string; label: string; title: string; after: number; amount: number | null; kind: 'now' | 'bill' | 'pay' }
@@ -68,10 +68,10 @@ function runway(d: Summary): Stop[] {
   const bills = h.upcoming.filter((b) => !pay || b.date <= pay.date);
   const owed = bills.reduce((t, b) => t + b.amountMinor, 0);
   let bal = h.safeToSpendMinor + owed;
-  const stops: Stop[] = [{ key: 'now', date: d.today, label: 'TODAY', title: 'You are here', after: bal, amount: null, kind: 'now' }];
+  const stops: Stop[] = [{ key: 'now', date: d.today, label: 'Today', title: 'You are here', after: bal, amount: null, kind: 'now' }];
   for (const b of bills) {
     bal -= b.amountMinor;
-    stops.push({ key: `${b.name}-${b.date}`, date: b.date, label: b.date === d.today ? 'TODAY' : stamp(b.date), title: b.name, after: bal, amount: -b.amountMinor, kind: 'bill' });
+    stops.push({ key: `${b.name}-${b.date}`, date: b.date, label: b.date === d.today ? 'Today' : stamp(b.date), title: b.name, after: bal, amount: -b.amountMinor, kind: 'bill' });
   }
   if (pay) stops.push({ key: 'pay', date: pay.date, label: stamp(pay.date), title: pay.name || 'Payday', after: bal + pay.amountMinor, amount: pay.amountMinor, kind: 'pay' });
   return stops;
@@ -129,7 +129,7 @@ function Body({ d }: { d: Summary }) {
           <PockMark size={20} color={a.accent} />
           <View style={{ flex: 1 }}>
             <Text style={{ fontFamily: font.serifItalic, fontSize: 17, lineHeight: 22, color: c.text }}>{tip(d)}</Text>
-            <Text style={[type.caption, { color: a.accent, marginTop: 8 }]}>ASK POCK →</Text>
+            <Text style={[type.caption, { color: a.accent, marginTop: 8 }]}>Ask Pock →</Text>
           </View>
         </Pressable>
       </TourTarget>
@@ -162,7 +162,7 @@ function StopRow({ stop, first, last, onPress }: { stop: Stop; first: boolean; l
       <View style={{ flex: 1, flexDirection: 'row', justifyContent: 'space-between' }}>
         <View style={{ flex: 1, paddingRight: 8 }}>
           <Text style={[type.subhead, { color: c.text }]} numberOfLines={1}>{stop.title}</Text>
-          <Text style={[type.caption, { fontSize: 11, color: c.textMuted, marginTop: 2 }]}>{stop.kind === 'now' ? 'BAL ' : '→ '}{formatMoney(stop.after, { cents: false })}</Text>
+          <Text style={[type.caption, { fontSize: 11, color: c.textMuted, marginTop: 2 }]}>{stop.kind === 'now' ? 'Balance ' : '→ '}{formatMoney(stop.after, { cents: false })}</Text>
         </View>
         {stop.amount !== null ? (
           <Text style={[type.footnote, { color: stop.amount > 0 ? a.accent : c.negative, fontVariant: ['tabular-nums'] }]}>
