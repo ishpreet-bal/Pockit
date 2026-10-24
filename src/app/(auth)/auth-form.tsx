@@ -88,6 +88,9 @@ export function AuthForm({
               minLength={isSignUp ? 10 : undefined}
             />
           </Field>
+          {!isSignUp ? (
+            <Link href="/forgot-password" className="-mt-1.5 self-end text-sm text-[var(--text-muted)] hover:underline">Forgot password?</Link>
+          ) : null}
 
           {isSignUp ? (
             <>

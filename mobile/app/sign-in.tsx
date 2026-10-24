@@ -1,8 +1,8 @@
 import { useRef, useState } from 'react';
-import { Pressable, Text, TextInput } from 'react-native';
+import { Linking, Pressable, Text, TextInput } from 'react-native';
 import { router } from 'expo-router';
 import { Button, Field, FormError, StepScreen } from '@/components/form';
-import { api } from '@/lib/api';
+import { api, API_URL } from '@/lib/api';
 import { useSession } from '@/lib/session';
 import { type, useColors } from '@/theme/tokens';
 
@@ -63,6 +63,9 @@ export default function SignIn() {
     >
       <Field label="Email" value={email} onChangeText={setEmail} autoFocus keyboardType="email-address" autoCapitalize="none" autoCorrect={false} textContentType="emailAddress" autoComplete="email" returnKeyType="next" onSubmitEditing={() => passwordRef.current?.focus()} />
       <Field ref={passwordRef} label="Password" value={password} onChangeText={setPassword} secureTextEntry textContentType="password" autoComplete="current-password" returnKeyType="go" onSubmitEditing={submit} />
+      <Pressable onPress={() => void Linking.openURL(`${API_URL}/forgot-password`)} accessibilityRole="link" hitSlop={8} style={{ alignSelf: 'flex-end', marginTop: -6 }}>
+        <Text style={[type.footnote, { color: c.textMuted }]}>Forgot password?</Text>
+      </Pressable>
       <FormError message={error} />
     </StepScreen>
   );

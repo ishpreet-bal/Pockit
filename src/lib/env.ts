@@ -53,6 +53,11 @@ const serverSchema = z.object({
   /** Shared secret RevenueCat sends with every webhook, so nobody else can grant Plus. */
   REVENUECAT_WEBHOOK_SECRET: blankToUndefined(z.string().optional()),
 
+  /** Sends password reset emails through Resend. Without it, reset links can't be sent. */
+  RESEND_API_KEY: blankToUndefined(z.string().optional()),
+  /** The sender, on a domain verified in Resend, e.g. "Pockit <hello@yourdomain.com>". */
+  EMAIL_FROM: blankToUndefined(z.string().optional()),
+
   /** Where people write to about their data and account. Shown on /privacy and /terms. */
   SUPPORT_EMAIL: blankToUndefined(z.string().email().optional()),
 

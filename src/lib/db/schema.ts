@@ -1176,3 +1176,12 @@ export const costRepayments = pockit.table('cost_repayments', {
   receivedOn: date('received_on').notNull(),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 });
+
+/** One-hour, single-use password reset links; only the token's hash is kept (drizzle/0013). */
+export const passwordResets = pockit.table('password_resets', {
+  tokenHash: text('token_hash').primaryKey(),
+  userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+  usedAt: timestamp('used_at', { withTimezone: true }),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+});
