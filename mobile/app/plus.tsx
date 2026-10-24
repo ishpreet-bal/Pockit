@@ -5,6 +5,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
 import { PockMark } from '@/components/Pock';
 import { Button, FormError } from '@/components/form';
+import { API_URL } from '@/lib/api';
 import { buy, loadPlanOptions, purchasesAvailable, restore, type PlanOption } from '@/lib/purchases';
 import { useSession } from '@/lib/session';
 import { font, radius, space, type, useColors, useIsDark } from '@/theme/tokens';
@@ -114,6 +115,7 @@ export default function Plus() {
           <View style={{ flexDirection: 'row', justifyContent: 'center', gap: space.xl }}>
             <Pressable onPress={async () => { await restore(); await refresh(); }}><Text style={[type.footnote, { color: c.textMuted }]}>Restore purchases</Text></Pressable>
             <Pressable onPress={() => Linking.openURL('https://www.apple.com/legal/internet-services/itunes/dev/stdeula/')}><Text style={[type.footnote, { color: c.textMuted }]}>Terms</Text></Pressable>
+            <Pressable onPress={() => Linking.openURL(`${API_URL}/privacy`)}><Text style={[type.footnote, { color: c.textMuted }]}>Privacy</Text></Pressable>
           </View>
         </View>
       ) : null}
