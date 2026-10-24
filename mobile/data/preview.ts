@@ -71,15 +71,18 @@ export const previewSummary: Summary = {
 };
 
 /** Sample month of transactions for the See all screen in preview mode. */
+/** A split expense, as the transaction list shows it. */
+export type RowSplit = { label: string; mineMinor: number; owedMinor: number } | null;
+
 export const previewTransactions = {
   month: '2026-09',
   transactions: [
-    { id: 't1', name: 'No Frills', date: '2026-10-02', amountMinor: -6_432, category: 'Groceries', icon: '🛒' },
-    { id: 't2', name: 'Presto', date: '2026-10-02', amountMinor: -1_000, category: 'Transport', icon: '🚗' },
-    { id: 't3', name: 'Tim Hortons', date: '2026-10-01', amountMinor: -485, category: 'Coffee', icon: '☕' },
-    { id: 't4', name: 'Spotify', date: '2026-09-28', amountMinor: -1_199, category: 'Subscriptions', icon: '🎵' },
-    { id: 't5', name: 'Payroll', date: '2026-09-26', amountMinor: 240_000, category: 'Salary', icon: '💼' },
-    { id: 't6', name: 'Uber Eats', date: '2026-09-25', amountMinor: -3_120, category: 'Eating out', icon: '🍽️' },
+    { id: 't1', name: 'No Frills', date: '2026-10-02', amountMinor: -6_432, category: 'Groceries', icon: '🛒', split: null as RowSplit },
+    { id: 't2', name: 'Presto', date: '2026-10-02', amountMinor: -1_000, category: 'Transport', icon: '🚗', split: null as RowSplit },
+    { id: 't3', name: 'Tim Hortons', date: '2026-10-01', amountMinor: -485, category: 'Coffee', icon: '☕', split: null as RowSplit },
+    { id: 't4', name: 'Spotify', date: '2026-09-28', amountMinor: -1_199, category: 'Subscriptions', icon: '🎵', split: null as RowSplit },
+    { id: 't5', name: 'Payroll', date: '2026-09-26', amountMinor: 240_000, category: 'Salary', icon: '💼', split: null as RowSplit },
+    { id: 't6', name: 'Uber Eats', date: '2026-09-25', amountMinor: -3_120, category: 'Eating out', icon: '🍽️', split: null as RowSplit },
   ],
   totals: { outMinor: 12_236, inMinor: 240_000 },
   categories: [

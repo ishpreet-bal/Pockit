@@ -5,7 +5,8 @@ import { Icon } from '@/components/Icon';
 import { router } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { Button, Chip, ChipRow, FormError } from '@/components/form';
-import { formatMoney } from '@/components/ui';
+import { Card, formatMoney } from '@/components/ui';
+import { SplitEditor, emptySplit, splitBody, type SplitChoice } from '@/components/SplitEditor';
 import { api } from '@/lib/api';
 import { PREVIEW } from '@/lib/session';
 import { useSummary } from '@/lib/summary';
@@ -37,6 +38,8 @@ export default function Add() {
   const [date, setDate] = useState(daysAgo(0));
   const [accountId, setAccountId] = useState<string | null>(null);
   const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
+  const [splitOn, setSplitOn] = useState(false);
+  const [split, setSplit] = useState<SplitChoice>(emptySplit);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const picked = useRef(false);
@@ -114,9 +117,12 @@ export default function Add() {
     setBusy(true); setError(null);
     try {
       if (!PREVIEW) {
-        await api('/api/transactions', {
+        const made = await api<{ id: string }>('/api/transactions', {
           body: { amount: amount.replace(/[^0-9.]/g, ''), description: what.trim(), accountId, categoryId, postedDate: date, type: kind },
         });
+        if (kind === 'expense' && splitOn) {
+          await api(`/api/mobile/transactions/${made.id}/share`, { method: 'PUT', body: splitBody(split) });
+        }
         await refresh();
       }
       void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -137,7 +143,7 @@ export default function Add() {
       <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ padding: space.xl, gap: space.xl }}>
         <View style={{ flexDirection: 'row', backgroundColor: c.surface2, borderRadius: radius.control, padding: 3 }}>
           {(['expense', 'income'] as const).map((k) => (
-            <Pressable key={k} onPress={() => { setKind(k); setCategoryId(null); void Haptics.selectionAsync(); }}
+            <Pressable key={k} onPress={() => { setKind(k); setCategoryId(null); setSplitOn(false); void Haptics.selectionAsync(); }}
               style={{ flex: 1, paddingVertical: 9, borderRadius: 10, alignItems: 'center', backgroundColor: kind === k ? c.surface : 'transparent' }}>
               <Text style={{ fontFamily: font.medium, fontSize: 15, color: kind === k ? c.text : c.textMuted }}>{k === 'expense' ? 'Spent' : 'Received'}</Text>
             </Pressable>
@@ -215,16 +221,13 @@ export default function Add() {
             <ChipRow>
               {meta.accounts.map((a) => <Chip section="spending" key={a.id} label={a.name} selected={accountId === a.id} onPress={() => setAccountId(a.id)} />)}
             </ChipRow>
-            {naming ? (
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 10 }}>
-                <TextInput value={newName} onChangeText={setNewName} placeholder="Name it — e.g. Gym, Pets, Gifts" placeholderTextColor={c.textSubtle} autoFocus maxLength={40}
-                  accessibilityLabel="New category name" onSubmitEditing={() => void addCategory()}
-                  style={[{ flex: 1, height: 44, borderBottomWidth: 1.5, borderBottomColor: c.section.spending.accent, fontFamily: font.regular, fontSize: 16, color: c.text }, Platform.OS === 'web' && ({ outlineStyle: 'none' } as object)]} />
-                <Pressable onPress={() => void addCategory()} hitSlop={8} accessibilityRole="button"><Text style={[type.label, { color: c.section.spending.accent }]}>Add</Text></Pressable>
-                <Pressable onPress={() => { setNaming(false); setNewName(''); }} hitSlop={8} accessibilityRole="button"><Text style={[type.label, { color: c.textMuted }]}>Cancel</Text></Pressable>
-              </View>
-            ) : null}
           </View>
+        ) : null}
+
+        {kind === 'expense' ? (
+          <Card>
+            <SplitEditor totalMinor={Math.round((amountNumber || 0) * 100)} on={splitOn} onToggle={setSplitOn} value={split} onChange={setSplit} accent={accent} />
+          </Card>
         ) : null}
 
         {meta && meta.accounts.length === 0 ? (

@@ -48,6 +48,10 @@ const WEB: Record<string, string> = {
   'book': 'menu_book',
   'xmark': 'close',
   'map': 'map',
+  'checkmark': 'check',
+  'person.2': 'group',
+  'arrow.uturn.left': 'undo',
+  'trash': 'delete',
 };
 
 export function Icon({ name, size = 20, color }: { name: string; size?: number; color: string }) {

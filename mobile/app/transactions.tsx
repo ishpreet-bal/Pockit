@@ -115,8 +115,10 @@ function List({ page, query }: { page: TxnPage; query: string }) {
           <Text style={[type.caption, { color: c.textMuted, marginBottom: 6, marginLeft: 4 }]}>{friendlyDate(date, today).toUpperCase()}</Text>
           <Card>
             {list.map((t, i) => (
-              <Row key={t.id} icon="cart" color={tint(t.category)} title={t.name} detail={t.category ?? 'Uncategorised'}
-                value={formatMoney(t.amountMinor, { signed: true })} valueColor={t.amountMinor > 0 ? c.positive : undefined} last={i === list.length - 1} />
+              <Row key={t.id} icon="cart" color={tint(t.category)} title={t.name}
+                detail={t.split ? `${t.category ?? 'Uncategorised'} · ${t.split.label} · yours ${formatMoney(t.split.mineMinor)}` : t.category ?? 'Uncategorised'}
+                value={formatMoney(t.amountMinor, { signed: true })} valueColor={t.amountMinor > 0 ? c.positive : undefined} last={i === list.length - 1}
+                onPress={() => router.push(`/txn/${t.id}`)} />
             ))}
           </Card>
         </View>

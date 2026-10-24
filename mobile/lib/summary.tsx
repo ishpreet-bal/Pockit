@@ -13,6 +13,8 @@ export interface Summary {
   bank?: { available: boolean; connected: boolean };
   /** The space being viewed — a shared household shows its name on Home. */
   space?: { name: string; shared: boolean };
+  /** Split expenses still waiting on money back. */
+  owed?: { minor: number; count: number };
   home: {
     safeToSpendMinor: number;
     explanation: string;

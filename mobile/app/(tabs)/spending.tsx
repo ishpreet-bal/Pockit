@@ -84,7 +84,7 @@ function Body({ d }: { d: Summary }) {
       {s.recent.length ? (
         <Card>
           {s.recent.map((t, i) => (
-            <Row key={t.id} icon="cart" color={tint(t.category)} title={t.name} detail={`${friendlyDate(t.date, d.today)}${t.category ? ` · ${t.category}` : ''}`} value={formatMoney(t.amountMinor, { signed: true })} valueColor={t.amountMinor > 0 ? c.positive : undefined} last={i === s.recent.length - 1} />
+            <Row key={t.id} icon="cart" color={tint(t.category)} title={t.name} detail={`${friendlyDate(t.date, d.today)}${t.category ? ` · ${t.category}` : ''}`} value={formatMoney(t.amountMinor, { signed: true })} valueColor={t.amountMinor > 0 ? c.positive : undefined} last={i === s.recent.length - 1} onPress={() => router.push(`/txn/${t.id}`)} />
           ))}
         </Card>
       ) : (

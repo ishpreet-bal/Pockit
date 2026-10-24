@@ -136,6 +136,10 @@ function Body({ d }: { d: Summary }) {
 
       <SectionHeader title="Also" />
       <Card>
+        {d.owed && d.owed.minor > 0 ? (
+          <Row icon="" title="Owed to you" detail={`From ${d.owed.count} split${d.owed.count === 1 ? '' : 's'} · tap when it comes back`}
+            value={formatMoney(d.owed.minor, { cents: false })} valueColor={a.accent} onPress={() => router.push('/owed')} />
+        ) : null}
         <Row icon="" title={goal ? goal.name : 'Goals'} detail={goal ? (goal.targetMinor ? `${Math.round((goal.currentMinor / goal.targetMinor) * 100)}% saved` : 'Add an amount') : 'Set one and watch it fill'}
           value={goal ? formatMoney(goal.currentMinor, { cents: false }) : '›'} valueColor={goal ? c.text : c.textSubtle} onPress={() => router.push('/goals')} />
         <Row icon="" title="Invested" detail={d.invest.gainPct !== null && d.invest.holdings.length ? `${d.invest.gainMinor >= 0 ? '+' : '−'}${Math.abs(d.invest.gainPct)}% overall` : 'Follow stocks and funds'}
