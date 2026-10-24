@@ -53,6 +53,9 @@ const serverSchema = z.object({
   /** Shared secret RevenueCat sends with every webhook, so nobody else can grant Plus. */
   REVENUECAT_WEBHOOK_SECRET: blankToUndefined(z.string().optional()),
 
+  /** Where people write to about their data and account. Shown on /privacy and /terms. */
+  SUPPORT_EMAIL: blankToUndefined(z.string().email().optional()),
+
   /** Hard cap on upload size, in megabytes. */
   MAX_UPLOAD_MB: blankToUndefined(z.coerce.number().int().positive().default(8)),
 });

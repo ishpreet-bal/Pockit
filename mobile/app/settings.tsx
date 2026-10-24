@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react';
 import { Linking, Platform, Switch, Text, View } from 'react-native';
 import Constants from 'expo-constants';
-import { Card, Screen, SectionHeader, Segmented } from '@/components/ui';
+import { Card, Row, Screen, SectionHeader, Segmented } from '@/components/ui';
+import { router } from 'expo-router';
+import { API_URL } from '@/lib/api';
 import { biometricsAvailable, confirmWithBiometrics } from '@/lib/lock';
 import { getPref, saveAppearance, setPref } from '@/lib/prefs';
 import { askForNotifications, checkBudgetAlerts, syncBillReminders, syncWeeklySummary } from '@/lib/reminders';
@@ -92,6 +94,11 @@ export default function Settings() {
       <Card style={{ paddingVertical: space.lg, gap: 4 }}>
         <Text style={[type.body, { color: c.text }]}>{me?.name ?? 'You'}</Text>
         <Text style={[type.footnote, { color: c.textMuted }]}>{me?.email}</Text>
+      </Card>
+      <Card style={{ marginTop: space.md }}>
+        <Row icon="" title="Privacy policy" value="›" valueColor={c.textSubtle} onPress={() => void Linking.openURL(`${API_URL}/privacy`)} />
+        <Row icon="" title="Terms of use" value="›" valueColor={c.textSubtle} onPress={() => void Linking.openURL(`${API_URL}/terms`)} />
+        <Row icon="" title="Delete account" valueColor={c.negative} value="›" last onPress={() => router.push('/delete-account')} />
       </Card>
       <Text style={[type.caption, { color: c.textSubtle, textAlign: 'center', marginTop: space.xl }]}>Pockit {Constants.expoConfig?.version ?? ''}</Text>
     </Screen>

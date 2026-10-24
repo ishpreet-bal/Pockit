@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import 'server-only';
 import { and, eq } from 'drizzle-orm';
 import { withUser } from '@/lib/db/client';
@@ -38,14 +39,16 @@ export async function ensureDemoWorkspace(opts: {
   if (existing[0]) return existing[0].id;
 
   const workspaceId = await withUser(opts.userId, async (tx) => {
-    const rows = await tx.insert(workspaces).values({
+    // Made here, not read back: a new workspace is invisible until its membership row exists.
+    const id = randomUUID();
+    await tx.insert(workspaces).values({
+      id,
       ownerUserId: opts.userId,
       name: DEMO_WORKSPACE_NAME,
       kind: 'personal',
       baseCurrency: opts.currency,
       isDemo: true,
-    }).returning({ id: workspaces.id });
-    const id = rows[0]!.id;
+    });
     await tx.insert(workspaceMembers).values({ workspaceId: id, userId: opts.userId, role: 'owner' });
     await seedCategories(tx, id);
     await seedNotificationRules(tx, id);

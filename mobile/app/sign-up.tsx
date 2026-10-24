@@ -1,9 +1,9 @@
 import { useRef, useState } from 'react';
-import { Pressable, Text, TextInput } from 'react-native';
+import { Linking, Pressable, Text, TextInput } from 'react-native';
 import { router } from 'expo-router';
 import Animated, { FadeInRight, FadeOutLeft } from 'react-native-reanimated';
 import { Button, Field, FormError, StepScreen } from '@/components/form';
-import { api, ApiError } from '@/lib/api';
+import { api, ApiError, API_URL } from '@/lib/api';
 import { useSession } from '@/lib/session';
 import { type, useColors } from '@/theme/tokens';
 
@@ -61,7 +61,14 @@ export default function SignUp() {
         top={back}
         title={`Nice to meet you, ${firstName.trim()}.`}
         subtitle="Now an email and password, so your money stays yours."
-        footer={<Button label="Create account" loading={busy} disabled={!email || password.length < 10} onPress={create} />}
+        footer={<>
+          <Button label="Create account" loading={busy} disabled={!email || password.length < 10} onPress={create} />
+          <Text style={[type.caption, { color: c.textSubtle, textAlign: 'center', lineHeight: 17 }]}>
+            By creating an account you agree to the{' '}
+            <Text style={{ textDecorationLine: 'underline' }} onPress={() => void Linking.openURL(`${API_URL}/terms`)}>terms</Text> and{' '}
+            <Text style={{ textDecorationLine: 'underline' }} onPress={() => void Linking.openURL(`${API_URL}/privacy`)}>privacy policy</Text>.
+          </Text>
+        </>}
       >
         <Field label="Email" value={email} onChangeText={setEmail} error={fieldErrors.email} autoFocus keyboardType="email-address" autoCapitalize="none" autoCorrect={false} textContentType="emailAddress" autoComplete="email" returnKeyType="next" onSubmitEditing={() => passwordRef.current?.focus()} />
         <Field ref={passwordRef} label="Password" value={password} onChangeText={setPassword} error={fieldErrors.password} secureTextEntry textContentType="newPassword" autoComplete="new-password" placeholder="At least 10 characters" returnKeyType="go" onSubmitEditing={create} />

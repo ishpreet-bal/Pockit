@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import 'server-only';
 import { eq, and } from 'drizzle-orm';
 import { withoutUser, withUser } from '@/lib/db/client';
@@ -52,13 +53,16 @@ export async function createUserWithWorkspace(input: {
   const workspaceIds = await withUser(created, async (tx) => {
     const ids: string[] = [];
     for (const kind of kinds) {
-      const wsRows = await tx.insert(workspaces).values({
+      // The id is made here, not read back with RETURNING: row-level security hides
+      // a workspace until its membership row exists, so reading it back is refused.
+      const workspaceId = randomUUID();
+      await tx.insert(workspaces).values({
+        id: workspaceId,
         ownerUserId: created,
         name: kind === 'business' ? 'Business' : 'Personal',
         kind,
         baseCurrency: currency,
-      }).returning({ id: workspaces.id });
-      const workspaceId = wsRows[0]!.id;
+      });
       await tx.insert(workspaceMembers).values({ workspaceId, userId: created, role: 'owner' });
       await seedCategories(tx, workspaceId);
       await seedNotificationRules(tx, workspaceId);

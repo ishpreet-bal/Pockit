@@ -112,6 +112,12 @@ export function AuthForm({
           ) : null}
 
           <SubmitButton label={isSignUp ? 'Create account' : 'Sign in'} />
+          {isSignUp ? (
+            <p className="text-center text-xs leading-relaxed text-[var(--text-subtle)]">
+              By creating an account you agree to the <Link href="/terms" className="underline">terms</Link> and{' '}
+              <Link href="/privacy" className="underline">privacy policy</Link>.
+            </p>
+          ) : null}
         </form>
 
         {isSignUp ? (

@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { randomBytes } from 'node:crypto';
+import { randomBytes, randomUUID } from 'node:crypto';
 import { z } from 'zod';
 import { and, eq, gte, inArray, isNull, lte } from 'drizzle-orm';
 import { requireAuthApi } from '@/lib/auth/api';
@@ -73,8 +73,9 @@ export async function POST(request: Request) {
 
   if (input.action === 'create') {
     const id = await withUser(ctx.user.id, async (tx) => {
-      const made = await tx.insert(workspaces).values({ ownerUserId: ctx.user.id, name: input.name, kind: 'household', baseCurrency: ctx.workspace.baseCurrency }).returning({ id: workspaces.id });
-      const wid = made[0]!.id;
+      // Made here, not read back: a new workspace is invisible until its membership row exists.
+      const wid = randomUUID();
+      await tx.insert(workspaces).values({ id: wid, ownerUserId: ctx.user.id, name: input.name, kind: 'household', baseCurrency: ctx.workspace.baseCurrency });
       await tx.insert(workspaceMembers).values({ workspaceId: wid, userId: ctx.user.id, role: 'owner' });
       await seedCategories(tx, wid);
       await seedNotificationRules(tx, wid);

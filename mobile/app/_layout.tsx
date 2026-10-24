@@ -66,6 +66,7 @@ export default function RootLayout() {
           <Stack.Screen name="vehicle" options={{ presentation: 'modal' }} />
           <Stack.Screen name="txn/[id]" />
           <Stack.Screen name="owed" />
+          <Stack.Screen name="delete-account" options={{ presentation: 'modal' }} />
         </Stack>
         </TourProvider>
         </AppLock>

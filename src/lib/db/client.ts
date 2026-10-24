@@ -87,11 +87,39 @@ export async function closeDb(): Promise<void> {
  * checkout of a pooled connection.
  */
 export async function withUser<T>(userId: string, fn: (tx: Db) => Promise<T>): Promise<T> {
+  const enforce = await canEnforceRls();
   return db.transaction(async (tx) => {
     // Parameterised: the uuid is validated and bound, never interpolated.
     await tx.execute(drizzleSql`SELECT set_config('pockit.user_id', ${assertUuid(userId)}, true)`);
+    // Drop to the role that cannot bypass row-level security (migration 0012), so
+    // the policies hold even where application code forgets a workspace filter.
+    if (enforce) await tx.execute(drizzleSql`SET LOCAL ROLE pockit_app`);
     return fn(tx as unknown as Db);
   });
+}
+
+let rlsRole: Promise<boolean> | undefined;
+
+/**
+ * Whether `pockit_app` exists and this connection may switch to it. Checked once
+ * per process. Before migration 0012 has run it does not exist, and requests carry
+ * on as before rather than failing, so deploying the code ahead of the migration
+ * is safe. /api/health reports which mode is in effect.
+ */
+export function canEnforceRls(): Promise<boolean> {
+  rlsRole ??= (async () => {
+    try {
+      // CASE, not AND: pg_has_role throws on a role that does not exist yet.
+      const rows = await db.execute(drizzleSql`SELECT CASE WHEN EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'pockit_app')
+        THEN pg_has_role(current_user, 'pockit_app', 'MEMBER') ELSE false END AS ok`);
+      const first = (rows as unknown as { ok: boolean }[])[0];
+      return Boolean(first?.ok);
+    } catch {
+      rlsRole = undefined; // try again on the next request
+      return false;
+    }
+  })();
+  return rlsRole;
 }
 
 /**

@@ -21,7 +21,8 @@ export async function signUp(
   // every suite that registers an account goes through this helper.
   await page.waitForSelector('#firstName, #email', { timeout: 30000 });
   if (await page.locator('#firstName').count()) {
-    if (displayName) await page.fill('#firstName', displayName);
+    // The name is required to continue, so a suite that does not care still gives one.
+    await page.fill('#firstName', displayName ?? 'Tester');
     await page.click('button:has-text("Continue")');
     await page.waitForSelector('#email', { timeout: 30000 });
   }
