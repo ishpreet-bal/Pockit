@@ -37,6 +37,16 @@ export interface LedgerTxn {
   offsetsTransactionId: string | null;
   tags?: string[];
   splits?: LedgerSplit[];
+  /**
+   * Part of this purchase that was other people's (a split bill, or paying for
+   * someone who is paying you back). Base currency, positive. Not your spending.
+   */
+  othersShareMinor?: bigint;
+  /**
+   * How much of this deposit is someone paying you back for a split expense. That
+   * part is money in, but not income. Base currency, positive.
+   */
+  repaidInMinor?: bigint;
 }
 
 export interface LedgerSplit {

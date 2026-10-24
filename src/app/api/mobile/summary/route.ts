@@ -7,6 +7,7 @@ import { plaidConfigured } from '@/lib/bank/plaid';
 import { WorkspaceRepo } from '@/lib/data/repository';
 import { buildOverview } from '@/lib/finance/view/overview';
 import { marketData, catalogEntry } from '@/lib/market';
+import { listShares } from '@/lib/data/cost-shares';
 
 export const dynamic = 'force-dynamic';
 
@@ -31,11 +32,13 @@ export async function GET() {
   const repo = new WorkspaceRepo(user.id, workspace.id, workspace.baseCurrency);
   const d = await buildOverview(repo, user.timezone, user.locale);
 
-  const [held, watched, banks] = await Promise.all([
+  const [held, watched, banks, shares] = await Promise.all([
     withUser(user.id, (tx) => tx.select().from(holdings).where(eq(holdings.workspaceId, workspace.id))),
     withUser(user.id, (tx) => tx.select({ symbol: watchlistItems.symbol }).from(watchlistItems).where(eq(watchlistItems.workspaceId, workspace.id)).limit(5)),
     withUser(user.id, (tx) => tx.select({ id: bankConnections.id }).from(bankConnections).where(eq(bankConnections.workspaceId, workspace.id)).limit(1)),
+    listShares({ userId: user.id, workspaceId: workspace.id }),
   ]);
+  const owing = shares.filter((s) => s.owedMinor > 0);
 
   const symbols = [...new Set([...held.map((h) => h.symbol), ...watched.map((w) => w.symbol)].filter((s): s is string => Boolean(s)).map((s) => s.toUpperCase()))];
   let quotes = new Map<string, { priceMinor: bigint | number; changeBps: number | null }>();
@@ -72,6 +75,8 @@ export async function GET() {
     hasBalance: d.position.cashNowMinor !== 0n,
     bank: { available: plaidConfigured(), connected: banks.length > 0 },
     space: { name: workspace.name, shared: workspace.kind === 'household' },
+    /** Split expenses still waiting on money. Not counted as cash until it arrives. */
+    owed: { minor: owing.reduce((s, x) => s + x.owedMinor, 0), count: owing.length },
 
     home: {
       safeToSpendMinor: n(d.available.amountMinor),

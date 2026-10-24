@@ -13,6 +13,9 @@
  *   investment   → neither spending nor income; it is saving
  *   debt_payment → NEITHER (principal is a transfer to a liability account; the
  *                  purchase it repays was already counted as an expense)
+ *
+ * And for split expenses: only your own part of a purchase is your spending, and
+ * someone paying you back for theirs is not income.
  */
 import { sumMinor, absMinor } from '@/lib/money';
 import type {
@@ -49,14 +52,22 @@ export function countsAsInvestment(txn: Pick<LedgerTxn, 'type'>): boolean {
  * An expense contributes its absolute amount; a refund contributes a negative amount
  * so that spending nets down (spec §43). Everything else contributes nothing.
  */
-export function spendingAmount(txn: Pick<LedgerTxn, 'type' | 'baseAmountMinor'>): bigint {
-  if (txn.type === 'expense') return absMinor(txn.baseAmountMinor);
+export function spendingAmount(txn: Pick<LedgerTxn, 'type' | 'baseAmountMinor' | 'othersShareMinor'>): bigint {
+  if (txn.type === 'expense') {
+    const total = absMinor(txn.baseAmountMinor);
+    const others = txn.othersShareMinor ?? 0n;
+    // Never negative: a share larger than the purchase leaves nothing, not a credit.
+    return others <= 0n ? total : others >= total ? 0n : total - others;
+  }
   if (txn.type === 'refund') return -absMinor(txn.baseAmountMinor);
   return 0n;
 }
 
-export function incomeAmount(txn: Pick<LedgerTxn, 'type' | 'baseAmountMinor'>): bigint {
-  return txn.type === 'income' ? absMinor(txn.baseAmountMinor) : 0n;
+export function incomeAmount(txn: Pick<LedgerTxn, 'type' | 'baseAmountMinor' | 'repaidInMinor'>): bigint {
+  if (txn.type !== 'income') return 0n;
+  const total = absMinor(txn.baseAmountMinor);
+  const payback = txn.repaidInMinor ?? 0n;
+  return payback <= 0n ? total : payback >= total ? 0n : total - payback;
 }
 
 export function investmentAmount(txn: Pick<LedgerTxn, 'type' | 'baseAmountMinor'>): bigint {

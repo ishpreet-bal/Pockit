@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { requireAuthApi } from '@/lib/auth/api';
 import { WorkspaceRepo } from '@/lib/data/repository';
+import { listShares } from '@/lib/data/cost-shares';
 
 export const dynamic = 'force-dynamic';
 
@@ -31,12 +32,14 @@ export async function GET(request: Request) {
   const q = (params.get('q') ?? '').trim().toLowerCase();
 
   const repo = new WorkspaceRepo(ctx.user.id, ctx.workspace.id, ctx.workspace.baseCurrency);
-  const [txns, categories, accounts] = await Promise.all([
-    repo.listTransactions({ range: monthRange(month), includeSplits: false }),
+  const [txns, categories, accounts, shares] = await Promise.all([
+    repo.listTransactions({ range: monthRange(month), includeSplits: false, includeShares: false }),
     repo.listCategories(),
     repo.listAccounts(),
+    listShares({ userId: ctx.user.id, workspaceId: ctx.workspace.id }),
   ]);
   const byId = new Map(categories.map((c) => [c.id, c]));
+  const shareOf = new Map(shares.map((s) => [s.transactionId, s]));
 
   const rows = txns
     .filter((t) => t.type !== 'transfer')
@@ -51,6 +54,10 @@ export async function GET(request: Request) {
         amountMinor: incoming ? magnitude : -magnitude,
         category: cat?.name ?? null,
         icon: cat?.icon ?? null,
+        split: (() => {
+          const s = shareOf.get(t.id);
+          return s ? { label: s.label, mineMinor: s.mineMinor, owedMinor: s.owedMinor } : null;
+        })(),
       };
     })
     .filter((t) => !q || t.name.toLowerCase().includes(q) || (t.category ?? '').toLowerCase().includes(q));

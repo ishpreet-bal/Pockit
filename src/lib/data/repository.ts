@@ -5,7 +5,9 @@ import {
   accounts, categories, transactions, transactionSplits, budgets, budgetAllocations,
   goals, recurringSeries, workspaces, workspaceMembers, merchants, merchantRules,
   assets as assetsTable, liabilities as liabilitiesTable, holdings, debts, imports,
+  costShares, costRepayments,
 } from '@/lib/db/schema';
+import { shareAmounts, type CostShareKind } from '@/lib/finance/cost-share';
 import { minorFromDb } from '@/lib/money';
 import type {
   LedgerTxn, LedgerAccount, LedgerCategory, DateRange, IsoDate, BusinessClass, TxnType,
@@ -99,8 +101,10 @@ export class WorkspaceRepo {
     limit?: number;
     offset?: number;
     includeSplits?: boolean;
+    /** Split expenses and paybacks. On by default: without them totals overstate spending. */
+    includeShares?: boolean;
   } = {}): Promise<LedgerTxn[]> {
-    const { range, limit, offset = 0, includeSplits = true } = options;
+    const { range, limit, offset = 0, includeSplits = true, includeShares = true } = options;
 
     const rows = await this.run(async (tx) => {
       const conditions = [eq(transactions.workspaceId, this.workspaceId), isNull(transactions.deletedAt)];
@@ -154,7 +158,42 @@ export class WorkspaceRepo {
       }
     }
 
+    if (includeShares && mapped.length > 0) await this.applyCostShares(mapped);
+
     return mapped;
+  }
+
+  /**
+   * Marks each purchase's others' part and each payback deposit, so the ledger can
+   * leave them out of spending and income.
+   *
+   * Read for the whole workspace rather than by id: a person has a handful of split
+   * expenses, while a year of transactions would make an id list thousands long.
+   */
+  private async applyCostShares(txns: LedgerTxn[]): Promise<void> {
+    const [shares, repaid] = await this.run(async (tx) => [
+      await tx.select({ transactionId: costShares.transactionId, kind: costShares.kind, people: costShares.people, mineMinor: costShares.mineMinor, expectBack: costShares.expectBack })
+        .from(costShares).where(eq(costShares.workspaceId, this.workspaceId)),
+      await tx.select({ transactionId: costRepayments.transactionId, amountMinor: costRepayments.amountMinor })
+        .from(costRepayments).where(and(eq(costRepayments.workspaceId, this.workspaceId), dsql`${costRepayments.transactionId} IS NOT NULL`)),
+    ] as const);
+    if (shares.length === 0 && repaid.length === 0) return;
+    const byTxn = new Map(shares.map((r) => [r.transactionId, r]));
+    const paybacks = new Map<string, bigint>();
+    for (const r of repaid) if (r.transactionId) paybacks.set(r.transactionId, (paybacks.get(r.transactionId) ?? 0n) + minorFromDb(r.amountMinor as unknown as string));
+    for (const t of txns) {
+      const share = byTxn.get(t.id);
+      if (share && t.type === 'expense') {
+        t.othersShareMinor = shareAmounts(t.baseAmountMinor, {
+          kind: share.kind as CostShareKind,
+          people: share.people,
+          mineMinor: share.mineMinor === null ? null : minorFromDb(share.mineMinor as unknown as string),
+          expectBack: share.expectBack,
+        }).excludedMinor;
+      }
+      const back = paybacks.get(t.id);
+      if (back && t.type === 'income') t.repaidInMinor = back;
+    }
   }
 
   async countTransactions(range?: DateRange): Promise<number> {

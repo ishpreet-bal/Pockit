@@ -1146,3 +1146,33 @@ export const spaceInvites = pockit.table('space_invites', {
   usedAt: timestamp('used_at', { withTimezone: true }),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 });
+
+/**
+ * A purchase that was partly or wholly someone else's (drizzle/0011). The choice is
+ * stored, not the amounts, so the shares follow the purchase if its amount changes.
+ */
+export const costShares = pockit.table('cost_shares', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  workspaceId: uuid('workspace_id').notNull().references(() => workspaces.id, { onDelete: 'cascade' }),
+  transactionId: uuid('transaction_id').notNull().unique().references(() => transactions.id, { onDelete: 'cascade' }),
+  kind: text('kind', { enum: ['split', 'covered'] }).notNull(),
+  people: integer('people'),
+  mineMinor: bigint('mine_minor', { mode: 'bigint' }),
+  expectBack: boolean('expect_back').notNull().default(true),
+  withWhom: text('with_whom'),
+  settledAt: timestamp('settled_at', { withTimezone: true }),
+  createdBy: uuid('created_by').references(() => users.id, { onDelete: 'set null' }),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
+/** Money that came back for a cost share; a linked deposit is not income. */
+export const costRepayments = pockit.table('cost_repayments', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  workspaceId: uuid('workspace_id').notNull().references(() => workspaces.id, { onDelete: 'cascade' }),
+  costShareId: uuid('cost_share_id').notNull().references(() => costShares.id, { onDelete: 'cascade' }),
+  transactionId: uuid('transaction_id').unique().references(() => transactions.id, { onDelete: 'set null' }),
+  amountMinor: bigint('amount_minor', { mode: 'bigint' }).notNull(),
+  receivedOn: date('received_on').notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+});
