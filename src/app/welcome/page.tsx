@@ -2,20 +2,14 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { getSessionUser } from '@/lib/auth/session';
-import { Mascot } from '@/components/brand/mascot';
-import { Ambient } from '@/components/brand/ambient';
+import { PockTile } from '@/components/brand/pock-mark';
 
-export const metadata: Metadata = { title: 'Welcome to Pockit' };
+export const metadata: Metadata = { title: 'Pockit: know what you can spend' };
 export const dynamic = 'force-dynamic';
 
 /**
- * The first thing anyone sees.
- *
- * Almost empty on purpose: a greeting, a character, and two doors. What makes it
- * feel welcoming rather than bare is the arrival — slow light drifting behind,
- * Pock floating up, then each line settling into place a beat after the last.
- * Nothing here moves fast, and nothing keeps moving once it has arrived except
- * the light and the otter on the water.
+ * The first thing anyone sees: the same screen as the iPhone app's welcome. The
+ * mark, one promise in the serif, and three ways in. Nothing else competes.
  */
 export default async function WelcomePage() {
   let user: Awaited<ReturnType<typeof getSessionUser>>;
@@ -27,43 +21,43 @@ export default async function WelcomePage() {
   if (user) redirect('/overview');
 
   return (
-    <div className="relative flex min-h-[100svh] flex-col items-center justify-center overflow-hidden px-6 py-12">
-      <Ambient />
+    <div className="flex min-h-[100svh] items-center justify-center px-6 py-12">
+      <div className="pk-assemble flex w-full max-w-sm flex-col">
+        <PockTile />
 
-      <div className="pk-assemble relative flex w-full max-w-sm flex-col items-center text-center">
-        <Mascot mood="happy" className="h-28 w-28" />
-
-        <h1 className="pk-display mt-6 text-4xl font-bold tracking-tight sm:text-5xl">
-          Hi, I&rsquo;m Pock.
+        <h1 className="mt-8 text-[2.75rem] leading-[1.05] tracking-[-0.025em]">
+          Know what you<br />can spend.
         </h1>
 
-        <p className="mt-3 text-base leading-relaxed text-[var(--text-muted)]">
-          I&rsquo;ll help you see where your money goes, plan for what&rsquo;s next,
-          and never be surprised by a bill again.
+        <p className="mt-4 text-base leading-relaxed text-[var(--text-muted)]">
+          Pockit keeps track of your bills, goals and investments, so you always know where you stand.
         </p>
 
-        <Link
-          href="/sign-up"
-          className="mt-9 flex h-12 w-full items-center justify-center rounded-full bg-[var(--accent-fill)] text-base font-semibold text-[var(--accent-fill-fg)] shadow-[0_8px_30px_-6px_var(--accent-ring)] hover:-translate-y-0.5 hover:shadow-[0_14px_40px_-8px_var(--accent-ring)]"
-        >
-          Get started
-        </Link>
-
-        <p className="mt-5 text-sm text-[var(--text-muted)]">
-          Already have an account?{' '}
-          <Link href="/sign-in" className="font-semibold text-[var(--accent)] hover:underline">
-            Sign in
+        <div className="mt-12 flex flex-col gap-3">
+          <Link
+            href="/sign-up"
+            className="flex h-[3.25rem] w-full items-center justify-center rounded-[14px] bg-[var(--accent-fill)] text-base font-semibold text-[var(--accent-fill-fg)] transition-opacity hover:opacity-90"
+          >
+            Get started
           </Link>
-        </p>
+          {/* Exploring an example account is useful, but it is not the same thing
+              as starting one, so it is the quieter of the two. */}
+          <Link
+            href="/demo"
+            className="flex h-[3.25rem] w-full items-center justify-center rounded-[14px] border border-[var(--border-strong)] bg-[var(--surface)] text-base font-semibold text-[var(--text)] transition-colors hover:bg-[var(--surface-2)]"
+          >
+            Look around first
+          </Link>
+          <Link href="/sign-in" className="mt-3 text-center text-base font-semibold text-[var(--accent)] hover:underline">
+            I already have an account
+          </Link>
+        </div>
 
-        {/* Kept, and kept secondary. Exploring an example account is useful, but it
-            is not the same thing as starting one. */}
-        <Link
-          href="/demo"
-          className="mt-8 text-xs text-[var(--text-subtle)] underline-offset-4 hover:text-[var(--text-muted)] hover:underline"
-        >
-          Just looking? Try the demo first
-        </Link>
+        <p className="mt-8 text-center text-xs text-[var(--text-subtle)]">
+          Free · the demo needs no account ·{' '}
+          <Link href="/privacy" className="hover:underline">Privacy</Link> ·{' '}
+          <Link href="/terms" className="hover:underline">Terms</Link>
+        </p>
       </div>
     </div>
   );

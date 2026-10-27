@@ -219,7 +219,7 @@ export function ThemeToggle() {
 
   useEffect(() => {
     try {
-      setTheme((localStorage.getItem('pockit-theme') as 'system' | 'light' | 'dark' | null) ?? 'dark');
+      setTheme((localStorage.getItem('pockit-theme') as 'system' | 'light' | 'dark' | null) ?? 'light');
     } catch { /* private mode */ }
   }, []);
 

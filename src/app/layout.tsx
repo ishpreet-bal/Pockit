@@ -1,34 +1,31 @@
 import type { Metadata, Viewport } from 'next';
-import { Space_Grotesk, JetBrains_Mono } from 'next/font/google';
+import { DM_Sans, Tinos } from 'next/font/google';
 import './globals.css';
 
 /**
- * Two families, each doing one job.
+ * The same two families as the iPhone app, so the website and the phone read as
+ * one product.
  *
- * Space Grotesk carries everything you read as language. It is a grotesque with
- * deliberately odd details — the flat-topped a, the squared bowls — which is what
- * stops the app looking like every other finance dashboard without costing any
- * legibility at 14px.
+ * DM Sans carries everything you read as language, and the figures in lists and
+ * tables (with tabular numbers, so columns of money line up).
  *
- * JetBrains Mono carries everything you read as a number. A monospace is the whole
- * "typewriter, but professional" idea: every digit is the same width, so columns of
- * money line up exactly and an animating counter cannot shuffle the layout. It was
- * drawn for reading code for eight hours, so it is unusually clear at small sizes.
+ * Tinos, a serif, carries headlines and the big money figures: the warm, printed
+ * feel that keeps Pockit from looking like every other finance dashboard.
  *
  * Both are self-hosted by next/font. The CSP allows no external font origins, so a
  * <link> to fonts.googleapis.com would be blocked outright.
  */
-const display = Space_Grotesk({
+const sans = DM_Sans({
   subsets: ['latin'],
   display: 'swap',
-  variable: '--font-display',
+  variable: '--font-body',
 });
 
-const mono = JetBrains_Mono({
+const serif = Tinos({
   subsets: ['latin'],
   display: 'swap',
-  weight: ['400', '500', '600', '700'],
-  variable: '--font-numeric',
+  weight: ['400', '700'],
+  variable: '--font-serif',
 });
 
 export const metadata: Metadata = {
@@ -43,8 +40,8 @@ export const viewport: Viewport = {
   initialScale: 1,
   viewportFit: 'cover',
   themeColor: [
-    { media: '(prefers-color-scheme: light)', color: '#0b1020' },
-    { media: '(prefers-color-scheme: dark)', color: '#0b1020' },
+    { media: '(prefers-color-scheme: light)', color: '#f6f3ec' },
+    { media: '(prefers-color-scheme: dark)', color: '#0e0f0c' },
   ],
 };
 
@@ -56,19 +53,19 @@ export const viewport: Viewport = {
 const THEME_SCRIPT = `
 (function(){try{
   var stored = localStorage.getItem('pockit-theme');
-  // Dark unless the person has chosen otherwise. First impressions happen in dark
-  // mode; light is one tap away in the sidebar, and that choice is remembered.
+  // Warm cream unless the person has chosen otherwise, as in the app. Dark is one
+  // tap away in the sidebar, and that choice is remembered.
   var theme = stored === 'light' || stored === 'dark' ? stored
     : stored === 'system'
       ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
-      : 'dark';
+      : 'light';
   document.documentElement.setAttribute('data-theme', theme);
 }catch(e){}})();
 `;
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={`${display.variable} ${mono.variable}`} suppressHydrationWarning>
+    <html lang="en" className={`${sans.variable} ${serif.variable}`} suppressHydrationWarning>
       <head>
         <script dangerouslySetInnerHTML={{ __html: THEME_SCRIPT }} />
       </head>

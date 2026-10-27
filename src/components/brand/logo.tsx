@@ -1,38 +1,13 @@
 import { cn } from '@/lib/ui/cn';
+import { PockMark } from './pock-mark';
 
 /**
- * The Pockit mark.
- *
- * A pocket, drawn as a rounded square with a flap, and a coin dropping into it. It
- * is built from three primitives so it survives being 16px in a browser tab — the
- * size where most logos turn to mush — and it is inline SVG rather than an image
- * file so it inherits the palette and needs no network request.
- *
- * The mascot in `mascot.tsx` is deliberately this same shape with a face. One form,
- * two uses: the character and the brand cannot drift apart because they are the
- * same drawing.
+ * The Pockit mark: the "P" with two eyes, the same drawing as the app icon and
+ * the iPhone app (see pock-mark.tsx). Inline SVG in currentColor, so it takes the
+ * palette and needs no network request.
  */
 export function Mark({ className, title }: { className?: string; title?: string }) {
-  return (
-    <svg
-      viewBox="0 0 32 32"
-      className={className}
-      role={title ? 'img' : 'presentation'}
-      aria-label={title}
-      aria-hidden={title ? undefined : true}
-    >
-      {/* The pocket body. */}
-      <rect x="3" y="8" width="26" height="21" rx="6" fill="currentColor" />
-      {/* The flap, cut as a lighter overlay so it reads at any size. */}
-      <path
-        d="M3 14.5 C3 10.9 5.9 8 9.5 8 h13 C26.1 8 29 10.9 29 14.5 v1.5 H3 Z"
-        fill="currentColor"
-        opacity="0.55"
-      />
-      {/* The coin, mid-drop. */}
-      <circle cx="16" cy="5" r="3.4" fill="currentColor" />
-    </svg>
-  );
+  return <PockMark className={className} title={title} />;
 }
 
 /**
@@ -60,7 +35,8 @@ export function Logo({
       {tone === 'tile' ? (
         <span
           className={cn(
-            'grid shrink-0 place-items-center bg-[var(--accent-fill)] text-[var(--accent-fill-fg)] shadow-[var(--shadow-sm)]',
+            // A soft tile with the mark in the accent, as on the app's welcome screen.
+            'grid shrink-0 place-items-center bg-[var(--accent-soft)] text-[var(--accent)]',
             tile,
           )}
         >
@@ -70,7 +46,7 @@ export function Logo({
         <Mark className={cn('shrink-0 text-[var(--accent)]', tile)} />
       )}
       {showWordmark ? (
-        <span className={cn('pk-display font-bold tracking-[-0.03em]', word)}>Pockit</span>
+        <span className={cn('pk-display', word)}>Pockit</span>
       ) : null}
     </span>
   );

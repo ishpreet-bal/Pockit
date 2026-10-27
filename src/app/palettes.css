@@ -1,15 +1,8 @@
 /* ============================================================
-   Pockit — Tide
+   Pockit — Runway (matches the iPhone app: mobile/theme/tokens.ts)
 
-   Deep-ocean navy with an iris-violet accent. Dark is the default theme.
-
-   Why violet: it is the one brand hue that cannot be mistaken for a money colour.
-   The previous copper sat too close to the warning amber, and a green brand would
-   have made every button look like a gain. Violet stays out of the red/green/amber
-   channel entirely, so the money colours keep their meaning.
-
-   Why no cream: the light theme is a cool near-white. A warm cream ground under a
-   saturated accent read as muddy, not warm.
+   Warm cream by default, warm black in dark mode, one burnt-orange accent.
+   Same colours as the app, so the website and the phone feel like one product.
 
    The roles, and why there are two accents rather than one:
 
@@ -19,93 +12,96 @@
      --accent-soft     faint brand tint for active pills and chips
      --accent-ring     focus ring, visible without shouting
 
-   Every text/background pair below was checked for WCAG AA contrast.
+   Every text/background pair below was checked for WCAG AA contrast. Where the
+   app's exact shade falls short as text on the web (the app's faint grey, and
+   #da5100 as text on black), the nearest passing shade is used instead.
+   Charts use the app's colourblind-checked categorical palette (palette.ts).
    ============================================================ */
 
 :root {
   color-scheme: light;
 
-  --bg: #f5f6fb;
-  --surface: #ffffff;
-  --surface-2: #eef0f7;
-  --surface-3: #e2e5f0;
-  --border: #e3e6ef;
-  --border-strong: #c6cbdb;
+  --bg: #f6f3ec;
+  --surface: #fffcf6;
+  --surface-2: #ece7dc;
+  --surface-3: #e2dccf;
+  --border: #e2dccf;
+  --border-strong: #cdc5b4;
 
-  --text: #121828;
-  --text-muted: #5a6480;
-  --text-subtle: #6b7592;
+  --text: #1c1a15;
+  --text-muted: #6d685b;
+  --text-subtle: #736d5f;
 
-  --accent: #5b45e0;
-  --accent-hover: #4a35cc;
-  --accent-fill: #6149ea;
+  --accent: #c04600;
+  --accent-hover: #a83d00;
+  --accent-fill: #c04600;
   --accent-fill-fg: #ffffff;
   --accent-fg: #ffffff;
-  --accent-soft: #eeebfe;
-  --accent-ring: #9d8cff;
+  --accent-soft: #f6e2d2;
+  --accent-ring: #e8854d;
 
-  --positive: #0b7a4d;
-  --positive-soft: #e2f5ec;
-  --negative: #d23a4a;
-  --negative-soft: #fde8ea;
-  --warning: #a4620a;
-  --warning-soft: #fdf1dc;
-  --goal: #0e7490;
-  --goal-soft: #e0f3f8;
-  --info: #1d6fa8;
-  --info-soft: #e3effa;
+  --positive: #17784e;
+  --positive-soft: #e1f1e7;
+  --negative: #c9283b;
+  --negative-soft: #fbe5e5;
+  --warning: #9a6a12;
+  --warning-soft: #f8ecd2;
+  --goal: #0e6f78;
+  --goal-soft: #dff0ef;
+  --info: #1d65a0;
+  --info-soft: #e1ecf6;
 
-  --chart-1: #6149ea;
-  --chart-2: #0e9fbf;
-  --chart-3: #0b7a4d;
-  --chart-4: #d23a4a;
-  --chart-5: #e08a1e;
-  --chart-6: #c2459a;
-  --chart-7: #4a8fe0;
-  --chart-8: #7c86a2;
+  --chart-1: #c23881;
+  --chart-2: #d09b00;
+  --chart-3: #22a7f6;
+  --chart-4: #f67255;
+  --chart-5: #885edc;
+  --chart-6: #009251;
+  --chart-7: #a39d8e;
+  --chart-8: #a39d8e;
 }
 
 :root[data-theme='dark'] {
   color-scheme: dark;
 
-  --bg: #0b1020;
-  --surface: #131a2b;
-  --surface-2: #1a2236;
-  --surface-3: #242e46;
-  --border: #212a40;
-  --border-strong: #37425f;
+  --bg: #0e0f0c;
+  --surface: #1a1b17;
+  --surface-2: #24261f;
+  --surface-3: #2e3028;
+  --border: #2b2d27;
+  --border-strong: #3f4238;
 
-  --text: #e8ebf5;
-  --text-muted: #98a2bd;
-  --text-subtle: #7a85a3;
+  --text: #eceee6;
+  --text-muted: #9a9e90;
+  --text-subtle: #858a7c;
 
-  --accent: #b3a6ff;
-  --accent-hover: #c7bdff;
-  --accent-fill: #9d8cff;
-  --accent-fill-fg: #0b1020;
-  --accent-fg: #0b1020;
-  --accent-soft: #231f45;
-  --accent-ring: #7a68f0;
+  --accent: #f0702a;
+  --accent-hover: #ff8545;
+  --accent-fill: #c04600;
+  --accent-fill-fg: #ffffff;
+  --accent-fg: #ffffff;
+  --accent-soft: #2a1a10;
+  --accent-ring: #da5100;
 
-  --positive: #4ade9a;
-  --positive-soft: #0f2a20;
-  --negative: #ff7a85;
+  --positive: #3ccf91;
+  --positive-soft: #10261c;
+  --negative: #ff6b78;
   --negative-soft: #2e1519;
-  --warning: #f5b544;
-  --warning-soft: #2c2210;
-  --goal: #5ed3f0;
-  --goal-soft: #0f2633;
-  --info: #7cc4f5;
-  --info-soft: #102436;
+  --warning: #e8b04a;
+  --warning-soft: #2b2210;
+  --goal: #4fc4cf;
+  --goal-soft: #0f2628;
+  --info: #7cb8ec;
+  --info-soft: #102233;
 
-  --chart-1: #9d8cff;
-  --chart-2: #5ed3f0;
-  --chart-3: #4ade9a;
-  --chart-4: #ff7a85;
-  --chart-5: #f5b544;
-  --chart-6: #f28bd0;
-  --chart-7: #7cb6ff;
-  --chart-8: #8d97b3;
+  --chart-1: #c94a8f;
+  --chart-2: #b78e00;
+  --chart-3: #1c91ef;
+  --chart-4: #dd5540;
+  --chart-5: #a66eef;
+  --chart-6: #00a676;
+  --chart-7: #6b6f63;
+  --chart-8: #6b6f63;
 }
 
 /* ---------------------------------------------------------------
@@ -113,9 +109,9 @@
    --------------------------------------------------------------- */
 
 :root {
-  --shadow-sm: 0 1px 2px rgb(15 20 40 / 0.04), 0 1px 3px rgb(15 20 40 / 0.03);
-  --shadow-md: 0 4px 6px -1px rgb(15 20 40 / 0.07), 0 10px 20px -5px rgb(15 20 40 / 0.08);
-  --shadow-lg: 0 10px 15px -3px rgb(15 20 40 / 0.08), 0 25px 50px -12px rgb(15 20 40 / 0.15);
+  --shadow-sm: 0 1px 2px rgb(40 30 15 / 0.04), 0 1px 3px rgb(40 30 15 / 0.03);
+  --shadow-md: 0 4px 6px -1px rgb(40 30 15 / 0.07), 0 10px 20px -5px rgb(40 30 15 / 0.08);
+  --shadow-lg: 0 10px 15px -3px rgb(40 30 15 / 0.08), 0 25px 50px -12px rgb(40 30 15 / 0.15);
 }
 
 :root[data-theme='dark'] {

@@ -29,8 +29,8 @@ console.log('\nThe first screen');
 await p.goto(`${B}/`, { waitUntil: 'networkidle' });
 ok('a stranger meets a welcome, not a password field', /\/welcome/.test(p.url()), p.url());
 const welcome = await body();
-ok('it welcomes', /Hi, I.m Pock/.test(welcome));
-ok('with one clear way in', /Get started/.test(welcome) && /Sign in/.test(welcome));
+ok('it welcomes', /Know what you\s*can spend/.test(welcome));
+ok('with one clear way in', /Get started/.test(welcome) && /already have an account/i.test(welcome));
 ok('and none of the application', !/Transactions/.test(welcome) && !/Budget/.test(welcome) && !/Investing/.test(welcome));
 
 console.log('\nSigning up is a conversation');
