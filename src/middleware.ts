@@ -16,7 +16,7 @@ export function middleware(request: NextRequest) {
   const headers = {
     'Access-Control-Allow-Origin': origin,
     'Access-Control-Allow-Methods': 'GET, POST, PUT, PATCH, DELETE, OPTIONS',
-    'Access-Control-Allow-Headers': 'authorization, content-type',
+    'Access-Control-Allow-Headers': 'authorization, content-type, x-pockit-space',
     'Access-Control-Max-Age': '600',
     Vary: 'Origin',
   };

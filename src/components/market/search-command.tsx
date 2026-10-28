@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Search, X, Loader2 } from 'lucide-react';
 import type { SearchResult } from '@/lib/market/types';
@@ -40,33 +40,36 @@ export function SearchCommand({
 
   const boxRef = useRef<HTMLDivElement>(null);
   const seq = useRef(0);
+  const resultsId = useId();
 
   useEffect(() => {
     try { setRecents(JSON.parse(localStorage.getItem(RECENTS_KEY) ?? '[]') as string[]); } catch { /* private mode */ }
   }, []);
 
   useEffect(() => {
+    const mine = ++seq.current;
     const q = query.trim();
-    if (q === '') { setResults([]); setBusy(false); return; }
+    if (q === '') { setResults([]); setBusy(false); setActive(0); return; }
 
     setBusy(true);
-    const mine = ++seq.current;
+    const controller = new AbortController();
     const timer = setTimeout(async () => {
       try {
-        const res = await fetch(`/api/market/search?q=${encodeURIComponent(q)}`);
+        const res = await fetch(`/api/market/search?q=${encodeURIComponent(q)}`, { signal: controller.signal });
+        if (!res.ok) throw new Error('Search unavailable');
         const body = (await res.json()) as { results?: SearchResult[] };
         // Ignore anything but the newest request.
-        if (mine !== seq.current) return;
+        if (mine !== seq.current || controller.signal.aborted) return;
         setResults(body.results ?? []);
         setActive(0);
       } catch {
-        if (mine === seq.current) setResults([]);
+        if (mine === seq.current && !controller.signal.aborted) setResults([]);
       } finally {
-        if (mine === seq.current) setBusy(false);
+        if (mine === seq.current && !controller.signal.aborted) setBusy(false);
       }
     }, 120);
 
-    return () => clearTimeout(timer);
+    return () => { clearTimeout(timer); controller.abort(); };
   }, [query]);
 
   // Clicking anywhere else closes the list.
@@ -96,12 +99,12 @@ export function SearchCommand({
   }
 
   function onKeyDown(e: React.KeyboardEvent) {
-    if (e.key === 'ArrowDown') { e.preventDefault(); setActive((i) => Math.min(i + 1, items.length - 1)); }
+    if (e.key === 'ArrowDown') { e.preventDefault(); setActive((i) => Math.max(0, Math.min(i + 1, items.length - 1))); }
     else if (e.key === 'ArrowUp') { e.preventDefault(); setActive((i) => Math.max(i - 1, 0)); }
     else if (e.key === 'Enter') {
       const chosen = items[active];
       if (chosen) { e.preventDefault(); pick(chosen.symbol); }
-    } else if (e.key === 'Escape') { setOpen(false); }
+    } else if (e.key === 'Escape' && open) { e.preventDefault(); e.stopPropagation(); setOpen(false); }
   }
 
   return (
@@ -110,8 +113,10 @@ export function SearchCommand({
       <input
         type="text"
         role="combobox"
-        aria-expanded={open}
-        aria-controls="market-search-results"
+        aria-label="Search stocks, ETFs or crypto"
+        aria-expanded={open && (items.length > 0 || (query.trim() !== '' && !busy))}
+        aria-controls={resultsId}
+        aria-activedescendant={open && items[active] ? `${resultsId}-${active}` : undefined}
         aria-autocomplete="list"
         autoFocus={autoFocus}
         value={query}
@@ -134,8 +139,9 @@ export function SearchCommand({
 
       {open && (items.length > 0 || (query.trim() !== '' && !busy)) ? (
         <div
-          id="market-search-results"
+          id={resultsId}
           role="listbox"
+          aria-label="Matching investments"
           className="absolute left-0 right-0 top-[calc(100%+6px)] z-50 overflow-hidden rounded-[var(--radius-card)] border border-[var(--border)] bg-[var(--surface)] shadow-[var(--shadow-lg)]"
         >
           {showRecents ? (
@@ -153,6 +159,7 @@ export function SearchCommand({
                   <button
                     type="button"
                     role="option"
+                    id={`${resultsId}-${i}`}
                     aria-selected={i === active}
                     onMouseEnter={() => setActive(i)}
                     onClick={() => pick(r.symbol)}

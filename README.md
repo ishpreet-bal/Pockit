@@ -65,6 +65,13 @@ both the chequing balance and the debt without ever double-counting the purchase
 
 ## Running locally
 
+For Windows setup and a map of the current web/mobile implementation, see
+[Local development](docs/LOCAL-DEVELOPMENT.md).
+
+For the exact keys each feature needs, provider setup, and remaining gaps that
+keys cannot fix, see [Integrations](docs/INTEGRATIONS.md). Run `npm run config:check`
+for a local configuration inventory without exposing secrets.
+
 ```bash
 npm install
 cp .env.example .env.local     # fill in DATABASE_URL and AUTH_SECRET
@@ -348,7 +355,8 @@ storage driver and whether a vision-capable AI provider is configured.
 See [.env.example](.env.example). Only `DATABASE_URL` and `AUTH_SECRET` are
 required. Without an AI key the app falls back to the `heuristic` provider, which
 genuinely parses CSV, Excel and text PDFs and categorises from the merchant lexicon
-plus your own rules — images and video frames are what need a vision model.
+plus your own rules. Images need a vision model; scanned PDFs currently need to be
+uploaded as page images, and video keyframe extraction is not implemented.
 
 ## First run
 
@@ -456,14 +464,14 @@ See [docs/05-roadmap.md](docs/05-roadmap.md).
 
 ## Known limitations
 
-- **Bank connections are deliberately absent.** Manual entry and file import are the
-  intended path; `accounts.external_provider` is the seam for adding a provider later
-  without touching the transaction system. No bank site is scraped, and no bank
-  password is ever requested.
+- **Live bank connections need Plaid configuration.** The mobile app supports
+  linking and transaction sync; Sandbox uses test banks. Production requires the
+  corresponding Plaid access and credentials. Pockit never requests bank passwords.
 - **Images need an AI key.** CSV, Excel and text PDFs are parsed on the server with no
-  provider involved. Screenshots and scanned PDFs require `ANTHROPIC_API_KEY`.
-- **Investment values are manual.** There is no price feed;
-  `holdings.current_value_minor` is a stored figure, with a `PriceProvider` seam for
-  adding one later.
+  provider involved. Screenshots require `ANTHROPIC_API_KEY` or `OPENAI_API_KEY`.
+  Scanned PDFs must currently be uploaded as images of their pages.
+- **Market coverage depends on the provider.** Twelve Data supplies quotes and
+  history when configured; without a key, prices are labeled sample data. Its
+  current adapter does not fetch fundamentals or news, even with a paid key.
 - **Serverless upload limit.** Vercel caps request bodies at around 4.5 MB, so
   `MAX_UPLOAD_MB` should be kept under the platform limit in production.

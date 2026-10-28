@@ -95,3 +95,7 @@ export const previewTransactions = {
   ],
   accounts: [{ id: 'a1', name: 'Chequing', type: 'chequing' }],
 };
+
+export const previewAccounts = [
+  { id: 'a1', name: 'Chequing', type: 'chequing', currency: 'CAD', balanceMinor: 304000, balanceFormatted: '$3,040.00', normalBalance: 'debit' as const },
+];

@@ -49,7 +49,7 @@ export default function SignIn() {
         subtitle="Open your authenticator app and type the 6-digit code for Pockit. A recovery code works too."
         footer={<Button label="Sign in" loading={busy} disabled={code.trim().length < 6} onPress={submit} />}
       >
-        <Field label="Code" value={code} onChangeText={setCode} autoFocus keyboardType="number-pad" textContentType="oneTimeCode" autoComplete="one-time-code" maxLength={20} onSubmitEditing={submit} />
+        <Field label="Code" value={code} onChangeText={setCode} autoFocus autoCapitalize="none" autoCorrect={false} textContentType="oneTimeCode" autoComplete="one-time-code" maxLength={20} onSubmitEditing={submit} />
         <FormError message={error} />
       </StepScreen>
     );
