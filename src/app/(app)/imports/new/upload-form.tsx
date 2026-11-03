@@ -104,7 +104,7 @@ export function UploadForm({
                 <p className="max-w-sm text-xs text-[var(--text-muted)]">
                   CSV, Excel, and text-based PDF statements are read on the server with no AI provider needed.
                   {capabilities.vision
-                    ? ' Screenshots and scanned PDFs are read by the configured vision model.'
+                    ? ' Screenshots are read by the configured vision model. For scanned statements, upload clear images of the pages.'
                     : ' Screenshots need a vision-capable AI provider, which is not configured.'}
                 </p>
               </>

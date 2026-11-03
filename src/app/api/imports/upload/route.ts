@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { requireAuthApi } from '@/lib/auth/api';
 import { WorkspaceRepo } from '@/lib/data/repository';
 import { ingestFile } from '@/lib/import/pipeline';
+import { PdfImportError } from '@/lib/import/parsers/pdf';
 import { AiUnavailableError } from '@/lib/ai';
 import { env } from '@/lib/env';
 import { todayIn, audit } from '@/lib/import/deps';
@@ -96,6 +97,9 @@ export async function POST(request: Request) {
 
     return NextResponse.json(result);
   } catch (error) {
+    if (error instanceof PdfImportError) {
+      return NextResponse.json({ error: error.message }, { status: 422 });
+    }
     if (error instanceof AiUnavailableError) {
       return NextResponse.json({ error: error.message }, { status: 503 });
     }

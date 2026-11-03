@@ -2,10 +2,11 @@ import { NextResponse } from 'next/server';
 import { requireAuthApi } from '@/lib/auth/api';
 import { WorkspaceRepo } from '@/lib/data/repository';
 import { listShares } from '@/lib/data/cost-shares';
+import { todayIn } from '@/lib/finance/period';
 
 export const dynamic = 'force-dynamic';
 
-const MONTH = /^\d{4}-\d{2}$/;
+const MONTH = /^[1-9]\d{3}-(0[1-9]|1[0-2])$/;
 
 function monthRange(month: string) {
   const [y, m] = month.split('-').map(Number) as [number, number];
@@ -26,9 +27,8 @@ export async function GET(request: Request) {
   if ('response' in ctx) return ctx.response;
 
   const params = new URL(request.url).searchParams;
-  const now = new Date();
   const requested = params.get('month') ?? '';
-  const month = MONTH.test(requested) ? requested : `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  const month = MONTH.test(requested) ? requested : todayIn(ctx.user.timezone).slice(0, 7);
   const q = (params.get('q') ?? '').trim().toLowerCase();
 
   const repo = new WorkspaceRepo(ctx.user.id, ctx.workspace.id, ctx.workspace.baseCurrency);

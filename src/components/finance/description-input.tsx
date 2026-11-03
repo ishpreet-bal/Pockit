@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import { Input } from '@/components/ui/primitives';
 import { cn } from '@/lib/ui/cn';
 
@@ -36,25 +36,27 @@ export function DescriptionInput({
   const wrap = useRef<HTMLDivElement>(null);
   /** Guards against an older response overwriting a newer one. */
   const seq = useRef(0);
+  const suggestionsId = useId();
 
   useEffect(() => {
-    const text = value.trim();
-    if (text.length < 1) { setItems([]); return; }
-
     const mine = ++seq.current;
+    const text = value.trim();
+    if (text.length < 1) { setItems([]); setActive(-1); return; }
+
+    const controller = new AbortController();
     const timer = setTimeout(async () => {
       try {
-        const response = await fetch(`/api/transactions/suggest?q=${encodeURIComponent(text)}`);
+        const response = await fetch(`/api/transactions/suggest?q=${encodeURIComponent(text)}`, { signal: controller.signal });
         if (!response.ok) return;
         const json = (await response.json()) as { suggestions: Suggestion[] };
         // A slow earlier keystroke must not replace what a later one already found.
-        if (mine !== seq.current) return;
+        if (mine !== seq.current || controller.signal.aborted) return;
         setItems(json.suggestions.filter((s) => s.description.toLowerCase() !== text.toLowerCase()));
         setActive(-1);
       } catch { /* typing still works without suggestions */ }
     }, 160);
 
-    return () => clearTimeout(timer);
+    return () => { clearTimeout(timer); controller.abort(); };
   }, [value]);
 
   useEffect(() => {
@@ -85,6 +87,8 @@ export function DescriptionInput({
         role="combobox"
         aria-expanded={showing}
         aria-autocomplete="list"
+        aria-controls={suggestionsId}
+        aria-activedescendant={showing && active >= 0 ? `${suggestionsId}-${active}` : undefined}
         className={className}
         onChange={(e) => { setValue(e.target.value); setOpen(true); }}
         onFocus={() => setOpen(true)}
@@ -92,7 +96,7 @@ export function DescriptionInput({
           if (!showing) return;
           if (e.key === 'ArrowDown') { e.preventDefault(); setActive((i) => Math.min(i + 1, items.length - 1)); }
           if (e.key === 'ArrowUp') { e.preventDefault(); setActive((i) => Math.max(i - 1, -1)); }
-          if (e.key === 'Escape') { setOpen(false); }
+          if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); setOpen(false); }
           if (e.key === 'Enter' && active >= 0) {
             // Only swallow Enter when something is highlighted; otherwise it must
             // still submit the form, which is how most people finish this field.
@@ -106,6 +110,8 @@ export function DescriptionInput({
       {showing ? (
         <ul
           role="listbox"
+          id={suggestionsId}
+          aria-label="Previous transaction descriptions"
           className="absolute left-0 right-0 top-full z-30 mt-1 overflow-hidden rounded-[var(--radius-card)] border border-[var(--border)] bg-[var(--surface)] py-1 shadow-[var(--shadow-lg)]"
         >
           {items.map((item, index) => (
@@ -113,6 +119,7 @@ export function DescriptionInput({
               <button
                 type="button"
                 role="option"
+                id={`${suggestionsId}-${index}`}
                 aria-selected={index === active}
                 onMouseEnter={() => setActive(index)}
                 onClick={() => choose(item)}

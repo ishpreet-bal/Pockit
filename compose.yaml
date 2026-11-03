@@ -1,0 +1,21 @@
+name: pockit-dev
+
+services:
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_DB: pockit
+      POSTGRES_USER: pockit
+      POSTGRES_PASSWORD: ${POCKIT_DB_PASSWORD:?Set POCKIT_DB_PASSWORD in .env.local}
+    ports:
+      - "127.0.0.1:5433:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U pockit -d pockit"]
+      interval: 2s
+      timeout: 5s
+      retries: 30
+
+volumes:
+  postgres-data:

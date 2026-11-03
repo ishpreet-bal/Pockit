@@ -8,13 +8,14 @@
  *
  *   BASE=http://localhost:3000 npm run e2e:ui
  *
- * Expects a signed-up account with demo data loaded (see e2e/smoke.mjs).
+ * Creates its own demo account unless E2E_EMAIL/E2E_PASSWORD name an existing one.
  */
 import { chromium } from 'playwright';
+import { signUp } from './signup.mjs';
 
 const B = process.env.BASE ?? 'http://localhost:3000';
 const EXECUTABLE = process.env.CHROMIUM_PATH || undefined;
-const EMAIL = process.env.E2E_EMAIL ?? 'ish@example.com';
+const EMAIL = process.env.E2E_EMAIL;
 const PASSWORD = process.env.E2E_PASSWORD ?? 'correcthorse1';
 let fails = 0;
 const ok = (n, c, d='') => { console.log((c?'  ✓ ':'  ✗ ')+n+(c?'':' '+d)); if(!c) fails++; };
@@ -24,9 +25,19 @@ const p = await ctx.newPage();
 const errs = [];
 p.on('pageerror', e => errs.push(e.message.slice(0,140)));
 
-await p.goto(B+'/sign-in');
-await p.fill('#email', EMAIL); await p.fill('#password', PASSWORD);
-await p.click('button[type=submit]'); await p.waitForURL(/overview/,{timeout:30000});
+if (EMAIL) {
+  await p.goto(B+'/sign-in');
+  await p.fill('#email', EMAIL); await p.fill('#password', PASSWORD);
+  await p.click('button[type=submit]'); await p.waitForURL(/overview/,{timeout:30000});
+} else {
+  await signUp(p, B);
+  const seeded = await p.evaluate(async () => (await fetch('/api/onboarding', {
+    method: 'POST', headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ accounts: [{ name: 'Chequing', type: 'chequing', balance: '4125.00' }], loadDemo: true }),
+  })).ok);
+  if (!seeded) throw new Error('Could not seed the UI test account.');
+  await p.goto(B + '/overview');
+}
 await p.waitForTimeout(2200);
 
 console.log('\nHome is simple');
