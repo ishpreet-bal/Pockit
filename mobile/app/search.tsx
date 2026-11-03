@@ -25,17 +25,20 @@ export default function Search() {
   const [q, setQ] = useState('');
   const [results, setResults] = useState<Result[]>([]);
   const [searching, setSearching] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    let active = true;
     const term = q.trim();
-    if (!term) { setResults([]); return; }
+    setResults([]); setError(null); setSearching(false);
+    if (!term) return;
     if (PREVIEW) { setResults(POPULAR.filter((r) => `${r.symbol} ${r.name}`.toLowerCase().includes(term.toLowerCase()))); return; }
     setSearching(true);
     const t = setTimeout(() => {
       api<{ results: Result[] }>(`/api/market/search?q=${encodeURIComponent(term)}`)
-        .then((r) => setResults(r.results)).catch(() => setResults([])).finally(() => setSearching(false));
+        .then((r) => { if (active) setResults(r.results); }).catch(() => { if (active) setError('Search is unavailable right now. Edit your search to try again.'); }).finally(() => { if (active) setSearching(false); });
     }, 250);
-    return () => clearTimeout(t);
+    return () => { active = false; clearTimeout(t); };
   }, [q]);
 
   const open = (symbol: string) => router.push({ pathname: '/stock/[symbol]', params: { symbol } });
@@ -58,7 +61,7 @@ export default function Search() {
           ))}
         </Card>
       ) : !searching ? (
-        <Text style={[type.subhead, { color: c.textMuted, textAlign: 'center', marginTop: space.xl }]}>Nothing matches “{q.trim()}”. Try the company name.</Text>
+        <Text style={[type.subhead, { color: error ? c.negative : c.textMuted, textAlign: 'center', marginTop: space.xl }]}>{error ?? `Nothing matches “${q.trim()}”. Try the company name.`}</Text>
       ) : null}
       <Pressable style={{ height: 1 }} />
     </Screen>

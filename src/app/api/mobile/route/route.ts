@@ -10,6 +10,7 @@ export async function GET(request: Request) {
   if ('response' in ctx) return ctx.response;
   const p = new URL(request.url).searchParams;
   const parse = (s: string | null) => {
+    if (!s || !/^-?\d+(\.\d+)?,-?\d+(\.\d+)?$/.test(s)) return null;
     const [lat, lon] = (s ?? '').split(',').map(Number);
     return Number.isFinite(lat) && Number.isFinite(lon) && Math.abs(lat!) <= 90 && Math.abs(lon!) <= 180 ? { lat: lat!, lon: lon! } : null;
   };

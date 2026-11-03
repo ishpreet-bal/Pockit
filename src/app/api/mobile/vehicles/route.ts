@@ -12,10 +12,15 @@ export async function GET(request: Request) {
   const ctx = await requireAuthApi();
   if ('response' in ctx) return ctx.response;
   const q = new URL(request.url).searchParams;
-  const year = Number(q.get('year')) || null;
-  const make = q.get('make');
-  const model = q.get('model');
-  const id = Number(q.get('id')) || null;
+  const year = q.has('year') ? Number(q.get('year')) : null;
+  const make = q.get('make')?.trim();
+  const model = q.get('model')?.trim();
+  const id = q.has('id') ? Number(q.get('id')) : null;
+  if ((id !== null && (!Number.isSafeInteger(id) || id <= 0 || id > 1_000_000)) ||
+      (year !== null && (!Number.isInteger(year) || year < 1984 || year > new Date().getUTCFullYear() + 2)) ||
+      (make && (!year || make.length > 100)) || (model && (!make || model.length > 150))) {
+    return NextResponse.json({ error: 'Choose a valid year, make, model or vehicle ID.' }, { status: 400 });
+  }
   try {
     if (id) {
       const v = await vehicle(id);

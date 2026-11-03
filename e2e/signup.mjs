@@ -15,6 +15,8 @@ export async function signUp(
   const address = email ?? `e2e-${Date.now()}-${Math.random().toString(36).slice(2, 8)}@example.com`;
 
   await page.goto(`${base}/sign-up`, { waitUntil: 'domcontentloaded' });
+  // On a cold dev server the form can paint before its client handlers hydrate.
+  await page.waitForLoadState('networkidle');
 
   // Sign-up opens on the name question now, and the email field does not exist
   // until that screen is passed. Handled here rather than in each suite, because

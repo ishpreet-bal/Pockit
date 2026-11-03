@@ -1,0 +1,14 @@
+{
+  "source": "https://www.fueleconomy.gov/feg/epadata/vehicles.csv",
+  "documentation": "https://www.fueleconomy.gov/feg/ws/index.shtml",
+  "retrievedAt": "2026-11-03T16:57:52.655Z",
+  "csvSha256": "b1ff0e3071c46cdc1c99e0015878b98a01851462d7e447237ce2fc1294ccf303",
+  "count": 50303,
+  "minYear": 1984,
+  "maxYear": 2027,
+  "excludedFuels": [
+    "",
+    "Hydrogen",
+    "Natural Gas"
+  ]
+}

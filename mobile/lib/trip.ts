@@ -10,22 +10,37 @@ export interface Vehicle {
   city: number; highway: number; electric: boolean;
   fuel: 'regular' | 'premium' | 'midgrade' | 'diesel' | 'electric';
   vehicleClass: string;
+  custom?: boolean;
 }
 export interface Place { name: string; address: string; lat: number; lon: number }
 export interface Route { distanceKm: number; durationMin: number; points: [number, number][]; source: 'google' | 'osm' | 'demo' }
 
 const memory = new Map<string, string>();
-async function read(key: string) { return Platform.OS === 'web' ? memory.get(key) ?? null : SecureStore.getItemAsync(`pockit.trip.${key}`); }
-async function write(key: string, v: string) { if (Platform.OS === 'web') memory.set(key, v); else await SecureStore.setItemAsync(`pockit.trip.${key}`, v); }
+async function read(key: string) {
+  if (Platform.OS !== 'web') return SecureStore.getItemAsync(`pockit.trip.${key}`);
+  try { return globalThis.localStorage?.getItem(`pockit.trip.${key}`) ?? memory.get(key) ?? null; } catch { return memory.get(key) ?? null; }
+}
+async function write(key: string, v: string) {
+  if (Platform.OS !== 'web') return SecureStore.setItemAsync(`pockit.trip.${key}`, v);
+  memory.set(key, v);
+  try { globalThis.localStorage?.setItem(`pockit.trip.${key}`, v); } catch { /* private browsing uses memory */ }
+}
 
-export interface TripSettings { vehicle: Vehicle | null; own: string; price: string; tank: string }
+export interface TripSettings { vehicle: Vehicle | null; own: string; price: string; tank: string; priceCurrency?: string }
 export async function loadSettings(): Promise<TripSettings> {
-  try { const raw = await read('settings'); if (raw) return { vehicle: null, own: '', price: '', tank: '', ...JSON.parse(raw) }; } catch { /* first time */ }
+  try { const raw = await read(PREVIEW ? 'settings.demo' : 'settings'); if (raw) return { vehicle: null, own: '', price: '', tank: '', ...JSON.parse(raw) }; } catch { /* first time */ }
   return { vehicle: PREVIEW ? DEMO_CAR : null, own: '', price: '', tank: '' };
 }
-export async function saveSettings(s: Partial<TripSettings>) {
-  const cur = await loadSettings();
-  await write('settings', JSON.stringify({ ...cur, ...s }));
+let pendingSave = Promise.resolve();
+export function saveSettings(s: Partial<TripSettings>) {
+  const key = PREVIEW ? 'settings.demo' : 'settings';
+  // Edits can arrive together while SecureStore is still writing the last one.
+  pendingSave = pendingSave.catch(() => {}).then(async () => {
+    const raw = await read(key);
+    const cur = raw ? JSON.parse(raw) as TripSettings : { vehicle: key.endsWith('.demo') ? DEMO_CAR : null, own: '', price: '', tank: '' };
+    await write(key, JSON.stringify({ ...cur, ...s }));
+  });
+  return pendingSave;
 }
 
 /* ---------------- the car picker ---------------- */

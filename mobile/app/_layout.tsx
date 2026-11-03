@@ -64,6 +64,7 @@ export default function RootLayout() {
           <Stack.Screen name="spaces" />
           <Stack.Screen name="trip" />
           <Stack.Screen name="vehicle" options={{ presentation: 'modal' }} />
+          <Stack.Screen name="holdings" />
           <Stack.Screen name="txn/[id]" />
           <Stack.Screen name="owed" />
           <Stack.Screen name="delete-account" options={{ presentation: 'modal' }} />

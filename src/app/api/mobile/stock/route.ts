@@ -4,6 +4,7 @@ import { requireAuthApi } from '@/lib/auth/api';
 import { withUser } from '@/lib/db/client';
 import { holdings, watchlistItems } from '@/lib/db/schema';
 import { marketData, catalogEntry } from '@/lib/market';
+import { totalHoldings, valueHolding } from '@/lib/investing/valuation';
 
 export const dynamic = 'force-dynamic';
 
@@ -31,19 +32,21 @@ export async function GET(request: Request) {
     source.profile(symbol).catch(() => null),
     withUser(ctx.user.id, (tx) => tx.select({ id: watchlistItems.id }).from(watchlistItems)
       .where(and(eq(watchlistItems.workspaceId, ctx.workspace.id), eq(watchlistItems.symbol, symbol))).limit(1)),
-    withUser(ctx.user.id, (tx) => tx.select({ quantity: holdings.quantity, value: holdings.currentValueMinor }).from(holdings)
+    withUser(ctx.user.id, (tx) => tx.select().from(holdings)
       .where(and(eq(holdings.workspaceId, ctx.workspace.id), eq(holdings.symbol, symbol)))),
   ]);
 
   if (!quote && !profile && !entry) return NextResponse.json({ error: `Nothing found for ${symbol}.` }, { status: 404 });
 
   const units = owned.reduce((s, h) => s + Number(h.quantity), 0);
+  const ownedTotals = totalHoldings(owned.map((h) => valueHolding(h, quote ?? undefined)));
+  const currency = quote?.currency ?? profile?.currency ?? entry?.currency ?? 'USD';
   return NextResponse.json({
     symbol,
     name: profile?.name ?? entry?.name ?? symbol,
     kind: profile?.kind ?? entry?.kind ?? 'stock',
     exchange: profile?.exchange ?? entry?.exchange ?? null,
-    currency: quote?.currency ?? profile?.currency ?? entry?.currency ?? 'USD',
+    currency,
     description: profile?.description ?? null,
     sector: profile?.sector ?? entry?.sector ?? null,
     tracks: profile?.tracks ?? entry?.tracks ?? null,
@@ -54,7 +57,9 @@ export async function GET(request: Request) {
     dayHighMinor: n(quote?.dayHighMinor),
     dayLowMinor: n(quote?.dayLowMinor),
     simulated: Boolean((quote as { simulated?: boolean } | null)?.simulated),
+    source: quote?.source ?? null,
+    asOf: quote?.asOf ?? null,
     watching: watched.length > 0,
-    owned: units > 0 ? { units, valueMinor: quote ? Math.round(Number(quote.priceMinor) * units) : owned.reduce((s, h) => s + Number(h.value), 0) } : null,
+    owned: units > 0 ? { units, valueMinor: Number(ownedTotals.find((t) => t.currency === currency)?.valueMinor ?? 0n), values: ownedTotals.map((t) => ({ currency: t.currency, valueMinor: Number(t.valueMinor), recordedCount: t.recordedCount })) } : null,
   });
 }

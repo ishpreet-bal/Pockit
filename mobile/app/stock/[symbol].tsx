@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Text, useWindowDimensions, View } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
 import * as Haptics from 'expo-haptics';
@@ -14,9 +14,9 @@ interface Stock {
   symbol: string; name: string; kind: string; exchange: string | null; currency: string; description: string | null;
   sector: string | null; tracks: string | null; expenseRatioBps: number | null;
   priceMinor: number | null; changeMinor: number | null; changePct: number | null; dayHighMinor: number | null; dayLowMinor: number | null;
-  simulated: boolean; watching: boolean; owned: { units: number; valueMinor: number } | null;
+  simulated: boolean; source?: string | null; asOf?: string | null; watching: boolean; owned: { units: number; valueMinor: number; values?: { currency: string; valueMinor: number; recordedCount: number }[] } | null;
 }
-interface History { available: boolean; points?: { t: string; close: number }[] }
+interface History { available: boolean; points?: { t: string; close: number }[]; simulated?: boolean; source?: string; asOf?: string }
 
 const RANGES = ['1D', '5D', '1M', '6M', '1Y', '5Y'] as const;
 type Range = (typeof RANGES)[number];
@@ -24,25 +24,34 @@ type Range = (typeof RANGES)[number];
 const PREVIEW_STOCK: Stock = {
   symbol: 'NVDA', name: 'NVIDIA Corporation', kind: 'stock', exchange: 'NASDAQ', currency: 'USD', description: 'Designs graphics processors and the chips that power most AI.',
   sector: 'Technology', tracks: null, expenseRatioBps: null, priceMinor: 18_842, changeMinor: 333, changePct: 1.8, dayHighMinor: 19_010, dayLowMinor: 18_530,
-  simulated: false, watching: true, owned: null,
+  simulated: true, source: 'Demo data', watching: true, owned: null,
 };
 
 /** One stock or fund: price, a chart you can scrub, what it is, and follow/unfollow. Nothing here buys or sells. */
 export default function StockPage() {
   const { symbol } = useLocalSearchParams<{ symbol: string }>();
-  const [stock, setStock] = useState<Stock | null>(PREVIEW ? { ...PREVIEW_STOCK, symbol: symbol ?? 'NVDA' } : null);
+  const [stock, setStock] = useState<Stock | null>(PREVIEW ? sampleStock(symbol ?? 'NVDA') : null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (PREVIEW || !symbol) return;
-    api<Stock>(`/api/mobile/stock?symbol=${encodeURIComponent(symbol)}`).then(setStock).catch((e) => setError(e instanceof Error ? e.message : 'Could not load.'));
+    let active = true;
+    setStock(null); setError(null);
+    api<Stock>(`/api/mobile/stock?symbol=${encodeURIComponent(symbol)}`).then((s) => { if (active) setStock(s); }).catch((e) => { if (active) setError(e instanceof Error ? e.message : 'Could not load.'); });
+    return () => { active = false; };
   }, [symbol]);
 
   return (
     <Screen section="invest" title={symbol ?? ''} back>
-      {stock ? <Body stock={stock} setStock={setStock} /> : error ? <EmptyCard title="Couldn’t load this one" body={error} /> : <Loading error={null} />}
+      {stock ? <Body key={stock.symbol} stock={stock} setStock={setStock} /> : error ? <EmptyCard title="Couldn’t load this one" body={error} /> : <Loading error={null} />}
     </Screen>
   );
+}
+
+function sampleStock(symbol: string): Stock {
+  if (symbol === 'NVDA') return PREVIEW_STOCK;
+  const names: Record<string, string> = { AAPL: 'Apple', XEQT: 'iShares Core Equity ETF Portfolio', VFV: 'Vanguard S&P 500 Index ETF', SHOP: 'Shopify' };
+  return { ...PREVIEW_STOCK, symbol, name: names[symbol] ?? symbol, kind: ['XEQT', 'VFV'].includes(symbol) ? 'etf' : 'stock', currency: ['XEQT', 'VFV', 'SHOP'].includes(symbol) ? 'CAD' : 'USD', exchange: ['XEQT', 'VFV', 'SHOP'].includes(symbol) ? 'TSX' : null, description: null, sector: null, watching: false };
 }
 
 function Body({ stock, setStock }: { stock: Stock; setStock: (s: Stock) => void }) {
@@ -53,18 +62,25 @@ function Body({ stock, setStock }: { stock: Stock; setStock: (s: Stock) => void 
   const [range, setRange] = useState<Range>('1M');
   const [points, setPoints] = useState<{ t: string; close: number }[] | null>(null);
   const [busy, setBusy] = useState(false);
-  const money = (minor: number) => `${formatMoney(minor)}${stock.currency !== 'CAD' ? ` ${stock.currency}` : ''}`;
+  const [watchError, setWatchError] = useState<string | null>(null);
+  const [history, setHistory] = useState<History | null>(null);
+  const [historyError, setHistoryError] = useState<string | null>(null);
+  const [retry, setRetry] = useState(0);
+  const money = (minor: number) => formatMoney(minor, { currency: stock.currency });
 
-  const loadHistory = useCallback(async () => {
+  useEffect(() => {
     if (PREVIEW) { setPoints(Array.from({ length: 30 }, (_, i) => ({ t: `2026-09-${String(i + 1).padStart(2, '0')}`, close: 170 + Math.sin(i / 3) * 6 + i * 0.6 }))); return; }
-    setPoints(null);
-    const h = await api<History>(`/api/market/history?symbol=${encodeURIComponent(stock.symbol)}&range=${range}`).catch(() => null);
-    setPoints(h?.available && h.points ? h.points : []);
-  }, [range, stock.symbol]);
-  useEffect(() => { void loadHistory(); }, [loadHistory]);
+    let active = true;
+    setPoints(null); setHistory(null); setHistoryError(null);
+    api<History>(`/api/market/history?symbol=${encodeURIComponent(stock.symbol)}&range=${range}`).then((h) => {
+      if (active) { setHistory(h); setPoints(h.available && h.points ? h.points : []); }
+    }).catch(() => { if (active) { setPoints([]); setHistoryError('Couldn’t load this chart. Try again.'); } });
+    return () => { active = false; };
+  }, [range, stock.symbol, retry]);
 
   async function toggleWatch() {
-    setBusy(true);
+    if (busy) return;
+    setBusy(true); setWatchError(null);
     try {
       if (!PREVIEW) {
         if (stock.watching) await api(`/api/investing/watchlist?symbol=${encodeURIComponent(stock.symbol)}`, { method: 'DELETE' });
@@ -73,7 +89,8 @@ function Body({ stock, setStock }: { stock: Stock; setStock: (s: Stock) => void 
       }
       void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       setStock({ ...stock, watching: !stock.watching });
-    } finally { setBusy(false); }
+    } catch (e) { setWatchError(e instanceof Error ? e.message : 'Couldn’t update your watchlist. Try again.'); }
+    finally { setBusy(false); }
   }
 
   const label = (t: string) => {
@@ -100,6 +117,7 @@ function Body({ stock, setStock }: { stock: Stock; setStock: (s: Stock) => void 
       {stock.simulated ? (
         <Text style={[type.caption, { color: c.warning, marginTop: 6 }]}>Sample prices — live market data isn’t connected.</Text>
       ) : null}
+      {!stock.simulated && stock.source ? <Text style={[type.caption, { color: c.textMuted, marginTop: 6 }]}>{stock.source}{stock.asOf ? ` · as of ${stock.asOf}` : ''}. Quotes may be delayed.</Text> : null}
 
       <View style={{ marginHorizontal: -space.xl, marginTop: space.lg, minHeight: 150 }}>
         {points === null ? <Loading error={null} /> : points.length > 1 ? (
@@ -109,20 +127,24 @@ function Body({ stock, setStock }: { stock: Stock; setStock: (s: Stock) => void 
               <Text style={[type.caption, { color: rangeUp ? c.positive : c.negative }]}>{rangeUp ? '▲' : '▼'} {first ? Math.abs(((last! - first) / first) * 100).toFixed(1) : '0'}% over {range}</Text>
             </View>
           </View>
-        ) : <Text style={[type.footnote, { color: c.textMuted, textAlign: 'center', marginTop: space.xl }]}>No chart for this range.</Text>}
+        ) : <Text style={[type.footnote, { color: c.textMuted, textAlign: 'center', marginTop: space.xl }]}>{historyError ?? 'No chart for this range.'}</Text>}
       </View>
+      {history?.simulated || PREVIEW ? <Text style={[type.caption, { color: c.warning }]}>Illustrative chart — sample data.</Text> : history?.source ? <Text style={[type.caption, { color: c.textMuted }]}>{history.source}{history.asOf ? ` · ${history.asOf}` : ''}</Text> : null}
+      {historyError ? <Button label="Retry chart" variant="plain" onPress={() => setRetry((n) => n + 1)} /> : null}
       <View style={{ marginTop: space.sm }}><Segmented options={RANGES} value={range} onChange={setRange} /></View>
 
       <View style={{ marginTop: space.xl, gap: space.sm }}>
         <Button label={stock.watching ? '★ Watching' : '☆ Watch'} variant={stock.watching ? 'secondary' : 'primary'} accent={a.accent} loading={busy} onPress={toggleWatch} />
         {stock.watching ? <Text style={[type.caption, { color: c.textMuted, textAlign: 'center' }]}>Tap again to stop watching.</Text> : null}
+        {watchError ? <Text accessibilityRole="alert" style={[type.footnote, { color: c.negative }]}>{watchError}</Text> : null}
       </View>
 
       {stock.owned ? (
         <>
           <SectionHeader title="You own" />
           <Card style={{ paddingVertical: space.lg }}>
-            <Text style={[type.headline, { color: c.text }]}>{stock.owned.units} {stock.owned.units === 1 ? 'share' : 'shares'} · {formatMoney(stock.owned.valueMinor, { cents: false })}</Text>
+            <Text style={[type.headline, { color: c.text }]}>{stock.owned.units} {stock.owned.units === 1 ? 'share' : 'shares'}</Text>
+            {(stock.owned.values ?? [{ currency: stock.currency, valueMinor: stock.owned.valueMinor, recordedCount: 0 }]).map((v) => <View key={v.currency}><Text style={[type.bodyStrong, { color: c.text }]}>{formatMoney(v.valueMinor, { currency: v.currency })}</Text>{v.recordedCount ? <Text style={[type.caption, { color: c.textMuted }]}>Includes recorded values.</Text> : null}</View>)}
           </Card>
         </>
       ) : null}
