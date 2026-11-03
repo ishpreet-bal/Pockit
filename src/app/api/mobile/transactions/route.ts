@@ -74,6 +74,6 @@ export async function GET(request: Request) {
       .map((c) => ({ id: c.id, name: c.name, icon: c.icon, kind: c.kind, parentId: c.parentId })),
     accounts: accounts
       .filter((a) => a.isActive)
-      .map((a) => ({ id: a.id, name: a.name, type: a.type })),
+      .map((a) => ({ id: a.id, name: a.name, type: a.type, currency: a.currency })),
   });
 }

@@ -6,7 +6,8 @@ import { bankConnections, holdings, watchlistItems } from '@/lib/db/schema';
 import { plaidConfigured } from '@/lib/bank/plaid';
 import { WorkspaceRepo } from '@/lib/data/repository';
 import { buildOverview } from '@/lib/finance/view/overview';
-import { marketData, catalogEntry } from '@/lib/market';
+import { marketData, catalogEntry, type Quote } from '@/lib/market';
+import { totalHoldings, valueHolding } from '@/lib/investing/valuation';
 import { listShares } from '@/lib/data/cost-shares';
 
 export const dynamic = 'force-dynamic';
@@ -34,35 +35,29 @@ export async function GET() {
 
   const [held, watched, banks, shares] = await Promise.all([
     withUser(user.id, (tx) => tx.select().from(holdings).where(eq(holdings.workspaceId, workspace.id))),
-    withUser(user.id, (tx) => tx.select({ symbol: watchlistItems.symbol }).from(watchlistItems).where(eq(watchlistItems.workspaceId, workspace.id)).limit(5)),
+    withUser(user.id, (tx) => tx.select({ symbol: watchlistItems.symbol, name: watchlistItems.name }).from(watchlistItems).where(eq(watchlistItems.workspaceId, workspace.id))),
     withUser(user.id, (tx) => tx.select({ id: bankConnections.id }).from(bankConnections).where(eq(bankConnections.workspaceId, workspace.id)).limit(1)),
     listShares({ userId: user.id, workspaceId: workspace.id }),
   ]);
   const owing = shares.filter((s) => s.owedMinor > 0);
 
-  const symbols = [...new Set([...held.map((h) => h.symbol), ...watched.map((w) => w.symbol)].filter((s): s is string => Boolean(s)).map((s) => s.toUpperCase()))];
-  let quotes = new Map<string, { priceMinor: bigint | number; changeBps: number | null }>();
+  const following = [...new Map(watched.map((w) => [w.symbol.toUpperCase(), w])).values()];
+  const symbols = [...new Set([...held.map((h) => h.symbol), ...following.map((w) => w.symbol)].filter((s): s is string => Boolean(s)).map((s) => s.toUpperCase()))];
+  let quotes = new Map<string, Quote>();
   if (symbols.length > 0) {
     try {
-      quotes = (await marketData().quotes(symbols)) as unknown as typeof quotes;
+      quotes = await marketData().quotes(symbols);
     } catch { /* stored values below */ }
   }
 
   const positions = held.map((row) => {
-    const quote = row.symbol ? quotes.get(row.symbol.toUpperCase()) : undefined;
-    const units = Number(row.quantity);
-    const valueMinor = quote && units > 0 ? Math.round(Number(quote.priceMinor) * units) : Number(row.currentValueMinor);
-    const costMinor = Number(row.costBasisMinor);
+    const valued = valueHolding(row, row.symbol ? quotes.get(row.symbol.toUpperCase()) : undefined);
     return {
-      symbol: row.symbol ?? row.name.slice(0, 4).toUpperCase(),
-      name: row.name,
-      valueMinor,
-      gainMinor: valueMinor - costMinor,
-      changePct: quote?.changeBps == null ? null : quote.changeBps / 100,
+      ...valued, valueMinor: Number(valued.valueMinor), costMinor: Number(valued.costMinor), gainMinor: Number(valued.gainMinor),
     };
   });
-  const totalValueMinor = positions.reduce((s, p) => s + p.valueMinor, 0);
-  const totalCostMinor = held.reduce((s, r) => s + Number(r.costBasisMinor), 0);
+  const totals = totalHoldings(held.map((row) => valueHolding(row, row.symbol ? quotes.get(row.symbol.toUpperCase()) : undefined)));
+  const baseTotal = totals.find((t) => t.currency === workspace.baseCurrency);
 
   const budget = d.budgetStatus;
   const byCategory = new Map(budget?.lines.filter((l) => l.categoryId).map((l) => [l.categoryId!, n(l.targetMinor)]) ?? []);
@@ -119,13 +114,14 @@ export async function GET() {
     })),
 
     invest: {
-      totalValueMinor,
-      gainMinor: totalValueMinor - totalCostMinor,
-      gainPct: totalCostMinor > 0 ? Math.round(((totalValueMinor - totalCostMinor) / totalCostMinor) * 10000) / 100 : null,
+      totalValueMinor: Number(baseTotal?.valueMinor ?? 0n),
+      gainMinor: Number(baseTotal?.gainMinor ?? 0n),
+      gainPct: baseTotal?.gainPct ?? null,
+      totals: totals.map((t) => ({ ...t, valueMinor: Number(t.valueMinor), costMinor: Number(t.costMinor), gainMinor: Number(t.gainMinor) })),
       holdings: positions.sort((a, b) => b.valueMinor - a.valueMinor),
-      watchlist: watched.map((w) => {
+      watchlist: following.map((w) => {
         const q = quotes.get(w.symbol.toUpperCase());
-        return { symbol: w.symbol, name: catalogEntry(w.symbol)?.name ?? w.symbol, priceMinor: n(q?.priceMinor as bigint | undefined), changePct: q?.changeBps == null ? null : q.changeBps / 100 };
+        return { symbol: w.symbol, name: catalogEntry(w.symbol)?.name ?? w.name ?? w.symbol, currency: q?.currency ?? catalogEntry(w.symbol)?.currency ?? null, priceMinor: n(q?.priceMinor), changePct: q?.changeBps == null ? null : q.changeBps / 100, simulated: q?.simulated ?? false, source: q?.source ?? null, asOf: q?.asOf ?? null };
       }),
     },
   });

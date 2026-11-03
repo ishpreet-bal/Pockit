@@ -42,8 +42,9 @@ export interface Summary {
     totalValueMinor: number;
     gainMinor: number;
     gainPct: number | null;
-    holdings: { symbol: string; name: string; valueMinor: number; gainMinor: number; changePct: number | null }[];
-    watchlist: { symbol: string; name: string; priceMinor: number | null; changePct: number | null }[];
+    totals?: { currency: string; valueMinor: number; gainMinor: number; gainPct: number | null; recordedCount: number }[];
+    holdings: { id?: string; symbol: string | null; name: string; currency?: string; valueMinor: number; gainMinor: number; changePct: number | null; valuation?: 'quote' | 'recorded'; source?: string; asOf?: string | null }[];
+    watchlist: { symbol: string; name: string; currency?: string | null; priceMinor: number | null; changePct: number | null; simulated?: boolean; source?: string | null; asOf?: string | null }[];
   };
 }
 

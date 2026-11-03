@@ -6,7 +6,7 @@ import * as Location from 'expo-location';
 import { Button, Chip, ChipRow, FormError } from '@/components/form';
 import { Icon } from '@/components/Icon';
 import { TripMap } from '@/components/TripMap';
-import { Card, PreviewBadge, Screen, SectionHeader, Segmented, formatMoney } from '@/components/ui';
+import { Card, PreviewBadge, Screen, SectionHeader, Segmented, formatMoney as money } from '@/components/ui';
 import { api } from '@/lib/api';
 import { estimateCommute, estimateTrip, typicalTank, type Days } from '@/lib/fuel';
 import { PREVIEW } from '@/lib/session';
@@ -22,13 +22,16 @@ import type { TxnPage } from './transactions';
  */
 
 type Mode = 'One trip' | 'Commute';
-const num = (s: string) => { const n = Number(s.replace(/[^0-9.]/g, '')); return Number.isFinite(n) && n > 0 ? n : null; };
-const today = () => new Date().toISOString().slice(0, 10);
+const num = (s: string) => { const text = s.trim().replace(',', '.'); const n = Number(text); return /^\d*\.?\d+$/.test(text) && Number.isFinite(n) && n >= 0 ? n : null; };
+const localToday = () => { const now = new Date(); return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`; };
 
 export default function Trip() {
   const c = useColors();
   const a = c.section.spending;
-  const { refresh } = useSummary();
+  const { data: summary, refresh } = useSummary();
+  const currency = summary?.currency ?? 'CAD';
+  const minorFactor = ['JPY', 'KRW'].includes(currency) ? 1 : 100;
+  const formatMoney = (minor: number, opts: { cents?: boolean } = {}) => money(minor, { ...opts, currency });
   const [mode, setMode] = useState<Mode>('One trip');
   const [vehicle, setVehicle] = useState<Vehicle | null>(null);
   const [own, setOwn] = useState('');
@@ -38,6 +41,7 @@ export default function Trip() {
   const [to, setTo] = useState<Place | null>(null);
   const [route, setRoute] = useState<Route | null>(null);
   const [routing, setRouting] = useState(false);
+  const [routeRetry, setRouteRetry] = useState(0);
   const [roundTrip, setRoundTrip] = useState(false);
   const [days, setDays] = useState<Days>(5);
   const [custom, setCustom] = useState(false);
@@ -48,8 +52,8 @@ export default function Trip() {
 
   // The car is chosen on its own screen; pick it up whenever we come back.
   useFocusEffect(useCallback(() => {
-    void loadSettings().then((s) => { setVehicle(s.vehicle); setOwn(s.own); setPrice(s.price); setTank(s.tank); });
-  }, []));
+    void loadSettings().then((s) => { setVehicle(s.vehicle); setOwn(s.own); setPrice(s.priceCurrency === currency || (!s.priceCurrency && currency === 'CAD') ? s.price : ''); setTank(s.tank); });
+  }, [currency]));
 
   useEffect(() => {
     if (PREVIEW) { setBudget({ planMinor: 30_000, spentMinor: 18_900 }); return; }
@@ -59,50 +63,59 @@ export default function Trip() {
   }, []);
 
   useEffect(() => {
+    let active = true;
     setRoute(null); setSaved(null);
-    if (!from || !to) return;
+    if (!from || !to) { setRouting(false); return; }
     setRouting(true); setError(null);
-    getRoute(from, to).then(setRoute).catch((e) => setError(e instanceof Error ? e.message : 'Couldn’t find a route.')).finally(() => setRouting(false));
-  }, [from, to]);
+    getRoute(from, to).then((r) => { if (active) setRoute(r); }).catch((e) => { if (active) setError(e instanceof Error ? e.message : 'Couldn’t find a route.'); }).finally(() => { if (active) setRouting(false); });
+    return () => { active = false; };
+  }, [from, to, routeRetry]);
 
   const electric = Boolean(vehicle?.electric);
   const priceN = num(price) ?? defaultPrice(vehicle);
   const tankN = electric ? null : num(tank) ?? typicalTank(vehicle?.vehicleClass);
   const ownN = num(own);
   const unit = electric ? 'kWh' : 'L';
+  const inputError = price.trim() && num(price) === null ? 'Enter a valid price of zero or more.'
+    : tank.trim() && !electric && (!num(tank) || num(tank)! > 2000) ? 'Enter a tank size greater than zero, up to 2,000 L.'
+    : own.trim() && (!ownN || ownN > 1000) ? 'Enter consumption greater than zero, up to 1,000 per 100 km.'
+    : currency !== 'CAD' && !price.trim() ? `Enter your local price in ${currency} to see an estimate.` : null;
 
   const result = useMemo(() => {
-    if (!route || !vehicle) return null;
+    if (!route || !vehicle || inputError) return null;
     const base = { distanceKm: route.distanceKm, durationMin: route.durationMin, efficiency: vehicle, ownPer100km: ownN, price: priceN };
     return { trip: estimateTrip({ ...base, tankLitres: tankN, roundTrip }), commute: estimateCommute({ ...base, daysPerWeek: days }) };
-  }, [route, vehicle, ownN, priceN, tankN, roundTrip, days]);
+  }, [route, vehicle, ownN, priceN, tankN, roundTrip, days, inputError]);
 
-  function remember(patch: { own?: string; price?: string; tank?: string }) { void saveSettings(patch); }
+  useEffect(() => { setSaved(null); }, [vehicle, own, price, tank, roundTrip, days]);
+
+  function remember(patch: { own?: string; price?: string; tank?: string }) { void saveSettings({ ...patch, ...(patch.price !== undefined ? { priceCurrency: currency } : {}) }).catch(() => setError('Couldn’t remember these settings on this device.')); }
 
   async function addToSpending() {
-    if (!result || !from || !to) return;
+    if (!result || !from || !to || saving) return;
     setSaving(true); setError(null);
     const trip = mode === 'One trip';
     try {
       if (!PREVIEW) {
         const meta = await api<TxnPage>('/api/mobile/transactions');
         const cat = meta.categories.find((x) => /^gas|fuel/i.test(x.name) && x.kind === 'expense') ?? meta.categories.find((x) => /transport/i.test(x.name));
-        const account = meta.accounts.find((x) => x.type === 'chequing') ?? meta.accounts[0];
+        const account = meta.accounts.find((x) => x.type === 'chequing' && x.currency === currency) ?? meta.accounts.find((x) => x.currency === currency && !['credit_card', 'loan'].includes(x.type));
+        if (!account) throw new Error(`Add an account in ${currency} before saving this estimate.`);
         if (trip) {
           await api('/api/transactions', { body: {
             amount: result.trip.cost.toFixed(2), description: `${electric ? 'Charging' : 'Gas'}: ${from.name} → ${to.name}${roundTrip ? ' and back' : ''}`,
-            accountId: account?.id, categoryId: cat?.id ?? null, postedDate: today(), type: 'expense',
+            accountId: account.id, categoryId: cat?.id ?? null, postedDate: summary?.today ?? localToday(), type: 'expense',
           } });
         } else {
           await api('/api/schedules', { body: {
             name: `Commute ${electric ? 'charging' : 'gas'}: ${to.name}`, amount: result.commute.perWeek.toFixed(2),
-            cadence: 'weekly', startDate: today(), direction: 'outflow', categoryId: cat?.id ?? null, accountId: account?.id ?? null,
+            cadence: 'weekly', startDate: summary?.today ?? localToday(), direction: 'outflow', categoryId: cat?.id ?? null, accountId: account.id,
           } });
         }
         await refresh();
       }
       void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      setSaved(trip ? 'Added to your spending under Gas.' : 'Added as a weekly cost — it now counts in Safe to spend and Bills.');
+      setSaved(PREVIEW ? 'Demo only — nothing was added to your spending or bills.' : trip ? 'Added the fuel estimate to your spending.' : 'Added as a weekly cost — it now counts in Safe to spend and Bills.');
     } catch (e) {
       setError(e instanceof Error ? e.message : 'That didn’t save. Try again.');
     } finally { setSaving(false); }
@@ -111,7 +124,7 @@ export default function Trip() {
   const trip = result?.trip;
   const commute = result?.commute;
   const budgetLeft = budget ? budget.planMinor - budget.spentMinor : null;
-  const thisCostMinor = result ? Math.round((mode === 'One trip' ? result.trip.cost : result.commute.perMonth) * 100) : 0;
+  const thisCostMinor = result ? Math.round((mode === 'One trip' ? result.trip.cost : result.commute.perMonth) * minorFactor) : 0;
 
   return (
     <Screen section="spending" title="Plan a trip" back>
@@ -127,7 +140,7 @@ export default function Trip() {
           <View style={{ flex: 1 }}>
             {vehicle ? (
               <>
-                <Text style={[type.bodyStrong, { color: c.text }]}>{vehicle.year} {vehicle.make} {vehicle.model}</Text>
+                <Text style={[type.bodyStrong, { color: c.text }]}>{vehicle.custom ? vehicle.model : `${vehicle.year} ${vehicle.make} ${vehicle.model}`}</Text>
                 <Text style={[type.footnote, { color: c.textMuted }]} numberOfLines={1}>
                   {vehicle.city.toFixed(1)} city · {vehicle.highway.toFixed(1)} hwy {unit}/100 km{vehicle.detail ? ` · ${vehicle.detail}` : ''}
                 </Text>
@@ -135,7 +148,7 @@ export default function Trip() {
             ) : (
               <>
                 <Text style={[type.bodyStrong, { color: c.text }]}>Choose your car</Text>
-                <Text style={[type.footnote, { color: c.textMuted }]}>Year, make and model — every car since 1984</Text>
+                <Text style={[type.footnote, { color: c.textMuted }]}>EPA catalogue, or enter your own fuel use</Text>
               </>
             )}
           </View>
@@ -151,6 +164,7 @@ export default function Trip() {
       {from && to ? <View style={{ marginTop: space.md }}><TripMap from={from} to={to} route={route} color={a.accent} /></View> : null}
       {routing ? <ActivityIndicator style={{ marginTop: space.md }} color={a.accent} /> : null}
       <FormError message={error} />
+      {error && from && to && !route && !routing ? <Button label="Retry route" variant="plain" onPress={() => setRouteRetry((n) => n + 1)} /> : null}
 
       {mode === 'One trip' ? (
         <Card style={{ marginTop: space.md }}>
@@ -179,7 +193,7 @@ export default function Trip() {
 
       <SectionHeader title="Fuel" />
       <Card>
-        <NumberRow label={electric ? 'Electricity price' : 'Gas price'} suffix={electric ? '/kWh' : '/L'} prefix="$" value={price} placeholder={defaultPrice(vehicle).toFixed(2)}
+        <NumberRow label={electric ? 'Electricity price' : 'Gas price'} suffix={electric ? '/kWh' : '/L'} prefix={currency} value={price} placeholder={currency === 'CAD' ? defaultPrice(vehicle).toFixed(2) : 'Enter price'}
           onChange={(v) => { setPrice(v); remember({ price: v }); }} />
         {!electric ? (
           <NumberRow label="Tank size" suffix="L" value={tank} placeholder={String(typicalTank(vehicle?.vehicleClass))} onChange={(v) => { setTank(v); remember({ tank: v }); }} />
@@ -187,6 +201,8 @@ export default function Trip() {
         <NumberRow label="Your real use (optional)" hint="From your dashboard — the most accurate figure" suffix={`${unit}/100 km`} value={own}
           placeholder={vehicle ? ((vehicle.city + vehicle.highway) / 2).toFixed(1) : '—'} onChange={(v) => { setOwn(v); remember({ own: v }); }} last />
       </Card>
+      <FormError message={inputError} />
+      <Text style={[type.footnote, { color: c.textMuted, marginTop: space.sm }]}>Prices in {currency}. {price.trim() ? 'Using your entered price.' : 'The starting price is an illustrative Canadian estimate, not a live local price.'} Fuel or charging only; tolls, parking and wear are extra. {vehicle?.detail.includes('Plug-in Hybrid') ? 'Plug-in hybrid ratings estimate gasoline use; charging is extra.' : ''}</Text>
 
       {!vehicle && from && to ? <Text style={[type.subhead, { color: c.textMuted, marginTop: space.lg }]}>Choose your car above to see the cost.</Text> : null}
 
@@ -198,7 +214,7 @@ export default function Trip() {
               {mode === 'One trip' ? (
                 <>
                   <Text style={[type.subhead, { color: c.textMuted }]}>{roundTrip ? 'There and back' : 'One way'}</Text>
-                  <Text style={[type.hero, { color: c.text }]}>{formatMoney(Math.round(trip.cost * 100))}</Text>
+                  <Text style={[type.hero, { color: c.text }]}>{formatMoney(Math.round(trip.cost * minorFactor))}</Text>
                   <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space.lg, marginTop: space.md }}>
                     <Stat label="Distance" value={`${Math.round(trip.distanceKm).toLocaleString()} km`} />
                     <Stat label="Driving" value={hours(route.durationMin * (roundTrip ? 2 : 1))} />
@@ -214,11 +230,11 @@ export default function Trip() {
               ) : (
                 <>
                   <Text style={[type.subhead, { color: c.textMuted }]}>Each month</Text>
-                  <Text style={[type.hero, { color: c.text }]}>{formatMoney(Math.round(commute.perMonth * 100))}</Text>
+                  <Text style={[type.hero, { color: c.text }]}>{formatMoney(Math.round(commute.perMonth * minorFactor))}</Text>
                   <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space.lg, marginTop: space.md }}>
-                    <Stat label="Per day" value={formatMoney(Math.round(commute.perDay * 100))} />
-                    <Stat label="Per week" value={formatMoney(Math.round(commute.perWeek * 100))} />
-                    <Stat label="Per year" value={formatMoney(Math.round(commute.perYear * 100), { cents: false })} />
+                    <Stat label="Per day" value={formatMoney(Math.round(commute.perDay * minorFactor))} />
+                    <Stat label="Per week" value={formatMoney(Math.round(commute.perWeek * minorFactor))} />
+                    <Stat label="Per year" value={formatMoney(Math.round(commute.perYear * minorFactor), { cents: false })} />
                     <Stat label="Each way" value={`${Math.round(route.distanceKm)} km`} />
                     <Stat label={`${unit} a week`} value={commute.litresPerWeek.toFixed(0)} />
                   </View>
@@ -236,7 +252,7 @@ export default function Trip() {
           ) : null}
 
           <Text style={[type.footnote, { color: c.textSubtle, marginTop: space.md, lineHeight: 18 }]}>
-            {ownN ? 'Using your own fuel figure. ' : `Based on the EPA rating for this car and this route’s mix of city (${Math.round((1 - trip.highwayShare) * 100)}%) and highway (${Math.round(trip.highwayShare * 100)}%) driving. `}
+            {ownN || vehicle?.custom ? 'Using your own fuel figure. ' : `Based on the EPA rating for this car and an estimated mix of city (${Math.round((1 - trip.highwayShare) * 100)}%) and highway (${Math.round(trip.highwayShare * 100)}%) driving. `}
             Speed, weather, traffic and load change real use{ownN ? '.' : ' — add your own figure above for the closest number.'}
           </Text>
 
@@ -246,8 +262,8 @@ export default function Trip() {
                 <Text style={[type.subhead, { color: c.text, flex: 1 }]}>✓ {saved}</Text>
               </View>
             ) : (
-              <Button accent={a.accent} loading={saving}
-                label={mode === 'One trip' ? `Add ${formatMoney(Math.round(trip.cost * 100))} to my spending` : `Add ${formatMoney(Math.round(commute.perWeek * 100))} a week to my bills`}
+              <Button accent={a.accent} loading={saving} disabled={thisCostMinor <= 0}
+                label={mode === 'One trip' ? `Add ${formatMoney(Math.round(trip.cost * minorFactor))} to my spending` : `Add ${formatMoney(Math.round(commute.perWeek * minorFactor))} a week to my bills`}
                 onPress={() => void addToSpending()} />
             )}
           </View>
@@ -258,7 +274,8 @@ export default function Trip() {
 }
 
 function hours(min: number) {
-  const h = Math.floor(min / 60), m = Math.round(min % 60);
+  const rounded = Math.round(min);
+  const h = Math.floor(rounded / 60), m = rounded % 60;
   return h ? `${h} h ${m} min` : `${m} min`;
 }
 
@@ -299,16 +316,19 @@ function PlaceField({ label, value, onChange, near, offerHere }: { label: string
   const [results, setResults] = useState<Place[]>([]);
   const [busy, setBusy] = useState(false);
   const [note, setNote] = useState<string | null>(null);
+  const [searching, setSearching] = useState(false);
   const seq = useRef(0);
 
   useEffect(() => {
-    if (!editing || q.trim().length < 2) { setResults([]); return; }
     const id = ++seq.current;
+    setResults([]); setNote(null); setSearching(false);
+    if (!editing || q.trim().length < 2) return;
+    setSearching(true);
     const t = setTimeout(() => {
-      searchPlaces(q.trim(), near).then((r) => { if (id === seq.current) setResults(r); }).catch(() => setNote('Search isn’t working right now.'));
+      searchPlaces(q.trim(), near).then((r) => { if (id === seq.current) { setResults(r); if (!r.length) setNote('No places found. Try a nearby city or a fuller address.'); } }).catch(() => { if (id === seq.current) setNote('Search isn’t working right now. Try again.'); }).finally(() => { if (id === seq.current) setSearching(false); });
     }, 300);
-    return () => clearTimeout(t);
-  }, [q, editing]);
+    return () => { clearTimeout(t); seq.current++; };
+  }, [q, editing, near?.lat, near?.lon]);
 
   async function useHere() {
     setBusy(true); setNote(null);
@@ -346,11 +366,12 @@ function PlaceField({ label, value, onChange, near, offerHere }: { label: string
         <Pressable onPress={() => setEditing(false)} hitSlop={10}><Text style={[type.subhead, { color: a.accent }]}>Cancel</Text></Pressable>
       </View>
       {offerHere ? (
-        <Pressable onPress={() => void useHere()} style={{ flexDirection: 'row', alignItems: 'center', gap: space.md, paddingVertical: space.lg, borderBottomWidth: results.length ? 0.5 : 0, borderBottomColor: c.border }}>
+        <Pressable disabled={busy} accessibilityRole="button" onPress={() => void useHere()} style={{ flexDirection: 'row', alignItems: 'center', gap: space.md, paddingVertical: space.lg, borderBottomWidth: results.length ? 0.5 : 0, borderBottomColor: c.border }}>
           <Icon name="location" size={18} color={a.accent} />
           <Text style={[type.bodyStrong, { color: a.accent }]}>{busy ? 'Finding you…' : 'Use my current location'}</Text>
         </Pressable>
       ) : null}
+      {searching ? <ActivityIndicator accessibilityLabel="Searching places" color={a.accent} style={{ padding: space.md }} /> : null}
       {results.map((p, i) => (
         <Pressable key={`${p.lat},${p.lon},${i}`} onPress={() => { onChange(p); setEditing(false); void Haptics.selectionAsync(); }}
           style={({ pressed }) => ({ padding: space.lg, paddingVertical: 12, borderBottomWidth: i < results.length - 1 ? 0.5 : 0, borderBottomColor: c.border, opacity: pressed ? 0.5 : 1 })}>

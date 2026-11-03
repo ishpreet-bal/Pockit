@@ -6,7 +6,9 @@ import { holdings } from '@/lib/db/schema';
 import { Card, CardBody, CardHeader, EmptyState, LinkButton } from '@/components/ui/primitives';
 import { Change } from '@/components/market/change';
 import { marketData, catalogEntry } from '@/lib/market';
-import { formatMoney, sumMinor } from '@/lib/money';
+import { valueHolding, totalHoldings } from '@/lib/investing/valuation';
+import { formatMoney, sumMinor, toDecimalString } from '@/lib/money';
+import { HoldingEditor } from './holding-editor';
 import Link from 'next/link';
 
 export const metadata: Metadata = { title: 'Portfolio' };
@@ -15,11 +17,10 @@ export const dynamic = 'force-dynamic';
 /**
  * What you actually own, valued against live prices where they exist.
  *
- * Distinct from the watchlist in the one way that matters: these are real positions,
- * they move your net worth, and their value is recomputed from current prices rather
- * than read from whatever was typed in when the holding was created.
+ * Unlike the watchlist, these are recorded positions. Matching real quotes can
+ * update the displayed valuation; tracking records do not change cash balances.
  */
-export default async function PortfolioPage() {
+export default async function PortfolioPage({ searchParams }: { searchParams: Promise<{ currency?: string }> }) {
   const { user, workspace } = await requireAuth();
   const source = marketData();
 
@@ -32,60 +33,59 @@ export default async function PortfolioPage() {
       <Card>
         <EmptyState
           title="No holdings tracked"
-          description="Add what you own under Accounts and it will be valued here, counted in your net worth, and shown against the rest of your finances."
-          action={<LinkButton href="/accounts" variant="primary">Go to accounts</LinkButton>}
+          description="Record investments here to track their value and cost. Tracking does not change account balances or post trades."
+          action={<LinkButton href="/investing/watchlist">View watchlist</LinkButton>}
         />
+        <CardBody><HoldingEditor currency={workspace.baseCurrency} /></CardBody>
       </Card>
     );
   }
 
   const symbols = rows.map((r) => r.symbol).filter((s): s is string => Boolean(s));
-  const quotes = await source.quotes(symbols);
+  const quotes = await source.quotes(symbols).catch(() => new Map());
 
   const positions = rows.map((row) => {
     const quote = row.symbol ? quotes.get(row.symbol.toUpperCase()) : undefined;
-    const units = Number(row.quantity);
-    const cost = BigInt(row.costBasisMinor as unknown as string);
     // A live quote is preferred; the stored value is the fallback so a holding
     // without a tradeable symbol (a managed fund, a private asset) still counts.
-    const value = quote && units > 0
-      ? BigInt(Math.round(Number(quote.priceMinor) * units))
-      : BigInt(row.currentValueMinor as unknown as string);
+    const valued = valueHolding(row, quote);
     return {
-      id: row.id,
-      symbol: row.symbol,
-      name: row.name,
-      units,
-      costMinor: cost,
-      valueMinor: value,
-      gainMinor: value - cost,
-      changeBps: quote?.changeBps ?? null,
-      currency: row.currency,
-      priced: Boolean(quote),
+      ...valued,
+      units: Number(row.quantity),
+      changeBps: valued.changePct === null ? null : Math.round(valued.changePct * 100),
+      priced: valued.valuation === 'quote',
       sector: row.symbol ? catalogEntry(row.symbol)?.sector ?? null : null,
       kind: row.symbol ? catalogEntry(row.symbol)?.kind ?? null : null,
     };
   });
 
-  const totalValue = sumMinor(positions.map((p) => p.valueMinor));
-  const totalCost = sumMinor(positions.map((p) => p.costMinor));
+  const totals = totalHoldings(positions);
+  const requested = (await searchParams).currency;
+  const cur = totals.find((t) => t.currency === requested)?.currency ?? totals.find((t) => t.currency === workspace.baseCurrency)?.currency ?? totals[0]!.currency;
+  const selected = positions.filter((p) => p.currency === cur);
+  const totalValue = sumMinor(selected.map((p) => p.valueMinor));
+  const totalCost = sumMinor(selected.map((p) => p.costMinor));
   const totalGain = totalValue - totalCost;
   const returnBps = totalCost > 0n ? Number((totalGain * 10000n) / totalCost) : null;
-  const cur = workspace.baseCurrency;
 
-  const byKind = groupShare(positions.map((p) => [p.kind ?? 'other', p.valueMinor] as const), totalValue);
+  const byKind = groupShare(selected.map((p) => [p.kind ?? 'other', p.valueMinor] as const), totalValue);
   const bySector = groupShare(
-    positions.filter((p) => p.kind === 'stock').map((p) => [p.sector ?? 'Other', p.valueMinor] as const),
-    sumMinor(positions.filter((p) => p.kind === 'stock').map((p) => p.valueMinor)),
+    selected.filter((p) => p.kind === 'stock').map((p) => [p.sector ?? 'Other', p.valueMinor] as const),
+    sumMinor(selected.filter((p) => p.kind === 'stock').map((p) => p.valueMinor)),
   );
 
-  const largest = [...positions].sort((a, b) => (b.valueMinor > a.valueMinor ? 1 : -1))[0];
+  const largest = [...selected].sort((a, b) => (b.valueMinor > a.valueMinor ? 1 : -1))[0];
   const concentration = largest && totalValue > 0n
     ? Number((largest.valueMinor * 1000n) / totalValue) / 10
     : 0;
 
   return (
     <div className="space-y-5">
+      <HoldingEditor currency={workspace.baseCurrency} />
+      <div className="flex flex-wrap items-center gap-2">
+        {totals.map((total) => <Link key={total.currency} href={`/investing/portfolio?currency=${total.currency}`} aria-current={cur === total.currency ? 'page' : undefined} className="rounded-full border border-[var(--border)] px-3 py-2 text-sm">{total.currency} · {formatMoney(total.valueMinor, total.currency)}</Link>)}
+      </div>
+      <p className="text-xs text-[var(--text-muted)]">Totals and mix below are for {cur} holdings. Currencies are kept separate; no exchange rate has been applied.</p>
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <Stat label="Value" value={formatMoney(totalValue, cur)} />
         <Stat label="Cost" value={formatMoney(totalCost, cur)} />
@@ -99,8 +99,8 @@ export default async function PortfolioPage() {
 
       <div className="grid gap-5 lg:grid-cols-3">
         <Card className="lg:col-span-2">
-          <CardHeader title="Holdings" description="Valued at the latest available price" />
-          <CardBody className="px-0 pb-0">
+          <CardHeader title="Holdings" description="Real quotes in the holding’s currency, otherwise the recorded value" />
+          <CardBody className="overflow-x-auto px-0 pb-0">
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-[var(--border)] text-2xs uppercase tracking-wide text-[var(--text-subtle)]">
@@ -128,7 +128,7 @@ export default async function PortfolioPage() {
                       )}
                     </td>
                     <td className="tabular px-2 py-2.5 text-right text-xs">{p.units.toLocaleString()}</td>
-                    <td className="tabular px-2 py-2.5 text-right font-medium">{formatMoney(p.valueMinor, p.currency)}</td>
+                    <td className="tabular px-2 py-2.5 text-right font-medium">{formatMoney(p.valueMinor, p.currency)}<span className="block text-2xs font-normal text-[var(--text-subtle)]">{p.currency} · {p.priced ? p.source : 'Recorded'}{p.asOf ? ` · ${p.asOf.slice(0, 10)}` : ''}</span></td>
                     <td className="tabular hidden px-2 py-2.5 text-right sm:table-cell">
                       <span className={p.gainMinor < 0n ? 'text-[var(--negative)]' : p.gainMinor > 0n ? 'text-[var(--positive)]' : ''}>
                         {formatMoney(p.gainMinor, p.currency)}
@@ -139,6 +139,7 @@ export default async function PortfolioPage() {
                 ))}
               </tbody>
             </table>
+            <details className="p-4"><summary className="cursor-pointer text-sm font-medium">Manage recorded holdings</summary><div className="mt-3 space-y-3">{rows.map((row) => <div key={row.id}><p className="mb-1 text-xs text-[var(--text-muted)]">{row.name}</p><HoldingEditor currency={row.currency} holding={{ id: row.id, name: row.name, symbol: row.symbol ?? '', quantity: row.quantity, currency: row.currency, currentValue: toDecimalString(row.currentValueMinor, row.currency), costBasis: toDecimalString(row.costBasisMinor, row.currency) }} /></div>)}</div></details>
           </CardBody>
         </Card>
 
@@ -166,7 +167,7 @@ export default async function PortfolioPage() {
             <CardBody>
               <p className="pk-figure text-2xl">{concentration.toFixed(0)}%</p>
               <p className="mt-1 text-sm text-[var(--text-muted)]">
-                of your portfolio sits in {largest?.symbol ?? largest?.name ?? 'one holding'}.
+                of your {cur} holdings sits in {largest?.symbol ?? largest?.name ?? 'one holding'}.
               </p>
               <p className="mt-2 text-xs leading-relaxed text-[var(--text-subtle)]">
                 {concentration >= 40

@@ -21,6 +21,7 @@ export async function searchPlaces(q: string, near?: { lat: number; lon: number 
   if (key) {
     const res = await fetch('https://places.googleapis.com/v1/places:searchText', {
       method: 'POST',
+      signal: AbortSignal.timeout(10_000),
       headers: { 'content-type': 'application/json', 'X-Goog-Api-Key': key, 'X-Goog-FieldMask': 'places.displayName,places.formattedAddress,places.location' },
       body: JSON.stringify({
         textQuery: q, pageSize: 6,
@@ -34,12 +35,12 @@ export async function searchPlaces(q: string, near?: { lat: number; lon: number 
   const url = new URL('https://photon.komoot.io/api/');
   url.searchParams.set('q', q); url.searchParams.set('limit', '6');
   if (near) { url.searchParams.set('lat', String(near.lat)); url.searchParams.set('lon', String(near.lon)); }
-  const res = await fetch(url, { headers: UA });
+  const res = await fetch(url, { headers: UA, signal: AbortSignal.timeout(10_000) });
   if (!res.ok) throw new Error(`photon ${res.status}`);
   const j = (await res.json()) as { features: { geometry: { coordinates: [number, number] }; properties: Record<string, string | undefined> }[] };
   return j.features.map((f) => {
     const p = f.properties;
-    const name = p.name ?? [p.housenumber, p.street].filter(Boolean).join(' ') ?? q;
+    const name = p.name || [p.housenumber, p.street].filter(Boolean).join(' ') || q;
     const address = [p.housenumber && p.street ? `${p.housenumber} ${p.street}` : p.street, p.city, p.state, p.country].filter((x) => x && x !== name).join(', ');
     return { name, address, lat: f.geometry.coordinates[1], lon: f.geometry.coordinates[0] };
   });
@@ -48,7 +49,8 @@ export async function searchPlaces(q: string, near?: { lat: number; lon: number 
 export async function reverse(lat: number, lon: number): Promise<Place> {
   const fallback = { name: 'Current location', address: `${lat.toFixed(4)}, ${lon.toFixed(4)}`, lat, lon };
   try {
-    const res = await fetch(`https://photon.komoot.io/reverse?lat=${lat}&lon=${lon}`, { headers: UA });
+    const res = await fetch(`https://photon.komoot.io/reverse?lat=${lat}&lon=${lon}`, { headers: UA, signal: AbortSignal.timeout(6000) });
+    if (!res.ok) return fallback;
     const j = (await res.json()) as { features: { properties: Record<string, string | undefined> }[] };
     const p = j.features[0]?.properties;
     if (!p) return fallback;
@@ -61,6 +63,7 @@ export async function drivingRoute(from: { lat: number; lon: number }, to: { lat
   if (key) {
     const res = await fetch('https://routes.googleapis.com/directions/v2:computeRoutes', {
       method: 'POST',
+      signal: AbortSignal.timeout(10_000),
       headers: { 'content-type': 'application/json', 'X-Goog-Api-Key': key, 'X-Goog-FieldMask': 'routes.distanceMeters,routes.duration,routes.staticDuration,routes.polyline.encodedPolyline' },
       body: JSON.stringify({
         origin: { location: { latLng: { latitude: from.lat, longitude: from.lon } } },
@@ -76,7 +79,7 @@ export async function drivingRoute(from: { lat: number; lon: number }, to: { lat
     const secs = parseInt(r.staticDuration ?? r.duration, 10);
     return { distanceKm: r.distanceMeters / 1000, durationMin: secs / 60, points: decodePolyline(r.polyline.encodedPolyline), source: 'google' };
   }
-  const res = await fetch(`https://router.project-osrm.org/route/v1/driving/${from.lon},${from.lat};${to.lon},${to.lat}?overview=simplified&geometries=polyline`, { headers: UA });
+  const res = await fetch(`https://router.project-osrm.org/route/v1/driving/${from.lon},${from.lat};${to.lon},${to.lat}?overview=simplified&geometries=polyline`, { headers: UA, signal: AbortSignal.timeout(10_000) });
   if (!res.ok) throw new Error(`osrm ${res.status}`);
   const j = (await res.json()) as { code: string; routes: { distance: number; duration: number; geometry: string }[] };
   const r = j.routes?.[0];

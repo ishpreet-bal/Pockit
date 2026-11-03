@@ -72,6 +72,9 @@ For the exact keys each feature needs, provider setup, and remaining gaps that
 keys cannot fix, see [Integrations](docs/INTEGRATIONS.md). Run `npm run config:check`
 for a local configuration inventory without exposing secrets.
 
+For current vehicle coverage, manual car entry and currency-safe portfolio
+valuation, see [Trip and investing improvements](docs/TRIP-AND-INVESTING.md).
+
 ```bash
 npm install
 cp .env.example .env.local     # fill in DATABASE_URL and AUTH_SECRET

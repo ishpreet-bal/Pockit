@@ -25,7 +25,7 @@ export default function Invest() {
   const choose = (l: Level | null) => { setLevel(l); void setText('investLevel', l); };
 
   return (
-    <Screen section="invest" title="Invest (demo)" eyebrow="Still being built — follow along and learn" onRefresh={refresh} refreshing={refreshing} right={level ? <SearchButton /> : undefined}>
+    <Screen section="invest" title={PREVIEW ? 'Invest (demo)' : 'Invest'} eyebrow="Learn, follow and track" onRefresh={refresh} refreshing={refreshing} right={level ? <SearchButton /> : undefined}>
       {PREVIEW ? <PreviewBadge /> : null}
       {level === undefined ? null : level === null ? <LevelPicker onPick={choose} /> : (
         <>
@@ -33,7 +33,8 @@ export default function Invest() {
           <StaleNote message={data ? error : null} />
           {level === 'beginner' && data && !data.invest.holdings.length && !PREVIEW ? (
             <Text style={[type.footnote, { color: c.textMuted, marginTop: space.xl, lineHeight: 20 }]}>When you’re ready, search any stock or fund above and tap Watch to follow it — no money involved.</Text>
-          ) : data ? <Body d={data} /> : <Loading error={error} />}
+          ) : null}
+          {data ? <Body d={data} /> : <Loading error={error} />}
           <Pressable onPress={() => choose(null)} hitSlop={8} style={{ alignSelf: 'center', marginTop: space.xxl }} accessibilityRole="button">
             <Text style={[type.label, { color: c.textMuted }]}>Change my level</Text>
           </Pressable>
@@ -103,18 +104,19 @@ function Path({ level, done }: { level: Level; done: string[] }) {
   );
 }
 
-function Line({ symbol, name, value, pct, last }: { symbol: string; name: string; value: string; pct: number | null; last: boolean }) {
+function Line({ symbol, name, value, pct, last, note }: { symbol: string | null; name: string; value: string; pct: number | null; last: boolean; note?: string }) {
   const c = useColors();
   const a = useAccent();
   return (
-    <Pressable accessibilityRole="button" onPress={() => router.push({ pathname: '/stock/[symbol]', params: { symbol } })} style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1 })}>
+    <Pressable disabled={!symbol} accessibilityRole={symbol ? 'button' : undefined} onPress={() => { if (symbol) router.push({ pathname: '/stock/[symbol]', params: { symbol } }); }} style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1 })}>
     <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.md, paddingVertical: space.lg, borderBottomWidth: last ? 0 : 0.5, borderBottomColor: c.border }}>
       <View style={{ width: 40, height: 40, borderRadius: 12, backgroundColor: a.soft, alignItems: 'center', justifyContent: 'center' }}>
-        <Text style={[type.caption, { color: a.accent, fontSize: 10 }]} numberOfLines={1}>{symbol.slice(0, 5)}</Text>
+        <Text style={[type.caption, { color: a.accent, fontSize: 10 }]} numberOfLines={1}>{(symbol ?? name).slice(0, 5)}</Text>
       </View>
       <View style={{ flex: 1 }}>
-        <Text style={[type.bodyStrong, { color: c.text }]}>{symbol}</Text>
+        <Text style={[type.bodyStrong, { color: c.text }]}>{symbol ?? name}</Text>
         <Text style={[type.footnote, { color: c.textMuted }]} numberOfLines={1}>{name}</Text>
+        {note ? <Text style={[type.caption, { color: c.textMuted }]}>{note}</Text> : null}
       </View>
       <View style={{ alignItems: 'flex-end' }}>
         <Text style={[type.bodyStrong, { color: c.text }]}>{value}</Text>
@@ -128,27 +130,29 @@ function Line({ symbol, name, value, pct, last }: { symbol: string; name: string
 function Body({ d }: { d: Summary }) {
   const c = useColors();
   const inv = d.invest;
+  const totals = inv.totals ?? [{ currency: d.currency, valueMinor: inv.totalValueMinor, gainMinor: inv.gainMinor, gainPct: inv.gainPct, recordedCount: 0 }];
   return (
     <>
+      <Card onPress={() => router.push('/holdings')} style={{ paddingVertical: space.md, marginTop: space.md, marginBottom: space.md }}><Text style={[type.bodyStrong, { color: c.section.invest.accent }]}>Manage holdings</Text></Card>
       {inv.holdings.length ? (
         <>
           <Text style={[type.subhead, { color: c.textMuted }]}>Your investments</Text>
-          <Text style={[type.hero, { color: c.text, marginTop: 2 }]}>{formatMoney(inv.totalValueMinor, { cents: false })}</Text>
-          {inv.gainPct !== null ? (
-            <Text style={[type.footnote, { color: inv.gainMinor >= 0 ? c.positive : c.negative, marginTop: 4 }]}>
-              {inv.gainMinor >= 0 ? '▲' : '▼'} {formatMoney(Math.abs(inv.gainMinor), { cents: false })} ({Math.abs(inv.gainPct)}%) since you bought
-            </Text>
-          ) : null}
+          {totals.map((total) => <View key={total.currency} style={{ marginTop: space.sm }}>
+            <Text style={[type.title2, { color: c.text }]}>{formatMoney(total.valueMinor, { cents: false, currency: total.currency })}</Text>
+            {total.gainPct !== null ? <Text style={[type.footnote, { color: total.gainMinor >= 0 ? c.positive : c.negative, marginTop: 4 }]}>{total.gainMinor >= 0 ? '▲' : '▼'} {formatMoney(Math.abs(total.gainMinor), { cents: false, currency: total.currency })} ({Math.abs(total.gainPct).toFixed(2)}%) against recorded cost</Text> : null}
+            {total.recordedCount ? <Text style={[type.caption, { color: c.textMuted }]}>{total.recordedCount} at recorded value; live pricing unavailable or in another currency.</Text> : null}
+          </View>)}
+          {totals.length > 1 ? <Text style={[type.footnote, { color: c.textMuted, marginTop: space.sm }]}>Currencies are shown separately. No exchange rate has been applied.</Text> : null}
           <SectionHeader title="What you own" />
           <Card>
             {inv.holdings.map((h, i) => (
-              <Line key={`${h.symbol}-${i}`} symbol={h.symbol} name={h.name} value={formatMoney(h.valueMinor, { cents: false })} pct={h.changePct} last={i === inv.holdings.length - 1} />
+              <Line key={h.id ?? `${h.symbol}-${i}`} symbol={h.symbol} name={h.name} value={formatMoney(h.valueMinor, { cents: false, currency: h.currency ?? d.currency })} pct={h.changePct} note={h.valuation === 'recorded' ? `Recorded value${h.asOf ? ` · ${h.asOf.slice(0, 10)}` : ''}` : h.source} last={i === inv.holdings.length - 1} />
             ))}
           </Card>
         </>
       ) : (
         <>
-          <EmptyCard title="Nothing invested yet" body="Search any stock or fund and tap Watch to follow it. What you own is added under Accounts." />
+          <EmptyCard title="Nothing invested yet" body="Search any stock or fund and tap Watch to follow it, or use Manage holdings to record what you own." />
           <Card style={{ paddingVertical: space.lg, marginTop: 12, alignItems: 'center' }} onPress={() => router.push('/search')}>
             <Text style={[type.bodyStrong, { color: c.section.invest.accent }]}>Search stocks & funds</Text>
           </Card>
@@ -160,7 +164,7 @@ function Body({ d }: { d: Summary }) {
           <SectionHeader title="Watching" />
           <Card>
             {inv.watchlist.map((w, i) => (
-              <Line key={w.symbol} symbol={w.symbol} name={w.name} value={w.priceMinor !== null ? formatMoney(w.priceMinor) : '—'} pct={w.changePct} last={i === inv.watchlist.length - 1} />
+              <Line key={w.symbol} symbol={w.symbol} name={w.name} value={w.priceMinor !== null ? formatMoney(w.priceMinor, { currency: w.currency ?? d.currency }) : 'Unavailable'} pct={w.changePct} note={w.simulated ? 'Sample price' : w.source ? `${w.source}${w.asOf ? ` · ${w.asOf.slice(0, 10)}` : ''}` : undefined} last={i === inv.watchlist.length - 1} />
             ))}
           </Card>
         </>

@@ -151,7 +151,12 @@ export function useSegment<T extends string>(initial: T) {
 }
 
 /** Minor units in, a formatted amount out. Never a float on the way through. */
-export function formatMoney(minor: number, opts: { signed?: boolean; cents?: boolean } = {}): string {
+export function formatMoney(minor: number, opts: { signed?: boolean; cents?: boolean; currency?: string } = {}): string {
+  if (opts.currency) {
+    const currency = opts.currency.toUpperCase();
+    const exponent = new Intl.NumberFormat('en-CA', { style: 'currency', currency }).resolvedOptions().maximumFractionDigits ?? 2;
+    return new Intl.NumberFormat('en-CA', { style: 'currency', currency, currencyDisplay: 'code', maximumFractionDigits: opts.cents === false ? 0 : exponent, minimumFractionDigits: opts.cents === false ? 0 : exponent, signDisplay: opts.signed ? 'exceptZero' : 'auto' }).format(minor / 10 ** exponent);
+  }
   const negative = minor < 0;
   // Whole-dollar display rounds to the nearest dollar ($11.99 reads as $12, not $11).
   const abs = opts.cents === false ? Math.round(Math.abs(minor) / 100) * 100 : Math.abs(Math.round(minor));
