@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from 'react';
 import Link from 'next/link';
 import { Card, CardBody, Button, Badge } from '@/components/ui/primitives';
+import { AiConsentCard } from '@/components/brand/ai-consent';
 
 interface ToolCall { name: string; input: Record<string, unknown>; drilldown: string | null }
 interface Message {
@@ -39,6 +40,8 @@ export function AssistantChat({
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [busy, setBusy] = useState(false);
+  // Set when the server needs a yes before the AI may see anything: the question waits.
+  const [consent, setConsent] = useState<{ provider: string | null; question: string } | null>(null);
   const endRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => { endRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages]);
@@ -58,8 +61,13 @@ export function AssistantChat({
         body: JSON.stringify({ question, history }),
       });
       const body = (await res.json().catch(() => null)) as
-        | { answer?: string; grounded?: boolean; toolCalls?: ToolCall[]; error?: string } | null;
+        | { answer?: string; grounded?: boolean; toolCalls?: ToolCall[]; error?: string; needsAiConsent?: boolean; provider?: string | null } | null;
 
+      if (body?.needsAiConsent) {
+        setMessages((prev) => prev.slice(0, -1));
+        setConsent({ provider: body.provider ?? null, question });
+        return;
+      }
       if (!res.ok) {
         setMessages((prev) => [...prev, { role: 'assistant', content: body?.error ?? 'Something went wrong.', error: true }]);
         return;
@@ -102,6 +110,14 @@ export function AssistantChat({
             </p>
           </CardBody>
         </Card>
+      ) : null}
+
+      {consent ? (
+        <AiConsentCard
+          provider={consent.provider}
+          onAllowed={() => { const q = consent.question; setConsent(null); void ask(q); }}
+          onDeclined={() => setConsent(null)}
+        />
       ) : null}
 
       {messages.map((message, i) => (

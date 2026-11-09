@@ -3,13 +3,14 @@ import { Linking, Platform, Switch, Text, View } from 'react-native';
 import Constants from 'expo-constants';
 import { Card, Row, Screen, SectionHeader, Segmented } from '@/components/ui';
 import { router } from 'expo-router';
-import { API_URL } from '@/lib/api';
+import { api, API_URL } from '@/lib/api';
 import { biometricsAvailable, confirmWithBiometrics } from '@/lib/lock';
 import { getPref, saveAppearance, setPref } from '@/lib/prefs';
 import { askForNotifications, checkBudgetAlerts, syncBillReminders, syncWeeklySummary } from '@/lib/reminders';
 import { useSummary } from '@/lib/summary';
 import { useSession } from '@/lib/session';
 import { setAppearance, space, type, useAppearance, useColors, type Appearance } from '@/theme/tokens';
+import { GuestBanner } from '@/components/GuestBanner';
 
 function Toggle({ title, detail, value, onChange, disabled, last }: { title: string; detail: string; value: boolean; onChange: (v: boolean) => void; disabled?: boolean; last?: boolean }) {
   const c = useColors();
@@ -28,7 +29,7 @@ function Toggle({ title, detail, value, onChange, disabled, last }: { title: str
 export default function Settings() {
   const c = useColors();
   const { data } = useSummary();
-  const { me } = useSession();
+  const { me, refresh: refreshMe } = useSession();
   const [faceId, setFaceId] = useState(false);
   const [reminders, setReminders] = useState(false);
   const [alerts, setAlerts] = useState(false);
@@ -63,6 +64,10 @@ export default function Settings() {
     else { setWeekly(on); void syncWeeklySummary(on); }
   }
 
+  async function setAi(allow: boolean) {
+    try { await api('/api/account/ai-consent', { body: { allow } }); await refreshMe(); } catch { /* the switch stays where it was */ }
+  }
+
   async function changeReminders(on: boolean) {
     setNote(null);
     if (on && !(await askForNotifications())) {
@@ -76,6 +81,7 @@ export default function Settings() {
 
   return (
     <Screen section="more" title="Settings" back>
+      <GuestBanner />
       <SectionHeader title="Appearance" />
       <AppearancePicker />
       <SectionHeader title="Security" />
@@ -83,6 +89,18 @@ export default function Settings() {
         <Toggle title={`Lock with ${bio.label}`} detail={bio.ok ? `Ask for ${bio.label} when Pockit opens, and after a minute away.` : `${bio.label} isn’t set up on this phone.`}
           value={faceId} onChange={changeFaceId} disabled={!bio.ok} last />
       </Card>
+      {me?.aiProvider ? (
+        <>
+          <SectionHeader title="Pock and AI" />
+          <Card>
+            <Toggle title={`Use ${me.aiProvider}`}
+              detail={me.aiConsent
+                ? `Your questions, the figures needed to answer them, and receipts you scan go to ${me.aiProvider} to be answered or read. Not used to train its models.`
+                : `Off: Pock and receipt scanning wait for your OK. Nothing is sent to ${me.aiProvider}.`}
+              value={Boolean(me.aiConsent)} onChange={(on) => void setAi(on)} last />
+          </Card>
+        </>
+      ) : null}
       <SectionHeader title="Notifications" />
       <Card>
         <Toggle title="Bill reminders" detail="A heads-up at 9am the day before each bill is due." value={reminders} onChange={changeReminders} disabled={Platform.OS === 'web'} />
@@ -92,13 +110,13 @@ export default function Settings() {
       {note ? <Text style={[type.footnote, { color: c.textMuted, marginTop: space.sm, marginLeft: 4 }]} onPress={note.includes('iPhone Settings') ? () => Linking.openSettings() : undefined}>{note}</Text> : null}
       <SectionHeader title="Account" />
       <Card style={{ paddingVertical: space.lg, gap: 4 }}>
-        <Text style={[type.body, { color: c.text }]}>{me?.name ?? 'You'}</Text>
-        <Text style={[type.footnote, { color: c.textMuted }]}>{me?.email}</Text>
+        <Text style={[type.body, { color: c.text }]}>{me?.guest ? 'Looking around' : me?.name ?? 'You'}</Text>
+        <Text style={[type.footnote, { color: c.textMuted }]}>{me?.guest ? 'Sample money on a temporary account' : me?.email}</Text>
       </Card>
       <Card style={{ marginTop: space.md }}>
         <Row icon="" title="Privacy policy" value="›" valueColor={c.textSubtle} onPress={() => void Linking.openURL(`${API_URL}/privacy`)} />
         <Row icon="" title="Terms of use" value="›" valueColor={c.textSubtle} onPress={() => void Linking.openURL(`${API_URL}/terms`)} />
-        <Row icon="" title="Delete account" valueColor={c.negative} value="›" last onPress={() => router.push('/delete-account')} />
+        {me?.guest ? null : <Row icon="" title="Delete account" valueColor={c.negative} value="›" last onPress={() => router.push('/delete-account')} />}
       </Card>
       <Text style={[type.caption, { color: c.textSubtle, textAlign: 'center', marginTop: space.xl }]}>Pockit {Constants.expoConfig?.version ?? ''}</Text>
     </Screen>

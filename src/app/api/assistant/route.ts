@@ -8,6 +8,8 @@ import { withUser } from '@/lib/db/client';
 import { aiExtractions } from '@/lib/db/schema';
 import { todayIn } from '@/lib/finance/period';
 import { checkRateLimit } from '@/lib/auth/rate-limit';
+import { GUEST_AI_LIMIT_MESSAGE, guestAiAllowed } from '@/lib/auth/guest';
+import { aiConsentMissing, consentNeeded } from '@/lib/ai/consent';
 
 export const maxDuration = 60;
 
@@ -22,6 +24,9 @@ const schema = z.object({
 export async function POST(request: Request) {
   const ctx = await requireAuthApi();
   if ('response' in ctx) return ctx.response;
+  if (!(await guestAiAllowed(ctx.user))) return NextResponse.json({ error: GUEST_AI_LIMIT_MESSAGE, guest: true }, { status: 429 });
+  // Nothing goes to the AI company without the person's yes (App Store 5.1.2(i)).
+  if (await aiConsentMissing(ctx.user.id)) return NextResponse.json(consentNeeded(), { status: 403 });
 
   if (!ctx.user.aiEnabled) {
     return NextResponse.json(

@@ -8,7 +8,8 @@ import { Button, Chip, ChipRow, FormError } from '@/components/form';
 import { Card, formatMoney } from '@/components/ui';
 import { SplitEditor, emptySplit, splitBody, type SplitChoice } from '@/components/SplitEditor';
 import { api } from '@/lib/api';
-import { PREVIEW } from '@/lib/session';
+import { PREVIEW, useSession } from '@/lib/session';
+import { AiConsentCard, needsAiConsent } from '@/components/AiConsent';
 import { useSummary } from '@/lib/summary';
 import { previewTransactions } from '@/data/preview';
 import { font, radius, space, type, useColors } from '@/theme/tokens';
@@ -27,6 +28,9 @@ export default function Add() {
   const c = useColors();
   const accent = c.section.spending;
   const { refresh } = useSummary();
+  const { me } = useSession();
+  // Receipts are read by the AI company: the first scan asks first.
+  const [asking, setAsking] = useState(false);
 
   const [meta, setMeta] = useState<Pick<TxnPage, 'categories' | 'accounts'> | null>(PREVIEW ? previewTransactions : null);
   const [kind, setKind] = useState<'expense' | 'income'>('expense');
@@ -72,8 +76,9 @@ export default function Add() {
   const ready = amountNumber > 0 && what.trim().length > 0 && Boolean(accountId);
 
   const [scanning, setScanning] = useState(false);
-  async function scan() {
+  async function scan(allowed = false) {
     setError(null);
+    if (!PREVIEW && needsAiConsent(me) && !allowed) { setAsking(true); return; }
     const pick = Platform.OS === 'web'
       ? await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], base64: true, quality: 0.6 })
       : await (async () => {
@@ -149,6 +154,10 @@ export default function Add() {
             </Pressable>
           ))}
         </View>
+
+        {asking ? (
+          <AiConsentCard what="receipt" onAllowed={() => { setAsking(false); void scan(true); }} onDeclined={() => setAsking(false)} />
+        ) : null}
 
         {kind === 'expense' ? (
           <Pressable onPress={() => void scan()} disabled={scanning} accessibilityRole="button"

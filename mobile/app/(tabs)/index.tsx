@@ -8,6 +8,7 @@ import { Card, Loading, formatMoney, PreviewBadge, Row, Screen, SectionHeader, S
 import { PockMark } from '@/components/Pock';
 import { Icon } from '@/components/Icon';
 import { TourTarget, useTour } from '@/lib/tour';
+import { GuestBanner } from '@/components/GuestBanner';
 import { useSession, PREVIEW } from '@/lib/session';
 import { useSummary, type Summary } from '@/lib/summary';
 import { font, space, type, useColors } from '@/theme/tokens';
@@ -34,6 +35,7 @@ export default function Home() {
   return (
     <Screen section="home" title={data ? todayLine(data.today) : 'Pockit'} eyebrow={data?.space?.shared ? `${data.space.name} · shared` : first ? `Hi ${first}` : undefined} right={<ProfileButton />} onRefresh={refresh} refreshing={refreshing}>
       {PREVIEW ? <PreviewBadge /> : null}
+      <GuestBanner />
       <StaleNote message={data ? error : null} />
       {data ? <Body d={data} /> : <Loading error={error} />}
     </Screen>
@@ -79,6 +81,7 @@ function runway(d: Summary): Stop[] {
 
 function Body({ d }: { d: Summary }) {
   const c = useColors();
+  const guest = Boolean(useSession().me?.guest);
   const a = useAccent();
   const h = d.home;
   const days = h.nextIncome ? Math.max(1, daysBetween(d.today, h.nextIncome.date)) : null;
@@ -106,7 +109,7 @@ function Body({ d }: { d: Summary }) {
         ]} />
       </TourTarget>
 
-      {d.bank?.available && !d.bank.connected && !PREVIEW ? <ConnectBankCard /> : !d.hasBalance && !PREVIEW ? <BalanceCard /> : null}
+      {d.bank?.available && !d.bank.connected && !PREVIEW && !guest ? <ConnectBankCard /> : !d.hasBalance && !PREVIEW ? <BalanceCard /> : null}
 
       <SectionHeader title="To payday" action="All bills" onAction={() => router.push('/bills')} />
       <TourTarget id="runway">

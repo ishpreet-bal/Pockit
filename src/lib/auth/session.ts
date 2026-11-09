@@ -23,6 +23,8 @@ export interface SessionUser {
   fileRetention: 'delete_after_extract' | 'keep' | 'ask';
   aiEnabled: boolean;
   dashboardWidgets: string[] | null;
+  /** Looking around with sample money; no real account yet. */
+  isGuest: boolean;
 }
 
 export interface WorkspaceSummary {
@@ -117,6 +119,7 @@ export const getSessionUser = cache(async (): Promise<SessionUser | null> => {
         fileRetention: userProfiles.fileRetention,
         aiEnabled: userProfiles.aiEnabled,
         dashboardWidgets: userProfiles.dashboardWidgets,
+        isGuest: users.isGuest,
       })
       .from(sessions)
       .innerJoin(users, eq(users.id, sessions.userId))
@@ -147,6 +150,7 @@ export const getSessionUser = cache(async (): Promise<SessionUser | null> => {
     fileRetention: row.fileRetention ?? 'ask',
     aiEnabled: row.aiEnabled ?? true,
     dashboardWidgets: row.dashboardWidgets ?? null,
+    isGuest: row.isGuest,
   };
 });
 

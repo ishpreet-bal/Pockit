@@ -19,6 +19,7 @@ import { findDuplicate, findInternalDuplicates, normalizeMerchant, type Duplicat
 import { addDays } from '@/lib/finance/period';
 import type { IsoDate, TxnType } from '@/lib/finance/types';
 import type { LedgerCategory } from '@/lib/finance/types';
+import { aiCompany, hasAiConsent } from '@/lib/ai/consent';
 
 /**
  * The ingestion pipeline (spec §9, §45).
@@ -163,6 +164,12 @@ async function runExtraction(
   let dateFormatHint: DateFormatHint = options.dateFormatHint ?? 'unknown';
 
   if (extracted.length === 0 && (needsVision || parsed.text)) {
+    // Reading a statement or screenshot sends it to the AI company: only with a yes.
+    if (provider.name !== 'heuristic' && !(await hasAiConsent(userId))) {
+      throw new AiUnavailableError(
+        `Reading this file uses ${aiCompany() ?? 'AI'}. Allow Pock to use it in Settings (Pock and AI), or upload a CSV, Excel or text-based PDF instead.`,
+      );
+    }
     if (needsVision && !provider.capabilities.vision) {
       throw new AiUnavailableError(
         'Reading this file needs a vision-capable AI provider. Add an ANTHROPIC_API_KEY or OPENAI_API_KEY, or upload a CSV, Excel or text-based PDF instead.',

@@ -46,10 +46,12 @@ export function saveSettings(s: Partial<TripSettings>) {
 /* ---------------- the car picker ---------------- */
 
 const DEMO_CAR: Vehicle = { id: 37724, year: 2017, make: 'Toyota', model: 'Camry', detail: '2.5L · 4 cyl · Auto (S6)', city: 9.8, highway: 7.13, electric: false, fuel: 'regular', vehicleClass: 'Midsize Cars' };
+// Offline samples only (no server to ask): the one sample car, so the menu never
+// offers a make or model it can't price honestly.
 const DEMO_MENU: Record<string, string[]> = {
-  '': ['2026', '2025', '2024', '2023', '2022', '2021', '2020', '2019', '2018', '2017'],
-  y: ['Chevrolet', 'Ford', 'Honda', 'Hyundai', 'Kia', 'Mazda', 'Nissan', 'Tesla', 'Toyota', 'Volkswagen'],
-  m: ['Camry', 'Corolla', 'RAV4', 'Highlander', 'Tacoma'],
+  '': ['2017'],
+  y: ['Toyota'],
+  m: ['Camry'],
 };
 
 export async function vehicleMenu(year?: string, make?: string, model?: string): Promise<{ items?: string[]; versions?: { id: number; detail: string }[] }> {

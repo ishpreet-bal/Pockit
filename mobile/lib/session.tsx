@@ -6,7 +6,13 @@ import { configurePurchases } from './purchases';
 export interface Me {
   id?: string;
   name: string | null;
-  email: string;
+  /** Null for a guest, whose address is only a placeholder. */
+  email: string | null;
+  /** Looking around with sample money on a temporary account. */
+  guest?: boolean;
+  /** The AI company Pock's answers come from (null: no AI configured), and whether this person allowed it. */
+  aiProvider?: string | null;
+  aiConsent?: boolean;
   setupDone: boolean;
   /** Has seen (or skipped) the walkthrough. */
   tourDone?: boolean;
@@ -27,10 +33,16 @@ interface SessionValue {
   adopt: (token: string) => Promise<Me | null>;
   refresh: () => Promise<Me | null>;
   signOut: () => Promise<void>;
-  /** Exploring with sample data, no account. Nothing is sent to the server. */
+  /**
+   * Offline sample mode: only when "Look around first" can't reach the server, and
+   * in design-review builds. Normally looking around is a guest account (me.guest).
+   */
   demo: boolean;
-  enterDemo: () => void;
+  /** "Look around first": a guest account with sample money, or offline samples if the server can't be reached. */
+  enterDemo: () => Promise<void>;
   exitDemo: () => void;
+  /** Stop looking around: the guest and its sample money are deleted. */
+  endGuest: () => Promise<void>;
 }
 
 const Ctx = createContext<SessionValue | null>(null);
@@ -72,10 +84,30 @@ export function SessionProvider({ children }: { children: ReactNode }) {
 
   const value = useMemo<SessionValue>(() => ({
     status, me, refresh, demo,
-    enterDemo: () => { PREVIEW = true; setDemo(true); setMe(DEMO_ME); setStatus('signed-in'); },
+    enterDemo: async () => {
+      try {
+        const { token } = await api<{ token: string }>('/api/mobile/auth/guest', { method: 'POST' });
+        await writeToken(token);
+        await refresh();
+      } catch {
+        // No server to look around on: the offline samples still show what Pockit does.
+        PREVIEW = true; setDemo(true); setMe(DEMO_ME); setStatus('signed-in');
+      }
+    },
+    endGuest: async () => {
+      try { await api('/api/account/guest/end', { method: 'POST' }); } catch { /* purged after a few days anyway */ }
+      await switchSpace(null);
+      await writeToken(null); setMe(null); setStatus('signed-out');
+    },
     exitDemo: () => { PREVIEW = false; setDemo(false); setMe(null); setStatus('signed-out'); },
     adopt: async (token) => { await writeToken(token); return refresh(); },
     signOut: async () => {
+      // Signing out of a guest would strand it: delete it instead.
+      if (me?.guest) {
+        try { await api('/api/account/guest/end', { method: 'POST' }); } catch { /* purged later */ }
+        await switchSpace(null); await writeToken(null); setMe(null); setStatus('signed-out');
+        return;
+      }
       await switchSpace(null);
       try { await api('/api/mobile/auth/sign-out', { method: 'POST' }); } catch { /* revoke is best effort */ }
       await writeToken(null); setMe(null); setStatus('signed-out');

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { requireAuthApi } from '@/lib/auth/api';
 import { createLinkToken, plaidConfigured, PlaidError } from '@/lib/bank/plaid';
+import { GUEST_BLOCKED_MESSAGE } from '@/lib/auth/guest';
 
 export const dynamic = 'force-dynamic';
 
@@ -8,6 +9,7 @@ export const dynamic = 'force-dynamic';
 export async function POST() {
   const ctx = await requireAuthApi();
   if ('response' in ctx) return ctx.response;
+  if (ctx.user.isGuest) return NextResponse.json({ error: GUEST_BLOCKED_MESSAGE, guest: true }, { status: 403 });
   if (!plaidConfigured()) return NextResponse.json({ error: 'Bank connection isn’t switched on yet.', notConfigured: true }, { status: 503 });
   try {
     const r = await createLinkToken(ctx.user.id, { hosted: true });

@@ -97,6 +97,8 @@ export const users = pockit.table('users', {
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   deletedAt: timestamp('deleted_at', { withTimezone: true }),
+  /** A "Look around first" account: sample money, no real email, deleted after a few days (drizzle/0014). */
+  isGuest: boolean('is_guest').notNull().default(false),
 }, (t) => [uniqueIndex('users_email_normalized_key').on(t.emailNormalized)]);
 
 export const sessions = pockit.table('sessions', {
@@ -132,6 +134,9 @@ export const userProfiles = pockit.table('user_profiles', {
   /** What they have told us so far, written after each screen rather than at the end. */
   onboardingAnswers: jsonb('onboarding_answers').$type<Record<string, unknown>>().notNull().default({}),
   tourCompletedAt: timestamp('tour_completed_at', { withTimezone: true }),
+  /** When the person allowed their data to go to the AI provider below (drizzle/0015). Null: not allowed. */
+  aiConsentAt: timestamp('ai_consent_at', { withTimezone: true }),
+  aiConsentProvider: text('ai_consent_provider'),
   // Privacy (spec §30): what happens to an uploaded file after extraction.
   fileRetention: fileRetention('file_retention').notNull().default('ask'),
   aiEnabled: boolean('ai_enabled').notNull().default(true),

@@ -12,14 +12,14 @@
       "distribution": "internal",
       "env": {
         "EXPO_PUBLIC_PREVIEW": "0",
-        "EXPO_PUBLIC_API_URL": "https://pockit-7xmx.vercel.app"
+        "EXPO_PUBLIC_API_URL": "https://pockit-7xmx-five.vercel.app"
       }
     },
     "production": {
       "autoIncrement": true,
       "env": {
         "EXPO_PUBLIC_PREVIEW": "0",
-        "EXPO_PUBLIC_API_URL": "https://pockit-7xmx.vercel.app"
+        "EXPO_PUBLIC_API_URL": "https://pockit-7xmx-five.vercel.app"
       }
     }
   },

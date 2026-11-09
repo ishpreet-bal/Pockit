@@ -6,6 +6,7 @@ import { router } from 'expo-router';
 import { Card as Box } from '@/components/ui';
 import { useSession } from '@/lib/session';
 import { space, type, useColors } from '@/theme/tokens';
+import { GuestBanner } from '@/components/GuestBanner';
 
 const ITEMS = [
   { icon: 'repeat', title: 'Bills', detail: 'Rent, phone, subscriptions' },
@@ -17,6 +18,7 @@ const ITEMS = [
 export default function More() {
   return (
     <Screen section="more" title="You" back>
+      <GuestBanner />
       <Body />
     </Screen>
   );
@@ -60,7 +62,7 @@ function SignOut() {
   return (
     <>
       <Box style={{ marginTop: space.xxl, paddingVertical: space.lg, alignItems: 'center' }} onPress={async () => { if (demo) exitDemo(); else await signOut(); router.replace('/welcome'); }}>
-        <Text style={[type.bodyStrong, { color: c.negative }]}>{demo ? 'Exit demo' : 'Sign out'}</Text>
+        <Text style={[type.bodyStrong, { color: c.negative }]}>{demo ? 'Exit demo' : me?.guest ? 'Stop looking around' : 'Sign out'}</Text>
       </Box>
       {me?.email && !demo ? <Text style={[type.caption, { color: c.textSubtle, textAlign: 'center', marginTop: space.sm }]}>Signed in as {me.email}</Text> : null}
     </>

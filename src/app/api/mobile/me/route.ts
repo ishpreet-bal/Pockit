@@ -4,6 +4,7 @@ import { requireAuthApi } from '@/lib/auth/api';
 import { withoutUser } from '@/lib/db/client';
 import { userProfiles } from '@/lib/db/schema';
 import { getPlan } from '@/lib/billing/plan';
+import { aiCompany, hasAiConsent } from '@/lib/ai/consent';
 
 export const dynamic = 'force-dynamic';
 
@@ -17,7 +18,12 @@ export async function GET() {
   );
   return NextResponse.json({
     name: ctx.user.displayName,
-    email: ctx.user.email,
+    // A guest's address is a placeholder; never show it.
+    email: ctx.user.isGuest ? null : ctx.user.email,
+    guest: ctx.user.isGuest,
+    /** Who Pock's answers come from, and whether this person has allowed it. */
+    aiProvider: aiCompany(),
+    aiConsent: await hasAiConsent(ctx.user.id),
     setupDone: rows[0]?.stage === 'done' || Boolean(ctx.user.onboardingCompletedAt),
     id: ctx.user.id,
     tourDone: Boolean(rows[0]?.tour),

@@ -5,6 +5,7 @@ import { Send, Trash2, MessageSquare, ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/primitives';
 import { Mascot } from './mascot';
 import { cn } from '@/lib/ui/cn';
+import { AiConsentCard } from './ai-consent';
 
 interface Thread { id: string; title: string; symbol: string | null; updatedAt: string }
 interface Message { id?: string; role: string; body: string }
@@ -54,6 +55,8 @@ export function AskPock({
   const [draft, setDraft] = useState(initialPrompt ?? '');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Set when the server needs a yes before the AI may see anything: the question waits.
+  const [consent, setConsent] = useState<{ provider: string | null; question: string } | null>(null);
   const bottom = useRef<HTMLDivElement>(null);
 
   useEffect(() => { void loadThreads(); }, []);
@@ -106,8 +109,14 @@ export function AskPock({
         }),
       });
       const json = (await response.json().catch(() => null)) as
-        { answer?: string; threadId?: string; error?: string } | null;
+        { answer?: string; threadId?: string; error?: string; needsAiConsent?: boolean; provider?: string | null } | null;
 
+      if (json?.needsAiConsent) {
+        // Take the question back off screen; it is asked again once allowed.
+        setMessages((prev) => prev.slice(0, -1));
+        setConsent({ provider: json.provider ?? null, question: text });
+        return;
+      }
       if (!response.ok || !json?.answer) {
         setError(json?.error ?? 'Pock could not answer just now.');
         // The question stays on screen — retyping it would be the second insult.
@@ -220,6 +229,13 @@ export function AskPock({
           </p>
         ) : null}
 
+        {consent ? (
+          <AiConsentCard
+            provider={consent.provider}
+            onAllowed={() => { const q = consent.question; setConsent(null); void ask(q); }}
+            onDeclined={() => setConsent(null)}
+          />
+        ) : null}
         {error ? (
           <p role="alert" className="rounded-[var(--radius-control)] bg-[var(--negative-soft)] px-3 py-2 text-sm text-[var(--negative)]">
             {error}

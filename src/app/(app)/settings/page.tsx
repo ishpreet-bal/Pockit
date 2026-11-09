@@ -11,6 +11,8 @@ import { Card, CardHeader, CardBody } from '@/components/ui/primitives';
 import { SettingsForms } from './forms';
 import { getAiProvider } from '@/lib/ai';
 import { env } from '@/lib/env';
+import { AiPermission } from './ai-permission';
+import { aiCompany, hasAiConsent } from '@/lib/ai/consent';
 
 export const metadata: Metadata = { title: 'Settings' };
 export const dynamic = 'force-dynamic';
@@ -59,7 +61,7 @@ export default async function SettingsPage() {
 
   return (
     <>
-      <PageHeader title="Settings" description={`Signed in as ${user.email}`} />
+      <PageHeader title="Settings" description={user.isGuest ? 'Looking around with sample money' : `Signed in as ${user.email}`} />
 
       {/*
         Two columns on a wide screen. Settings is a long list of unrelated panels, and
@@ -70,7 +72,7 @@ export default async function SettingsPage() {
         <div className="space-y-4 lg:col-span-2">
           {/* The demo sandbox has its own bar with an Exit; this banner's "clear it" would
               empty the sandbox, which is never what someone exploring it wants. */}
-          {workspace.isDemo && !isDemoTour(workspace) ? <DemoBanner /> : null}
+          {workspace.isDemo && !isDemoTour(workspace) && !user.isGuest ? <DemoBanner /> : null}
         </div>
 
         <div className="space-y-4 lg:col-span-2">
@@ -78,6 +80,8 @@ export default async function SettingsPage() {
         </div>
 
         <TwoFactor />
+
+        <AiPermission provider={aiCompany()} allowed={await hasAiConsent(user.id)} />
 
         {/*
           The rest is real, and rarely needed. It used to sit at the same weight as

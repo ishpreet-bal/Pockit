@@ -14,6 +14,8 @@ import { buildUserContext } from '@/lib/pock/context';
 import { buildContext as buildMarketContext } from '@/lib/investing/pock';
 import { todayIn } from '@/lib/finance/period';
 import { getPlan, FREE_POCK_QUESTIONS_PER_MONTH } from '@/lib/billing/plan';
+import { GUEST_AI_LIMIT_MESSAGE, guestAiAllowed } from '@/lib/auth/guest';
+import { aiConsentMissing, consentNeeded } from '@/lib/ai/consent';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
@@ -83,6 +85,9 @@ const askSchema = z.object({
 export async function POST(request: Request) {
   const ctx = await requireAuthApi();
   if ('response' in ctx) return ctx.response;
+  if (!(await guestAiAllowed(ctx.user))) return NextResponse.json({ error: GUEST_AI_LIMIT_MESSAGE, guest: true }, { status: 429 });
+  // Nothing goes to the AI company without the person's yes (App Store 5.1.2(i)).
+  if (await aiConsentMissing(ctx.user.id)) return NextResponse.json(consentNeeded(), { status: 403 });
 
   const limit = await checkRateLimit(`pock:${ctx.user.id}`, 40, 60 * 60);
   if (!limit.allowed) {

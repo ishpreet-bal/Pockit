@@ -9,6 +9,7 @@ import { PockMark } from '@/components/Pock';
 import { Icon } from '@/components/Icon';
 import { api, ApiError } from '@/lib/api';
 import { PREVIEW, useSession } from '@/lib/session';
+import { AiConsentCard, needsAiConsent } from '@/components/AiConsent';
 import { font, radius, space, type, useColors, useIsDark } from '@/theme/tokens';
 
 interface Msg { role: 'user' | 'pock' | 'problem'; text: string; upgrade?: boolean }
@@ -40,6 +41,9 @@ export default function Pock({ embedded = false }: { embedded?: boolean }) {
   const [thinking, setThinking] = useState(false);
   const scroll = useRef<ScrollView>(null);
   const { me, refresh: refreshMe } = useSession();
+  // A question asked before the person allowed the AI waits here until they do.
+  const [waiting, setWaiting] = useState<string | null>(null);
+  const mustAsk = !PREVIEW && needsAiConsent(me);
   const left = me?.plusEnabled && !me.plus ? me.pockLeftThisMonth ?? null : null;
 
   const starters = learn
@@ -51,9 +55,11 @@ export default function Pock({ embedded = false }: { embedded?: boolean }) {
     if (params.q && !askedFromTopic.current) { askedFromTopic.current = true; void ask(params.q); }
   }, [params.q]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  async function ask(question: string) {
+  /** `allowed`: the person just said yes, so don't wait on a refreshed profile to know it. */
+  async function ask(question: string, allowed = false) {
     const q = question.trim();
     if (q.length < 2 || thinking) return;
+    if (mustAsk && !allowed) { setWaiting(q); setDraft(''); return; }
     void Haptics.selectionAsync();
     setDraft('');
     setMessages((m) => [...m, { role: 'user', text: q }]);
@@ -71,6 +77,9 @@ export default function Pock({ embedded = false }: { embedded?: boolean }) {
         if (left !== null) void refreshMe();
       }
     } catch (e) {
+      if (e instanceof ApiError && e.body.needsAiConsent) {
+        setMessages((m) => m.slice(0, -1)); setWaiting(q); void refreshMe(); return;
+      }
       if (e instanceof ApiError && typeof e.body.threadId === 'string') setThreadId(e.body.threadId);
       setMessages((m) => [...m, { role: 'problem', text: e instanceof Error ? e.message : 'Pock couldn’t answer just now.', upgrade: e instanceof ApiError && e.body.upgrade === true }]);
     } finally {
@@ -93,6 +102,12 @@ export default function Pock({ embedded = false }: { embedded?: boolean }) {
       </View>
 
       <ScrollView ref={scroll} contentContainerStyle={{ padding: space.xl, gap: space.md, flexGrow: 1 }} keyboardShouldPersistTaps="handled">
+        {waiting !== null || (mustAsk && messages.length === 0) ? (
+          <AiConsentCard
+            onAllowed={() => { const q = waiting; setWaiting(null); if (q) void ask(q, true); }}
+            onDeclined={waiting !== null ? () => setWaiting(null) : undefined}
+          />
+        ) : null}
         {messages.length === 0 ? (
           <View style={{ flex: 1, justifyContent: 'center', gap: space.lg }}>
             <View style={{ alignItems: 'center', gap: space.md }}>

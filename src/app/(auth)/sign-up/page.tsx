@@ -7,6 +7,8 @@ import { getSessionUser } from '@/lib/auth/session';
 export const metadata: Metadata = { title: 'Create account' };
 
 export default async function SignUpPage() {
-  if (await getSessionUser()) redirect('/overview');
+  const current = await getSessionUser();
+  // A guest looking around may sign up or in; anyone else is already in.
+  if (current && !current.isGuest) redirect('/overview');
   return <AuthForm mode="sign-up" action={signUpAction} />;
 }

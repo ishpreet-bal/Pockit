@@ -5,6 +5,7 @@ import { withUser } from '@/lib/db/client';
 import { bankConnections } from '@/lib/db/schema';
 import { exchangePublicToken, linkResult, plaidConfigured, sealToken, PlaidError } from '@/lib/bank/plaid';
 import { syncConnection } from '@/lib/bank/sync';
+import { GUEST_BLOCKED_MESSAGE } from '@/lib/auth/guest';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
@@ -19,6 +20,7 @@ const schema = z.object({ linkToken: z.string().min(10).max(200) });
 export async function POST(request: Request) {
   const ctx = await requireAuthApi();
   if ('response' in ctx) return ctx.response;
+  if (ctx.user.isGuest) return NextResponse.json({ error: GUEST_BLOCKED_MESSAGE, guest: true }, { status: 403 });
   if (!plaidConfigured()) return NextResponse.json({ error: 'Bank connection isn’t switched on yet.' }, { status: 503 });
   const parsed = schema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) return NextResponse.json({ error: 'Missing link session.' }, { status: 400 });

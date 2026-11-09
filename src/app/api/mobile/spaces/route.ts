@@ -9,6 +9,7 @@ import { accounts, spaceInvites, transactions, userProfiles, users, workspaceMem
 import { seedCategories, seedNotificationRules } from '@/lib/data/bootstrap';
 import { checkRateLimit } from '@/lib/auth/rate-limit';
 import { splitEvenly } from '@/lib/finance/split';
+import { GUEST_BLOCKED_MESSAGE } from '@/lib/auth/guest';
 
 export const dynamic = 'force-dynamic';
 
@@ -66,6 +67,7 @@ const schema = z.discriminatedUnion('action', [
 export async function POST(request: Request) {
   const ctx = await requireAuthApi();
   if ('response' in ctx) return ctx.response;
+  if (ctx.user.isGuest) return NextResponse.json({ error: GUEST_BLOCKED_MESSAGE, guest: true }, { status: 403 });
   const parsed = schema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) return NextResponse.json({ error: 'Something was missing. Try again.' }, { status: 400 });
   const input = parsed.data;

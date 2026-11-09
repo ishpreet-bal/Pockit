@@ -6,6 +6,7 @@ import { PageTransition } from '@/components/ui/page-transition';
 import { CompanionHost } from './companion-host';
 import { TourHost } from './tour-host';
 import { DemoModeBar } from './demo-mode-bar';
+import { GuestBar } from './guest-bar';
 import { isDemoTour } from '@/lib/data/demo-workspace';
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
@@ -19,7 +20,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     <div className="flex min-h-dvh bg-[var(--bg)]">
       <Sidebar workspaces={navWorkspaces} activeId={workspace.id} />
       <div className="flex min-w-0 flex-1 flex-col">
-        {isDemoTour(workspace) ? <DemoModeBar /> : null}
+        {user.isGuest ? <GuestBar /> : isDemoTour(workspace) ? <DemoModeBar /> : null}
         <MobileHeader workspaces={navWorkspaces} activeId={workspace.id} />
         {/*
           Content is capped and centred so a 27" monitor does not stretch a table of

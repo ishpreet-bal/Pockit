@@ -9,6 +9,8 @@ import { env } from '@/lib/env';
 import { checkRateLimit } from '@/lib/auth/rate-limit';
 import { getAiProvider } from '@/lib/ai';
 import { DEFAULT_OPENAI_MODEL } from '@/lib/ai/openai';
+import { GUEST_AI_LIMIT_MESSAGE, guestAiAllowed } from '@/lib/auth/guest';
+import { aiConsentMissing, consentNeeded } from '@/lib/ai/consent';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
@@ -36,6 +38,9 @@ const body = z.object({
 export async function POST(request: Request) {
   const ctx = await requireAuthApi();
   if ('response' in ctx) return ctx.response;
+  if (!(await guestAiAllowed(ctx.user))) return NextResponse.json({ error: GUEST_AI_LIMIT_MESSAGE, guest: true }, { status: 429 });
+  // Nothing goes to the AI company without the person's yes (App Store 5.1.2(i)).
+  if (await aiConsentMissing(ctx.user.id)) return NextResponse.json(consentNeeded(), { status: 403 });
   const provider = getAiProvider().name;
   if (provider !== 'anthropic' && provider !== 'openai') return NextResponse.json({ error: 'Receipt scanning isn’t switched on yet.' }, { status: 503 });
   const limit = await checkRateLimit(`receipt:${ctx.user.id}`, 30, 60 * 60);

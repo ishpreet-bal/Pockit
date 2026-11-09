@@ -27,7 +27,7 @@ Verified: 310 unit tests; the website smoke suite (30/30); the security suite, i
 ### 2. A domain of your own
 - [ ] Buy one (about $15/year), for example `pockitapp.com`, and add it in Vercel → Domains.
 - [ ] Set `APP_URL` to it, and change `EXPO_PUBLIC_API_URL` in `mobile/eas.json` to it.
-- [ ] Needed because email has to come from a domain you own, and `pockit-7xmx.vercel.app` looks unofficial in the App Store.
+- [ ] Needed because email has to come from a domain you own, and `pockit-7xmx-five.vercel.app` looks unofficial in the App Store.
 
 ### 3. Keys in Vercel
 
