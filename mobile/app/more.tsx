@@ -39,6 +39,7 @@ function Body() {
       <Card>
         <Row icon="chart.bar" title="Budget" detail="A monthly plan for each category" value="›" valueColor={c.textSubtle} onPress={() => router.push('/budget')} />
         <Row icon="car" title="Plan a trip" detail="Gas cost for a drive or your commute" value="›" valueColor={c.textSubtle} onPress={() => router.push('/trip')} />
+        <Row icon="bubble.left" title="Send feedback" detail="Something broken, confusing, or great" value="›" valueColor={c.textSubtle} onPress={() => router.push('/feedback')} />
         <Row icon="person.2" title="Owed to you" detail="Split bills and money you’re getting back" value="›" valueColor={c.textSubtle} onPress={() => router.push('/owed')} />
         <Row icon="person.crop.circle" title="Shared spaces" detail="Budget with a partner or roommates" value="›" valueColor={c.textSubtle} onPress={() => router.push('/spaces')} />
         <Row icon="star" title="Take the tour" detail="A 30-second look around Pockit" value="›" valueColor={c.textSubtle} last onPress={() => { router.navigate('/'); setTimeout(() => tour.start(), 350); }} />

@@ -218,6 +218,7 @@ export function AskPock({
               )}
             >
               {m.body}
+              {m.role === 'assistant' ? <ReportAnswer question={messages[i - 1]?.body ?? null} answer={m.body} /> : null}
             </div>
           ))
         )}
@@ -307,3 +308,22 @@ function IconButton({
     </button>
   );
 }
+
+/** A person reviews reported answers: AI can be wrong, and money answers matter. */
+function ReportAnswer({ question, answer }: { question: string | null; answer: string }) {
+  const [done, setDone] = useState(false);
+  async function report() {
+    setDone(true);
+    await fetch('/api/feedback', {
+      method: 'POST', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ kind: 'bug', page: 'pock-answer', message: `Reported Pock answer.\n\nQuestion: ${question ?? '(unknown)'}\n\nAnswer: ${answer}`.slice(0, 4000) }),
+    }).catch(() => null);
+  }
+  return (
+    <button type="button" onClick={() => void report()} disabled={done}
+      className="mt-1.5 block text-xs text-[var(--text-subtle)] hover:underline disabled:no-underline">
+      {done ? 'Reported. Thank you.' : 'Wrong or unhelpful? Report'}
+    </button>
+  );
+}
+

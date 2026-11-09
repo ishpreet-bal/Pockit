@@ -12,7 +12,7 @@ import { PREVIEW, useSession } from '@/lib/session';
 import { AiConsentCard, needsAiConsent } from '@/components/AiConsent';
 import { font, radius, space, type, useColors, useIsDark } from '@/theme/tokens';
 
-interface Msg { role: 'user' | 'pock' | 'problem'; text: string; upgrade?: boolean }
+interface Msg { role: 'user' | 'pock' | 'problem'; text: string; upgrade?: boolean; question?: string; reported?: boolean }
 
 const STARTERS = [
   'How much can I spend this week?',
@@ -73,7 +73,7 @@ export default function Pock({ embedded = false }: { embedded?: boolean }) {
       } else {
         const res = await api<{ answer: string; threadId: string }>('/api/pock', { body: { question: q, threadId, ...(anchor ? { anchor } : {}), ...(learn ? { mode: 'learn' } : {}) } });
         setThreadId(res.threadId);
-        setMessages((m) => [...m, { role: 'pock', text: res.answer }]);
+        setMessages((m) => [...m, { role: 'pock', text: res.answer, question: q }]);
         if (left !== null) void refreshMe();
       }
     } catch (e) {
@@ -86,6 +86,16 @@ export default function Pock({ embedded = false }: { embedded?: boolean }) {
       setThinking(false);
       setTimeout(() => scroll.current?.scrollToEnd({ animated: true }), 50);
     }
+  }
+
+  /** A person reviews reported answers: AI can be wrong, and money answers matter. */
+  async function report(index: number) {
+    const m = messages[index];
+    if (!m) return;
+    setMessages((all) => all.map((x, j) => (j === index ? { ...x, reported: true } : x)));
+    try {
+      await api('/api/feedback', { body: { kind: 'bug', page: 'pock-answer', message: `Reported Pock answer.\n\nQuestion: ${m.question ?? '(unknown)'}\n\nAnswer: ${m.text}`.slice(0, 4000) } });
+    } catch { /* the flag stays shown; the report is best effort */ }
   }
 
   return (
@@ -132,6 +142,11 @@ export default function Pock({ embedded = false }: { embedded?: boolean }) {
               borderWidth: m.role === 'pock' ? 1 : 0, borderColor: c.border,
             }}>
               <Text style={[type.body, { color: m.role === 'user' ? onAccent : m.role === 'problem' ? c.textMuted : c.text, lineHeight: 22 }]}>{m.text}</Text>
+              {m.role === 'pock' && !PREVIEW ? (
+                <Pressable onPress={() => void report(i)} disabled={m.reported} hitSlop={8} accessibilityRole="button" accessibilityLabel="Report this answer" style={{ marginTop: 6, alignSelf: 'flex-start' }}>
+                  <Text style={[type.caption, { color: c.textSubtle }]}>{m.reported ? 'Reported. Thank you.' : 'Wrong or unhelpful? Report'}</Text>
+                </Pressable>
+              ) : null}
               {m.upgrade ? (
                 <Pressable onPress={() => router.push('/plus')} style={{ marginTop: 10, alignSelf: 'flex-start', paddingHorizontal: 14, paddingVertical: 8, borderRadius: 99, backgroundColor: a.accent }}>
                   <Text style={{ fontFamily: font.semibold, color: onAccent }}>Try Pockit Plus free</Text>
