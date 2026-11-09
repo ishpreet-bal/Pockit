@@ -2,7 +2,8 @@ import { NextResponse } from 'next/server';
 import { and, eq, ne } from 'drizzle-orm';
 import { requireAuthApi } from '@/lib/auth/api';
 import { withUser, withoutUser } from '@/lib/db/client';
-import { userProfiles, recurringSeries, goals, accounts } from '@/lib/db/schema';
+import { userProfiles, recurringSeries, goals, accounts, categories, budgets, budgetAllocations } from '@/lib/db/schema';
+import { startOfMonth, todayIn } from '@/lib/finance/period';
 import {
   parseAnswers, buildPicture, toMonthlyMinor, toDbCadence, toIncomeSchedule, type Answers,
 } from '@/lib/onboarding/state';
@@ -25,6 +26,7 @@ export const dynamic = 'force-dynamic';
  *   goals           -> goals, with the kind carried through so the analysis is
  *                      goal-specific from the first visit.
  *   savings         -> an opening balance on a savings account.
+ *   spending        -> the first monthly budget, one line per category they picked.
  *
  * Idempotent by construction: it refuses to run once the stage is 'done', so a
  * double-submitted final screen cannot create two of everything.
@@ -61,7 +63,7 @@ export async function POST() {
   }
 
   const created = await withUser(ctx.user.id, async (tx) => {
-    const counts = { recurring: 0, goals: 0, accounts: 0 };
+    const counts = { recurring: 0, goals: 0, accounts: 0, budgetLines: 0 };
 
     // An account is needed before anything can point at one.
     const existing = await tx.select({ id: accounts.id, type: accounts.type })
@@ -164,6 +166,38 @@ export async function POST() {
       counts.goals++;
     }
 
+    // "Where does most of your money go?" becomes the first budget, matched to this
+    // workspace's own categories by slug (never by a shared id).
+    const spend = Object.entries(answers.spendingByCategory ?? {}).filter(([, v]) => v > 0);
+    if (spend.length) {
+      const cats = await tx.select({ id: categories.id, slug: categories.slug })
+        .from(categories).where(eq(categories.workspaceId, ctx.workspace.id));
+      const bySlug = new Map(cats.map((cat) => [cat.slug, cat.id]));
+      const lines = spend.flatMap(([slug, amount]) => (bySlug.has(slug) ? [{ categoryId: bySlug.get(slug)!, amount }] : []));
+      if (lines.length) {
+        await tx.update(budgets).set({ isActive: false })
+          .where(and(eq(budgets.workspaceId, ctx.workspace.id), eq(budgets.isActive, true)));
+        const made = await tx.insert(budgets).values({
+          workspaceId: ctx.workspace.id,
+          name: 'Monthly budget',
+          method: 'category',
+          period: 'monthly',
+          periodStart: startOfMonth(todayIn(ctx.user.timezone)),
+          rollover: false,
+          setupAnswers: { createdFrom: 'setup' },
+          isActive: true,
+        }).returning({ id: budgets.id });
+        await tx.insert(budgetAllocations).values(lines.map((l, i) => ({
+          workspaceId: ctx.workspace.id,
+          budgetId: made[0]!.id,
+          categoryId: l.categoryId,
+          amountMinor: BigInt(l.amount),
+          sortOrder: i,
+        })));
+        counts.budgetLines = lines.length;
+      }
+    }
+
     return counts;
   });
 
@@ -180,6 +214,7 @@ export async function POST() {
           }
         : {}),
       ...(answers.firstName ? { displayName: answers.firstName } : {}),
+      ...(answers.intents?.length ? { primaryIntent: answers.intents[0] } : {}),
       updatedAt: new Date(),
     }).where(eq(userProfiles.userId, ctx.user.id)),
   );

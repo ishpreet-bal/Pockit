@@ -102,8 +102,14 @@ const goalAnswer = z.object({
  * normal case rather than an error. Validation here is about rejecting nonsense,
  * not about insisting the flow was completed.
  */
+/** Why someone is here, asked first so the rest of setup and the summary fit them. */
+export const INTENTS = ['payday', 'save', 'debt', 'track', 'together', 'invest'] as const;
+
 export const answersSchema = z.object({
   firstName: z.string().trim().max(60).optional(),
+  intents: z.array(z.enum(INTENTS)).max(INTENTS.length).optional(),
+  /** Who the money is for: decides whether setup ends by suggesting a shared space. */
+  household: z.enum(['solo', 'partner', 'family']).optional(),
   incomeMinor: z.number().int().nonnegative().optional(),
   incomeCadence: z.enum(CADENCES).optional(),
   incomeSource: z.enum(['employment', 'self_employment', 'business', 'multiple', 'other']).optional(),
@@ -114,6 +120,7 @@ export const answersSchema = z.object({
    */
   incomeNextDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
   recurring: z.array(recurringAnswer).max(30).optional(),
+  /** Rough monthly spend by top-level category slug: becomes the first budget. */
   spendingByCategory: z.record(z.string(), z.number().int().nonnegative()).optional(),
   savingsMinor: z.number().int().nonnegative().optional(),
   /** What's in the everyday (chequing) account right now — the starting point for "safe to spend". */
