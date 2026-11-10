@@ -10,9 +10,38 @@
 -- policies hold even if the application code is wrong. The few privileged steps
 -- (sign-up, sign-in, migrations) keep the connecting role.
 
-DO $$ BEGIN
-  CREATE ROLE pockit_app NOLOGIN NOBYPASSRLS;
-EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+-- Some hosts refuse CREATE ROLE outright (a "restricted superuser"), and some let the
+-- connecting role create it but not grant it to itself. Neither may stop setup: every
+-- step that needs the role runs only once the role exists and this connection may
+-- use it, and otherwise the database stays as it was before this migration. The app
+-- checks the same thing (canEnforceRls) and carries on as the connecting role.
+DO $$
+BEGIN
+  BEGIN
+    CREATE ROLE pockit_app NOLOGIN NOBYPASSRLS;
+  EXCEPTION
+    WHEN duplicate_object THEN NULL;
+    WHEN OTHERS THEN
+      RAISE NOTICE 'pockit_app not created (%); row-level security stays with the connecting role', SQLERRM;
+      RETURN;
+  END;
+
+  -- The connecting role may switch into it.
+  BEGIN
+    EXECUTE 'GRANT pockit_app TO ' || quote_ident(current_user);
+  EXCEPTION WHEN OTHERS THEN
+    RAISE NOTICE 'pockit_app not granted to % (%)', current_user, SQLERRM;
+  END;
+
+  GRANT USAGE ON SCHEMA pockit TO pockit_app;
+  GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA pockit TO pockit_app;
+  GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA pockit TO pockit_app;
+  GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA pockit TO pockit_app;
+  -- Tables and functions added by later migrations get the same grants.
+  ALTER DEFAULT PRIVILEGES IN SCHEMA pockit GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO pockit_app;
+  ALTER DEFAULT PRIVILEGES IN SCHEMA pockit GRANT USAGE, SELECT ON SEQUENCES TO pockit_app;
+  ALTER DEFAULT PRIVILEGES IN SCHEMA pockit GRANT EXECUTE ON FUNCTIONS TO pockit_app;
+END $$;
 
 --> statement-breakpoint
 
@@ -29,46 +58,3 @@ RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER SET search_path = pockit, p
        WHERE m.workspace_id = ws AND m.user_id = pockit.current_user_id()
      );
 $$;
-
---> statement-breakpoint
-
-GRANT USAGE ON SCHEMA pockit TO pockit_app;
-
---> statement-breakpoint
-
-GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA pockit TO pockit_app;
-
---> statement-breakpoint
-
-GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA pockit TO pockit_app;
-
---> statement-breakpoint
-
-GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA pockit TO pockit_app;
-
---> statement-breakpoint
-
--- Tables and functions added by later migrations get the same grants.
-ALTER DEFAULT PRIVILEGES IN SCHEMA pockit GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO pockit_app;
-
---> statement-breakpoint
-
-ALTER DEFAULT PRIVILEGES IN SCHEMA pockit GRANT USAGE, SELECT ON SEQUENCES TO pockit_app;
-
---> statement-breakpoint
-
-ALTER DEFAULT PRIVILEGES IN SCHEMA pockit GRANT EXECUTE ON FUNCTIONS TO pockit_app;
-
---> statement-breakpoint
-
--- The connecting role may switch into it.
---
--- Hosted databases connect as a role that is not a superuser, and it may lack the
--- right to grant this role (it does if it created it; not if someone else did). That
--- must not stop setup: the app checks whether it can switch (canEnforceRls) and runs
--- as the connecting role when it cannot, exactly as it did before this migration.
-DO $$ BEGIN
-  EXECUTE 'GRANT pockit_app TO ' || quote_ident(current_user);
-EXCEPTION WHEN insufficient_privilege OR invalid_grant_operation THEN
-  RAISE NOTICE 'Could not grant pockit_app to %; row-level security stays with the connecting role', current_user;
-END $$;
