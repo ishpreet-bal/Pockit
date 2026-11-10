@@ -35,10 +35,34 @@ describe('bank token sealing', () => {
   it('round-trips and is not readable at rest', async () => {
     process.env.AUTH_SECRET = 'x'.repeat(40);
     const { sealToken, openToken } = await import('./plaid');
-    const sealed = sealToken('access-sandbox-123');
+    const ws = '11111111-1111-4111-8111-111111111111';
+    const sealed = sealToken('access-sandbox-123', ws);
     expect(sealed).not.toContain('access-sandbox');
-    expect(openToken(sealed)).toBe('access-sandbox-123');
+    expect(sealed.startsWith('v2.')).toBe(true);
+    expect(openToken(sealed, ws)).toBe('access-sandbox-123');
     const tampered = sealed.slice(0, -2) + (sealed.endsWith('A') ? 'B' : 'A') + sealed.slice(-1);
-    expect(() => openToken(tampered)).toThrow();
+    expect(() => openToken(tampered, ws)).toThrow();
+  });
+
+  it('a token copied onto another space will not open', async () => {
+    process.env.AUTH_SECRET = 'x'.repeat(40);
+    const { sealToken, openToken, TokenUnreadable } = await import('./plaid');
+    const sealed = sealToken('access-sandbox-123', '11111111-1111-4111-8111-111111111111');
+    expect(() => openToken(sealed, '22222222-2222-4222-8222-222222222222')).toThrow(TokenUnreadable);
+  });
+
+  it('a dedicated BANK_TOKEN_KEY is used, and older tokens still open', async () => {
+    process.env.AUTH_SECRET = 'x'.repeat(40);
+    const { sealToken, openToken } = await import('./plaid');
+    const ws = '11111111-1111-4111-8111-111111111111';
+    const before = sealToken('old', ws);
+    process.env.BANK_TOKEN_KEY = 'k'.repeat(40);
+    const after = sealToken('new', ws);
+    expect(openToken(before, ws)).toBe('old');
+    expect(openToken(after, ws)).toBe('new');
+    process.env.AUTH_SECRET = 'y'.repeat(40); // rotating AUTH_SECRET no longer disconnects banks
+    expect(openToken(after, ws)).toBe('new');
+    expect(() => openToken(before, ws)).toThrow();
+    delete process.env.BANK_TOKEN_KEY;
   });
 });

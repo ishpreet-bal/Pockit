@@ -1179,6 +1179,22 @@ export const costRepayments = pockit.table('cost_repayments', {
   transactionId: uuid('transaction_id').unique().references(() => transactions.id, { onDelete: 'set null' }),
   amountMinor: bigint('amount_minor', { mode: 'bigint' }).notNull(),
   receivedOn: date('received_on').notNull(),
+  /** Who it came from, on a split with several people (drizzle/0017). */
+  person: text('person'),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
+/** Money you owe a friend for something they paid for (drizzle/0017). Your part is booked as `transactionId`. */
+export const iouDebts = pockit.table('iou_debts', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  workspaceId: uuid('workspace_id').notNull().references(() => workspaces.id, { onDelete: 'cascade' }),
+  person: text('person').notNull(),
+  description: text('description').notNull(),
+  amountMinor: bigint('amount_minor', { mode: 'bigint' }).notNull(),
+  transactionId: uuid('transaction_id').notNull().unique().references(() => transactions.id, { onDelete: 'cascade' }),
+  settledAt: timestamp('settled_at', { withTimezone: true }),
+  settleTransactionId: uuid('settle_transaction_id').unique().references(() => transactions.id, { onDelete: 'set null' }),
+  createdBy: uuid('created_by').references(() => users.id, { onDelete: 'set null' }),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 });
 

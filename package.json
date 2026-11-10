@@ -32,7 +32,8 @@
     "e2e:investing": "node e2e/investing.mjs",
     "db:start": "bash scripts/dev-db.sh",
     "e2e:security": "node e2e/security.mjs",
-    "e2e:bank": "node e2e/bank.mjs"
+    "e2e:bank": "node e2e/bank.mjs",
+    "e2e:friends": "node e2e/friends.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "0.125.0",

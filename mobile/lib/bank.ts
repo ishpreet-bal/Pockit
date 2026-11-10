@@ -18,7 +18,7 @@ export async function listConnections() {
 /** Opens the bank page, waits for them to finish, then stores and syncs. Resolves with the bank's name, or null if they backed out. */
 export async function connectBank(onStatus: (s: string) => void, connectionId?: string): Promise<string | null> {
   // With connectionId: the same bank signing in again, keeping its accounts and history.
-  const { linkToken, url } = await api<{ linkToken: string; url: string | null }>('/api/mobile/bank/link', { method: 'POST', body: connectionId ? { connectionId } : {} });
+  const { linkToken, ticket, url } = await api<{ linkToken: string; ticket: string; url: string | null }>('/api/mobile/bank/link', { method: 'POST', body: connectionId ? { connectionId } : {} });
   if (!url) throw new Error('Plaid didn’t return a page to open.');
   onStatus('Sign in to your bank on the secure page…');
   if (Platform.OS === 'web') window.open(url, '_blank', 'noopener');
@@ -27,7 +27,7 @@ export async function connectBank(onStatus: (s: string) => void, connectionId?: 
   // They might still be on the bank's page (web) or just closed it (phone). Ask for up to ~3 minutes.
   onStatus('Waiting for your bank…');
   for (let i = 0; i < 90; i++) {
-    const r = await api<{ done: boolean; institution?: string | null }>('/api/mobile/bank/complete', { body: connectionId ? { linkToken, connectionId } : { linkToken } });
+    const r = await api<{ done: boolean; institution?: string | null }>('/api/mobile/bank/complete', { body: connectionId ? { linkToken, ticket, connectionId } : { linkToken, ticket } });
     if (r.done) return r.institution ?? 'your bank';
     await new Promise((res) => setTimeout(res, 2000));
   }

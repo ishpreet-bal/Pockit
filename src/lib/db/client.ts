@@ -87,40 +87,64 @@ export async function closeDb(): Promise<void> {
  * checkout of a pooled connection.
  */
 export async function withUser<T>(userId: string, fn: (tx: Db) => Promise<T>): Promise<T> {
-  const enforce = await canEnforceRls();
+  const role = await rlsRole();
   return db.transaction(async (tx) => {
     // Parameterised: the uuid is validated and bound, never interpolated.
     await tx.execute(drizzleSql`SELECT set_config('pockit.user_id', ${assertUuid(userId)}, true)`);
-    // Drop to the role that cannot bypass row-level security (migration 0012), so
-    // the policies hold even where application code forgets a workspace filter.
-    if (enforce) await tx.execute(drizzleSql`SET LOCAL ROLE pockit_app`);
+    // Drop to a role that cannot bypass row-level security, so the policies hold
+    // even where application code forgets a workspace filter. The name comes from a
+    // fixed list (never from input), which is why it can be written into the SQL.
+    if (role) await tx.execute(drizzleSql.raw(`SET LOCAL ROLE ${role}`));
     return fn(tx as unknown as Db);
   });
 }
 
-let rlsRole: Promise<boolean> | undefined;
+/** Roles that can enforce row-level security, best first. */
+const RLS_ROLES = ['pockit_app', 'authenticated'] as const;
+type RlsRole = (typeof RLS_ROLES)[number];
+let chosenRole: Promise<RlsRole | null> | undefined;
 
 /**
- * Whether `pockit_app` exists and this connection may switch to it. Checked once
- * per process. Before migration 0012 has run it does not exist, and requests carry
- * on as before rather than failing, so deploying the code ahead of the migration
- * is safe. /api/health reports which mode is in effect.
+ * The role requests run as, so the database itself keeps each person's data apart.
+ *
+ *  - `pockit_app` (migration 0012), where the database let us create it.
+ *  - `authenticated`, Supabase's built-in role, where creating roles is refused
+ *    ("restricted superuser"). Migration 0016 grants it the same access.
+ *
+ * Only a role that exists, cannot bypass row-level security, that this connection
+ * may switch to, and that already has its grants is used: anything less would turn
+ * every request into a permission error. Checked once per process; null means the
+ * policies are not enforced by the database and /api/health says so.
  */
-export function canEnforceRls(): Promise<boolean> {
-  rlsRole ??= (async () => {
+function rlsRole(): Promise<RlsRole | null> {
+  chosenRole ??= (async () => {
     try {
-      // CASE, not AND: pg_has_role throws on a role that does not exist yet.
-      const rows = await db.execute(drizzleSql`SELECT CASE WHEN EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'pockit_app')
-        THEN pg_has_role(current_user, 'pockit_app', 'MEMBER') ELSE false END AS ok`);
-      const first = (rows as unknown as { ok: boolean }[])[0];
-      return Boolean(first?.ok);
+      const rows = await db.execute(drizzleSql`
+        SELECT r.rolname AS role FROM pg_roles r
+        WHERE r.rolname IN ('pockit_app', 'authenticated')
+          AND NOT r.rolbypassrls AND NOT r.rolsuper
+          AND pg_has_role(current_user, r.oid, 'MEMBER')
+          AND has_schema_privilege(r.oid, 'pockit', 'USAGE')
+          AND has_table_privilege(r.oid, 'pockit.transactions', 'SELECT, INSERT, UPDATE, DELETE')
+        ORDER BY r.rolname = 'pockit_app' DESC
+        LIMIT 1`);
+      const name = (rows as unknown as { role: string }[])[0]?.role;
+      return (RLS_ROLES as readonly string[]).includes(name ?? '') ? (name as RlsRole) : null;
     } catch {
-      rlsRole = undefined; // try again on the next request
-      return false;
+      chosenRole = undefined; // try again on the next request
+      return null;
     }
   })();
-  return rlsRole;
+  return chosenRole;
 }
+
+/** Whether requests run under a role the database holds to row-level security. */
+export async function canEnforceRls(): Promise<boolean> {
+  return (await rlsRole()) !== null;
+}
+
+/** Which role enforces row-level security, for /api/health. */
+export const rlsEnforcedBy = rlsRole;
 
 /**
  * For the few operations that legitimately run without a user context:

@@ -31,6 +31,12 @@ export interface Diagnosis {
   pendingMigrations: string[];
   /** True when the only thing standing between here and a working app is running migrations. */
   needsMigration: boolean;
+  /** Bank connection: off (no Plaid keys), or which Plaid environment the keys are for. Never the keys. */
+  bankConnection: 'off' | 'sandbox' | 'production';
+  /** Whether CRON_SECRET is set, so the daily bank sync and guest cleanup can run. */
+  dailyJobsConfigured: boolean;
+  /** Who keeps one person's records from another's: the database (and under which role), or only the app's own filters. */
+  rowLevelSecurity: string;
 }
 
 export async function diagnose(): Promise<Diagnosis> {
@@ -39,6 +45,9 @@ export async function diagnose(): Promise<Diagnosis> {
   let aiProvider = 'unknown';
   let adminSecretConfigured = false;
   let envOk = false;
+  const plaidKeys = Boolean(process.env.PLAID_CLIENT_ID?.trim() && process.env.PLAID_SECRET?.trim());
+  const bankConnection: Diagnosis['bankConnection'] = !plaidKeys ? 'off' : process.env.PLAID_ENV?.trim() === 'production' ? 'production' : 'sandbox';
+  const dailyJobsConfigured = Boolean(process.env.CRON_SECRET?.trim());
 
   try {
     const { env, hasVisionProvider } = await import('@/lib/env');
@@ -118,6 +127,15 @@ export async function diagnose(): Promise<Diagnosis> {
     }
   }
 
+  let rowLevelSecurity = 'unknown';
+  if (database === 'ok') {
+    try {
+      const { rlsEnforcedBy } = await import('@/lib/db/client');
+      const role = await rlsEnforcedBy();
+      rowLevelSecurity = role ? `enforced by the database (${role})` : 'app filters only';
+    } catch { /* reported as unknown */ }
+  }
+
   const ready = envOk && database === 'ok' && migrationsApplied.length > 0 && pendingMigrations.length === 0;
 
   return {
@@ -131,5 +149,8 @@ export async function diagnose(): Promise<Diagnosis> {
     problems: findings.map((f) => `${f.problem} ${f.fix}`),
     findings,
     needsMigration,
+    bankConnection,
+    dailyJobsConfigured,
+    rowLevelSecurity,
   };
 }

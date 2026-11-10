@@ -51,11 +51,11 @@ export async function deleteAccount(userId: string): Promise<{ handedOver: numbe
   const doomed = plan.filter((p) => !p.heir).map((p) => p.id);
   let banksDisconnected = 0;
   if (doomed.length) {
-    const banks = await withUser(userId, (tx) => tx.select({ token: bankConnections.accessTokenEnc }).from(bankConnections)
+    const banks = await withUser(userId, (tx) => tx.select({ token: bankConnections.accessTokenEnc, workspaceId: bankConnections.workspaceId }).from(bankConnections)
       .where(inArray(bankConnections.workspaceId, doomed)));
     for (const b of banks) {
       // Best effort: a link Plaid already dropped must not stop the deletion.
-      try { await removeItem(openToken(b.token)); banksDisconnected++; } catch { /* already gone */ }
+      try { await removeItem(openToken(b.token, b.workspaceId)); banksDisconnected++; } catch { /* already gone */ }
     }
   }
 

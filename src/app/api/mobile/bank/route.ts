@@ -4,6 +4,7 @@ import { requireAuthApi } from '@/lib/auth/api';
 import { withUser } from '@/lib/db/client';
 import { accounts, bankConnections } from '@/lib/db/schema';
 import { openToken, plaidConfigured, removeItem } from '@/lib/bank/plaid';
+import { audit } from '@/lib/auth/session';
 
 export const dynamic = 'force-dynamic';
 
@@ -30,11 +31,12 @@ export async function DELETE(request: Request) {
   const conn = (await withUser(ctx.user.id, (tx) => tx.select().from(bankConnections)
     .where(and(eq(bankConnections.id, id), eq(bankConnections.workspaceId, ctx.workspace.id))).limit(1)))[0];
   if (!conn) return NextResponse.json({ error: 'Not found.' }, { status: 404 });
-  try { await removeItem(openToken(conn.accessTokenEnc)); } catch { /* already gone at Plaid — still forget it here */ }
+  try { await removeItem(openToken(conn.accessTokenEnc, conn.workspaceId)); } catch { /* already gone at Plaid — still forget it here */ }
   await withUser(ctx.user.id, async (tx) => {
     await tx.update(accounts).set({ externalProvider: null, externalId: null })
       .where(and(eq(accounts.workspaceId, ctx.workspace.id), like(accounts.externalProvider, `plaid:${conn.id}`)));
     await tx.delete(bankConnections).where(eq(bankConnections.id, conn.id));
   });
+  await audit({ actorUserId: ctx.user.id, workspaceId: ctx.workspace.id, action: 'bank.disconnect', entity: 'bank_connection', entityId: conn.id, metadata: { institution: conn.institutionName } });
   return NextResponse.json({ ok: true });
 }

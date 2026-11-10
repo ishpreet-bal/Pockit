@@ -1,5 +1,5 @@
 import 'server-only';
-import { createCipheriv, createDecipheriv, createHash, randomBytes } from 'node:crypto';
+import { createCipheriv, createDecipheriv, createHash, createHmac, randomBytes, timingSafeEqual } from 'node:crypto';
 import type { PlaidAccount, PlaidTxn } from './map';
 
 /**
@@ -100,27 +100,57 @@ export async function syncTransactions(accessToken: string, cursor: string | nul
 export const removeItem = (accessToken: string) => call('/item/remove', { access_token: accessToken });
 
 /* ---------------- the access token never sits in the database in plain text ---------------- */
+//
+// AES-256-GCM. Version 2 binds each token to its space (authenticated data), so an
+// encrypted token copied onto another space's row will not open. The key comes from
+// BANK_TOKEN_KEY when set, which lets AUTH_SECRET be rotated without disconnecting
+// every bank; tokens written under the AUTH_SECRET-derived key still open.
 
-const key = () => createHash('sha256').update(`pockit-bank-token:${process.env.AUTH_SECRET ?? ''}`).digest();
+const derive = (secret: string, label: string) => createHash('sha256').update(`${label}:${secret}`).digest();
+const authKey = () => derive(process.env.AUTH_SECRET ?? '', 'pockit-bank-token');
+const bankKey = () => (process.env.BANK_TOKEN_KEY?.trim() ? derive(process.env.BANK_TOKEN_KEY.trim(), 'pockit-bank-token-key') : null);
+const aad = (workspaceId: string) => Buffer.from(`pockit-bank:${workspaceId}`, 'utf8');
 
-export function sealToken(token: string): string {
+export function sealToken(token: string, workspaceId: string): string {
   const iv = randomBytes(12);
-  const c = createCipheriv('aes-256-gcm', key(), iv);
+  const c = createCipheriv('aes-256-gcm', bankKey() ?? authKey(), iv);
+  c.setAAD(aad(workspaceId));
   const body = Buffer.concat([c.update(token, 'utf8'), c.final()]);
-  return ['v1', iv.toString('base64url'), c.getAuthTag().toString('base64url'), body.toString('base64url')].join('.');
+  return ['v2', iv.toString('base64url'), c.getAuthTag().toString('base64url'), body.toString('base64url')].join('.');
 }
 
-/** The stored bank token can't be opened: written under a different AUTH_SECRET, or damaged. Only a reconnect fixes it. */
+/** The stored bank token can't be opened: written under a different key, for another space, or damaged. Only a reconnect fixes it. */
 export class TokenUnreadable extends Error {}
 
-export function openToken(sealed: string): string {
+function decrypt(key: Buffer, iv: string, tag: string, body: string, extra: Buffer | null): string {
+  const d = createDecipheriv('aes-256-gcm', key, Buffer.from(iv, 'base64url'));
+  if (extra) d.setAAD(extra);
+  d.setAuthTag(Buffer.from(tag, 'base64url'));
+  return Buffer.concat([d.update(Buffer.from(body, 'base64url')), d.final()]).toString('utf8');
+}
+
+export function openToken(sealed: string, workspaceId: string): string {
   const [v, iv, tag, body] = sealed.split('.');
-  if (v !== 'v1' || !iv || !tag || !body) throw new TokenUnreadable('Unreadable bank token');
-  try {
-    const d = createDecipheriv('aes-256-gcm', key(), Buffer.from(iv, 'base64url'));
-    d.setAuthTag(Buffer.from(tag, 'base64url'));
-    return Buffer.concat([d.update(Buffer.from(body, 'base64url')), d.final()]).toString('utf8');
-  } catch {
-    throw new TokenUnreadable('Unreadable bank token');
+  if (!iv || !tag || !body || (v !== 'v1' && v !== 'v2')) throw new TokenUnreadable('Unreadable bank token');
+  // v1 (before spaces were bound in) used the AUTH_SECRET key and no authenticated data.
+  const attempts = v === 'v1' ? [authKey()] : [bankKey(), authKey()].filter((k) => k !== null);
+  for (const key of attempts) {
+    try { return decrypt(key, iv, tag, body, v === 'v2' ? aad(workspaceId) : null); } catch { /* next key */ }
   }
+  throw new TokenUnreadable('Unreadable bank token');
+}
+
+/**
+ * A Link session belongs to the person who started it. The hosted page's address
+ * carries its link token, so a leaked address must not let anyone else finish that
+ * session into their own account and see the bank. The app gets this ticket with
+ * the token and must send both back.
+ */
+export function linkTicket(linkToken: string, userId: string, workspaceId: string): string {
+  return createHmac('sha256', derive(process.env.AUTH_SECRET ?? '', 'pockit-link-ticket')).update(`${userId}:${workspaceId}:${linkToken}`).digest('base64url');
+}
+export function linkTicketValid(ticket: string, linkToken: string, userId: string, workspaceId: string): boolean {
+  const want = Buffer.from(linkTicket(linkToken, userId, workspaceId));
+  const got = Buffer.from(ticket);
+  return got.length === want.length && timingSafeEqual(got, want);
 }

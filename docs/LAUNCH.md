@@ -18,7 +18,8 @@ This is why your keys seemed to "stop working". The newer deployments went to th
 - [ ] In **pockit**: Settings → scroll down → **Delete Project**. Deleting it leaves the code and your other project alone, and nothing will build twice again.
 - [ ] Open `https://pockit-7xmx-five.vercel.app` in a **private browser window**. If you see a Vercel login screen instead of Pockit, go to pockit-7xmx → Settings → Deployment Protection and set **Vercel Authentication** to **Only Preview Deployments**. The iPhone app and Apple's reviewers can't log in to Vercel.
 - [ ] On your laptop, in `mobile/.env`, set `EXPO_PUBLIC_API_URL=https://pockit-7xmx-five.vercel.app` (not `pockit-7xmx.vercel.app`, which isn't yours). The App Store build already uses the right address (`mobile/eas.json`).
-- [ ] Run the database migrations: `POST https://pockit-7xmx-five.vercel.app/api/admin/migrate` with your `ADMIN_SECRET`. That applies **0009 to 0015**. Then check that `/api/health` reports no problems.
+- [x] Run the database migrations (0009 to 0015 applied November 10).
+- [ ] After each deploy that adds updates (now **0016** and **0017**), open `/setup` and run it again. Then `/api/health` should say `"rowLevelSecurity": "enforced by the database (authenticated)"`.
 
 ## Done
 
@@ -50,6 +51,7 @@ This is why your keys seemed to "stop working". The newer deployments went to th
 | `ANTHROPIC_API_KEY`, or `OPENAI_API_KEY` + `AI_PROVIDER=openai` | Pock, receipts, screenshot import | Anthropic set; add OpenAI if you want it |
 | `TWELVEDATA_API_KEY` | Real stock prices | Set |
 | `CRON_SECRET` | Daily bank sync and guest cleanup | **Add**: any long random string |
+| `BANK_TOKEN_KEY` | Encrypts stored bank logins | **Add** before anyone connects a real bank: any long random string, then never change it |
 | `RESEND_API_KEY`, `EMAIL_FROM`, `SUPPORT_EMAIL` | Forgot password, feedback emails, contact on /privacy | **Add** (needs your own domain for `EMAIL_FROM`) |
 | `PLAID_CLIENT_ID`, `PLAID_SECRET`, `PLAID_ENV` | Bank connection | Sandbox keys to try it; production keys for real banks (see below) |
 | `GOOGLE_MAPS_API_KEY` | Better trip search (optional) | Optional |
@@ -104,6 +106,10 @@ your history. Safe to spend counts chequing minus what's owed on cards; savings 
 - [ ] **Try it with Plaid's sandbox first.** Plaid dashboard → Developers → Keys. In Vercel (pockit-7xmx) add
   `PLAID_CLIENT_ID`, `PLAID_SECRET` (the **Sandbox** secret) and `PLAID_ENV=sandbox`, redeploy, then in the app:
   Accounts → Connect a bank → pick any bank → username `user_good`, password `pass_good`.
+- [ ] **Test with your own bank for free**: Plaid's free **Trial plan** (new teams in the US and Canada) uses real
+  production data. In the Plaid dashboard, request production access on the Trial plan, then in Vercel swap
+  `PLAID_SECRET` for the **Production** secret and set `PLAID_ENV=production`, and redeploy. Check
+  `/api/health`: it should say `"bankConnection": "production"`.
 - [ ] **For the beta with real banks**: apply for Plaid production access (it needs the privacy policy URL,
   a sole-proprietor or company profile, and a description of the use), then swap in the **Production** secret and
   `PLAID_ENV=production`. Don't open the beta to other people while it's on sandbox: they'd see fake test banks.

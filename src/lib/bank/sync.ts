@@ -26,7 +26,7 @@ export async function syncConnection(ctx: Ctx, connectionId: string): Promise<Sy
   try {
     // Inside the try: a token that can't be opened (AUTH_SECRET changed) must mark
     // the bank as needing a reconnect, not fail silently every day.
-    const access = openToken(conn.accessTokenEnc);
+    const access = openToken(conn.accessTokenEnc, conn.workspaceId);
     const [acc, delta] = await Promise.all([getAccounts(access), syncTransactions(access, conn.cursor)]);
     const result = await applySync(ctx, conn.id, conn.institutionName, acc.accounts, delta);
     await withUser(ctx.userId, (tx) => tx.update(bankConnections).set({ cursor: delta.cursor, lastSyncedAt: new Date(), status: 'active', error: null }).where(eq(bankConnections.id, conn.id)));

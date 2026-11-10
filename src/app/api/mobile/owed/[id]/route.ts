@@ -11,6 +11,8 @@ const body = z.object({
   /** The deposit it came in as, so that deposit is not counted as income. */
   transactionId: z.string().uuid().nullable().optional(),
   receivedOn: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional(),
+  /** On a split with several people, who this came from. */
+  person: z.string().trim().max(80).nullable().optional(),
 });
 
 /** Money came back for this split. */

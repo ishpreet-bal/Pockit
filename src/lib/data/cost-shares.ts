@@ -32,7 +32,7 @@ export interface ShareView {
   settled: boolean;
   /** The purchase, so a list can show it without another request. */
   purchase: { name: string; date: string };
-  repayments: { id: string; amountMinor: number; receivedOn: string; transactionId: string | null }[];
+  repayments: { id: string; amountMinor: number; receivedOn: string; transactionId: string | null; person: string | null }[];
 }
 
 function toView(
@@ -69,7 +69,7 @@ function toView(
     purchase: { name: txn.merchantName ?? txn.description, date: txn.postedDate },
     repayments: repays
       .sort((a, b) => (a.receivedOn < b.receivedOn ? 1 : -1))
-      .map((r) => ({ id: r.id, amountMinor: Number(n(r.amountMinor)), receivedOn: r.receivedOn, transactionId: r.transactionId })),
+      .map((r) => ({ id: r.id, amountMinor: Number(n(r.amountMinor)), receivedOn: r.receivedOn, transactionId: r.transactionId, person: r.person })),
   };
 }
 
@@ -154,7 +154,7 @@ export type PaybackResult = { ok: true; share: ShareView } | { ok: false; error:
  * Money came back. With a deposit linked, that deposit stops counting as income.
  * Without an amount, it is whatever is still owed ("they paid me back").
  */
-export async function recordPayback(scope: Scope, shareId: string, input: { amountMinor?: number | null; transactionId?: string | null; receivedOn?: string | null }): Promise<PaybackResult> {
+export async function recordPayback(scope: Scope, shareId: string, input: { amountMinor?: number | null; transactionId?: string | null; receivedOn?: string | null; person?: string | null }): Promise<PaybackResult> {
   const rows = await withUser(scope.userId, (tx) => tx.select({ transactionId: costShares.transactionId })
     .from(costShares).where(and(eq(costShares.id, shareId), eq(costShares.workspaceId, scope.workspaceId))).limit(1));
   if (!rows[0]) return { ok: false, error: 'That split could not be found.', status: 404 };
@@ -191,7 +191,7 @@ export async function recordPayback(scope: Scope, shareId: string, input: { amou
 
   await withUser(scope.userId, (tx) => tx.insert(costRepayments).values({
     workspaceId: scope.workspaceId, costShareId: shareId, transactionId: input.transactionId ?? null,
-    amountMinor: BigInt(amount!), receivedOn,
+    amountMinor: BigInt(amount!), receivedOn, person: input.person?.trim().slice(0, 80) || null,
   }));
   const after = await shareForTransaction(scope, rows[0].transactionId);
   await syncSettled(scope, after);
