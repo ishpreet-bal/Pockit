@@ -1,0 +1,43 @@
+# Every six hours: is the live app healthy? A failed run makes GitHub email you
+# (Settings → Notifications → Actions), so a broken deploy or database is noticed
+# without anyone opening the app. Runs on GitHub's machines; no Claude usage.
+name: Production health
+
+on:
+  schedule:
+    - cron: '17 */6 * * *'
+  workflow_dispatch:
+
+jobs:
+  health:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      # Change this if the app moves to its own domain.
+      APP_URL: https://pockit-7xmx-five.vercel.app
+    steps:
+      - name: Check /api/health
+        run: |
+          set -e
+          code=$(curl -s -o health.json -w '%{http_code}' -m 30 "$APP_URL/api/health")
+          echo "HTTP $code"; cat health.json; echo
+          [ "$code" = 200 ] || { echo "::error::Health check returned HTTP $code"; exit 1; }
+          node -e "
+            const h = require('./health.json');
+            const fail = [];
+            if (h.status !== 'ready') fail.push('status is ' + h.status);
+            if (h.database !== 'ok') fail.push('database: ' + h.database);
+            if ((h.pendingMigrations || []).length) fail.push('updates waiting: run /setup (' + h.pendingMigrations.join(', ') + ')');
+            for (const p of h.problems || []) fail.push(p);
+            if (h.rowLevelSecurity && !/enforced by the database/.test(h.rowLevelSecurity)) fail.push('row-level security: ' + h.rowLevelSecurity);
+            for (const m of h.missing || []) console.log('::notice::' + m);
+            if (fail.length) { for (const f of fail) console.log('::error::' + f); process.exit(1); }
+            console.log('Healthy.');
+          "
+      - name: Website and app load
+        run: |
+          for path in /welcome /app /privacy; do
+            code=$(curl -s -o /dev/null -w '%{http_code}' -m 30 "$APP_URL$path")
+            echo "$path → $code"
+            [ "$code" = 200 ] || { echo "::error::$path returned HTTP $code"; exit 1; }
+          done

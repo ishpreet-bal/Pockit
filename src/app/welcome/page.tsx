@@ -4,6 +4,7 @@ import { redirect } from 'next/navigation';
 import { getSessionUser } from '@/lib/auth/session';
 import { PockMark } from '@/components/brand/pock-mark';
 import { LivePhone } from './live-phone';
+import { CountUp, Reveal, Sequence, Tilt } from './motion';
 
 export const metadata: Metadata = {
   title: 'Pockit: know what you can spend',
@@ -24,12 +25,15 @@ export default async function WelcomePage() {
   } catch {
     redirect('/setup');
   }
-  if (user) redirect('/overview');
+  // Someone signed in goes to their money. A guest looking around may come back to
+  // the website, and the website offers them the way back into the sample money.
+  if (user && !user.isGuest) redirect('/overview');
+  const guest = Boolean(user?.isGuest);
 
   return (
     <div className="min-h-[100svh] overflow-x-hidden">
-      <Nav />
-      <Hero />
+      <Nav guest={guest} />
+      <Hero guest={guest} />
       <OneNumber />
       <Features />
       <HowItWorks />
@@ -42,12 +46,12 @@ export default async function WelcomePage() {
 }
 
 const wrap = 'mx-auto w-full max-w-6xl px-4 sm:px-6';
-const primary = 'inline-flex h-12 items-center justify-center rounded-[14px] bg-[var(--accent-fill)] px-6 text-base font-semibold text-[var(--accent-fill-fg)] transition-opacity hover:opacity-90';
-const secondary = 'inline-flex h-12 items-center justify-center rounded-[14px] border border-[var(--border-strong)] bg-[var(--surface)] px-6 text-base font-semibold text-[var(--text)] transition-colors hover:bg-[var(--surface-2)]';
+const primary = 'pk-press inline-flex h-12 items-center justify-center rounded-[14px] bg-[var(--accent-fill)] px-6 text-base font-semibold text-[var(--accent-fill-fg)] transition-opacity hover:opacity-90';
+const secondary = 'pk-press inline-flex h-12 items-center justify-center rounded-[14px] border border-[var(--border-strong)] bg-[var(--surface)] px-6 text-base font-semibold text-[var(--text)] transition-colors hover:bg-[var(--surface-2)]';
 const eyebrow = 'text-xs font-semibold uppercase tracking-[0.14em] text-[var(--accent)]';
 const h2 = 'pk-display text-[2rem] leading-[1.1] tracking-[-0.02em] sm:text-[2.6rem]';
 
-function Nav() {
+function Nav({ guest }: { guest: boolean }) {
   return (
     <header className="sticky top-0 z-20 border-b border-[var(--border)] bg-[color-mix(in_srgb,var(--bg)_88%,transparent)] backdrop-blur">
       <div className={`${wrap} flex h-16 items-center gap-6`}>
@@ -62,15 +66,21 @@ function Nav() {
           <a href="#faq" className="hover:text-[var(--text)]">Questions</a>
         </nav>
         <div className="ml-auto flex items-center gap-3 md:ml-0">
-          <Link href="/sign-in" className="text-sm font-semibold text-[var(--text)] hover:text-[var(--accent)]">Sign in</Link>
-          <Link href="/sign-up" className="inline-flex h-9 items-center rounded-[10px] bg-[var(--accent-fill)] px-4 text-sm font-semibold text-[var(--accent-fill-fg)] hover:opacity-90">Get started</Link>
+          {guest ? (
+            <Link href="/overview" className="inline-flex h-9 items-center rounded-[10px] bg-[var(--accent-fill)] px-4 text-sm font-semibold text-[var(--accent-fill-fg)] hover:opacity-90">Back to looking around</Link>
+          ) : (
+            <>
+              <Link href="/sign-in" className="text-sm font-semibold text-[var(--text)] hover:text-[var(--accent)]">Sign in</Link>
+              <Link href="/sign-up" className="inline-flex h-9 items-center rounded-[10px] bg-[var(--accent-fill)] px-4 text-sm font-semibold text-[var(--accent-fill-fg)] hover:opacity-90">Get started</Link>
+            </>
+          )}
         </div>
       </div>
     </header>
   );
 }
 
-function Hero() {
+function Hero({ guest }: { guest: boolean }) {
   return (
     <section className={`${wrap} grid items-center gap-12 pb-16 pt-12 md:grid-cols-[1.1fr_1fr] md:pt-20`}>
       <div className="pk-assemble flex flex-col">
@@ -84,13 +94,13 @@ function Hero() {
         </p>
         <div className="mt-8 flex flex-col gap-3 sm:flex-row">
           <Link href="/sign-up" className={primary}>Get started, free</Link>
-          <Link href="/demo" className={secondary}>Look around first</Link>
+          <Link href={guest ? '/overview' : '/demo'} className={secondary}>{guest ? 'Back to looking around' : 'Look around first'}</Link>
         </div>
         <p className="mt-4 text-sm text-[var(--text-subtle)]">No account needed to look around. Read-only bank access. Delete everything any time.</p>
         <Link href="/sign-in" className="mt-6 w-fit text-sm font-semibold text-[var(--accent)] hover:underline">I already have an account →</Link>
       </div>
       <div className="flex justify-center md:justify-end">
-        <LivePhone />
+        <Tilt><div><div className="pk-float"><LivePhone /></div></div></Tilt>
       </div>
     </section>
   );
@@ -106,7 +116,7 @@ function OneNumber() {
   return (
     <section className="border-y border-[var(--border)] bg-[var(--surface)]">
       <div className={`${wrap} grid items-center gap-12 py-20 md:grid-cols-2`}>
-        <div>
+        <Reveal>
           <p className={eyebrow}>The one number</p>
           <h2 className={`mt-3 ${h2}`}>Not your balance. What’s left after what’s coming.</h2>
           <p className="mt-5 text-lg leading-relaxed text-[var(--text-muted)]">
@@ -114,21 +124,21 @@ function OneNumber() {
             money, subtracts what you owe on cards and the bills due before payday, and tells you what’s safe, per day,
             until money comes in.
           </p>
-        </div>
-        <div className="rounded-[24px] border border-[var(--border)] bg-[var(--bg)] p-6 shadow-[var(--shadow-md)] sm:p-8">
-          <p className="font-[family-name:var(--font-display)] text-5xl text-[var(--accent)]">$1,796</p>
+        </Reveal>
+        <Reveal delay={120} className="rounded-[24px] border border-[var(--border)] bg-[var(--bg)] p-6 shadow-[var(--shadow-md)] sm:p-8">
+          <p className="font-[family-name:var(--font-display)] text-5xl text-[var(--accent)]"><CountUp to={1796} /></p>
           <p className="mt-1 text-[var(--text-muted)]">safe to spend · 6 days to payday · $299/day</p>
-          <ol className="mt-6 space-y-4">
+          <Sequence className="mt-6 space-y-4">
             {rows.map(([when, what, amount], i) => (
               <li key={what} className="flex items-center gap-4">
                 <span className="w-12 text-sm text-[var(--text-subtle)]">{when}</span>
-                <span className={`h-3 w-3 shrink-0 rounded-full ${i === 0 ? 'bg-[var(--accent)]' : 'border-2 border-[var(--accent)]'}`} />
+                <span className={`pk-dot h-3 w-3 shrink-0 rounded-full ${i === 0 ? 'bg-[var(--accent)]' : 'border-2 border-[var(--accent)]'}`} />
                 <span className="flex-1">{what}</span>
                 <span className={`tabular-nums ${amount.startsWith('+') ? 'text-[var(--positive)]' : amount.startsWith('−') ? 'text-[var(--negative)]' : ''}`}>{amount}</span>
               </li>
             ))}
-          </ol>
-        </div>
+          </Sequence>
+        </Reveal>
       </div>
     </section>
   );
@@ -149,17 +159,19 @@ const FEATURES: { title: string; body: string; big?: boolean }[] = [
 function Features() {
   return (
     <section id="features" className={`${wrap} scroll-mt-20 py-20`}>
-      <p className={eyebrow}>What’s inside</p>
-      <h2 className={`mt-3 max-w-2xl ${h2}`}>Everything a household’s money needs. Nothing it doesn’t.</h2>
-      <div className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <Reveal>
+        <p className={eyebrow}>What’s inside</p>
+        <h2 className={`mt-3 max-w-2xl ${h2}`}>Everything a household’s money needs. Nothing it doesn’t.</h2>
+      </Reveal>
+      <Reveal className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {FEATURES.map((f) => (
-          <article key={f.title} className={`rounded-[20px] border border-[var(--border)] bg-[var(--surface)] p-6 ${f.big ? 'lg:col-span-2' : ''}`}>
-            <span className="grid h-9 w-9 place-items-center rounded-[10px] bg-[var(--accent-soft)] text-[var(--accent)]"><PockMark className="h-5 w-5" /></span>
+          <article key={f.title} data-stagger className={`pk-lift rounded-[20px] border border-[var(--border)] bg-[var(--surface)] p-6 ${f.big ? 'lg:col-span-2' : ''}`}>
+            <span className="pk-nod grid h-9 w-9 place-items-center rounded-[10px] bg-[var(--accent-soft)] text-[var(--accent)]"><PockMark className="h-5 w-5" /></span>
             <h3 className="mt-4 text-lg font-semibold">{f.title}</h3>
             <p className="mt-2 leading-relaxed text-[var(--text-muted)]">{f.body}</p>
           </article>
         ))}
-      </div>
+      </Reveal>
     </section>
   );
 }
@@ -173,17 +185,19 @@ function HowItWorks() {
   return (
     <section id="how" className="scroll-mt-20 border-y border-[var(--border)] bg-[var(--surface)]">
       <div className={`${wrap} py-20`}>
-        <p className={eyebrow}>How it works</p>
-        <h2 className={`mt-3 ${h2}`}>Set up over a coffee.</h2>
-        <ol className="mt-10 grid gap-6 md:grid-cols-3">
+        <Reveal>
+          <p className={eyebrow}>How it works</p>
+          <h2 className={`mt-3 ${h2}`}>Set up over a coffee.</h2>
+        </Reveal>
+        <Reveal as="ol" className="mt-10 grid gap-6 md:grid-cols-3">
           {steps.map(([title, body], i) => (
-            <li key={title} className="rounded-[20px] border border-[var(--border)] bg-[var(--bg)] p-6">
+            <li key={title} data-stagger className="pk-lift rounded-[20px] border border-[var(--border)] bg-[var(--bg)] p-6">
               <span className="font-[family-name:var(--font-display)] text-4xl text-[var(--accent)]">{i + 1}</span>
               <h3 className="mt-3 text-lg font-semibold">{title}</h3>
               <p className="mt-2 leading-relaxed text-[var(--text-muted)]">{body}</p>
             </li>
           ))}
-        </ol>
+        </Reveal>
       </div>
     </section>
   );
@@ -199,11 +213,13 @@ function Safety() {
   ];
   return (
     <section id="safety" className={`${wrap} scroll-mt-20 py-20`}>
-      <p className={eyebrow}>Your data</p>
-      <h2 className={`mt-3 max-w-2xl ${h2}`}>Built like it’s our own money in there.</h2>
-      <ul className="mt-10 grid gap-x-10 gap-y-8 md:grid-cols-2">
+      <Reveal>
+        <p className={eyebrow}>Your data</p>
+        <h2 className={`mt-3 max-w-2xl ${h2}`}>Built like it’s our own money in there.</h2>
+      </Reveal>
+      <Reveal as="ul" className="mt-10 grid gap-x-10 gap-y-8 md:grid-cols-2">
         {points.map(([title, body]) => (
-          <li key={title} className="flex gap-4">
+          <li key={title} data-stagger className="flex gap-4">
             <span className="mt-1 grid h-6 w-6 shrink-0 place-items-center rounded-full bg-[var(--positive-soft)] text-sm font-bold text-[var(--positive)]">✓</span>
             <div>
               <h3 className="font-semibold">{title}</h3>
@@ -211,7 +227,7 @@ function Safety() {
             </div>
           </li>
         ))}
-      </ul>
+      </Reveal>
       <Link href="/privacy" className="mt-8 inline-block text-sm font-semibold text-[var(--accent)] hover:underline">Read the privacy policy →</Link>
     </section>
   );
@@ -229,11 +245,11 @@ function Faq() {
   return (
     <section id="faq" className="scroll-mt-20 border-t border-[var(--border)] bg-[var(--surface)]">
       <div className={`${wrap} grid gap-10 py-20 md:grid-cols-[1fr_1.6fr]`}>
-        <div>
+        <Reveal>
           <p className={eyebrow}>Questions</p>
           <h2 className={`mt-3 ${h2}`}>The fair ones.</h2>
-        </div>
-        <div className="divide-y divide-[var(--border)] border-y border-[var(--border)]">
+        </Reveal>
+        <Reveal delay={100} className="divide-y divide-[var(--border)] border-y border-[var(--border)]">
           {qs.map(([q, a]) => (
             <details key={q} className="group py-5">
               <summary className="flex cursor-pointer list-none items-center justify-between gap-4 text-lg font-semibold">
@@ -243,7 +259,7 @@ function Faq() {
               <p className="mt-3 leading-relaxed text-[var(--text-muted)]">{a}</p>
             </details>
           ))}
-        </div>
+        </Reveal>
       </div>
     </section>
   );
@@ -251,14 +267,14 @@ function Faq() {
 
 function FinalCall() {
   return (
-    <section className={`${wrap} py-24 text-center`}>
+    <Reveal as="section" className={`${wrap} py-24 text-center`}>
       <span className="mx-auto grid h-16 w-16 place-items-center rounded-[18px] bg-[var(--accent-soft)] text-[var(--accent)]"><PockMark className="h-9 w-9" /></span>
       <h2 className={`mx-auto mt-6 max-w-xl ${h2}`}>Know where you stand by tomorrow morning.</h2>
       <div className="mt-8 flex flex-col justify-center gap-3 sm:flex-row">
         <Link href="/sign-up" className={primary}>Get started, free</Link>
         <Link href="/demo" className={secondary}>Look around first</Link>
       </div>
-    </section>
+    </Reveal>
   );
 }
 

@@ -41,7 +41,7 @@ export function useTint() {
 export const soft = (hex: string, dark: boolean) => `${hex}${dark ? '26' : '22'}`;
 
 /** Fixed colours for the shortcut doors, so each tool is recognisable at a glance. */
-export const TOOL = { add: 3, bills: 2, budget: 5, trip: 4, purchases: 1, lessons: 4, ask: 3, lookup: 2 } as const;
+export const TOOL = { add: 3, bills: 2, budget: 5, trip: 4, purchases: 1, lessons: 4, ask: 3, lookup: 2, friends: 0 } as const;
 export function useToolTint() {
   const dark = useIsDark();
   const list = dark ? DARK : LIGHT;

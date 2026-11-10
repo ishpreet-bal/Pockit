@@ -54,7 +54,7 @@ This is why your keys seemed to "stop working". The newer deployments went to th
 | `BANK_TOKEN_KEY` | Encrypts stored bank logins | **Add** before anyone connects a real bank: any long random string, then never change it |
 | `RESEND_API_KEY`, `EMAIL_FROM`, `SUPPORT_EMAIL` | Forgot password, feedback emails, contact on /privacy | **Add** (needs your own domain for `EMAIL_FROM`) |
 | `PLAID_CLIENT_ID`, `PLAID_SECRET`, `PLAID_ENV` | Bank connection | Sandbox keys to try it; production keys for real banks (see below) |
-| `GOOGLE_MAPS_API_KEY` | Better trip search (optional) | Optional |
+| `GOOGLE_MAPS_API_KEY` | Reliable trip search and routes | **Recommended**: without it, trips use free OpenStreetMap services that have no uptime promise |
 
 Set each one for **Production** (and Preview, if you want previews to work too), then redeploy. Vercel only applies variable changes to new deployments.
 
@@ -137,3 +137,29 @@ your history. Safe to spend counts chequing minus what's owed on cards; savings 
 2. **Week 2**: first TestFlight build; use it daily. Apply for Plaid production.
 3. **Week 3**: fix what you find, write the store listing, take screenshots, set up a review account.
 4. **Week 4**: submit.
+
+## Plan a trip: Google Maps
+
+Without a key, Plan a trip searches places and routes with free OpenStreetMap services. They work, but nobody
+promises they stay up. For launch:
+
+1. [ ] Google Cloud console → create a project → enable **Places API (New)** and **Routes API**.
+2. [ ] Credentials → Create API key → restrict it to those two APIs.
+3. [ ] Vercel → `GOOGLE_MAPS_API_KEY` → redeploy. `/api/health` then shows `"maps": "google"`.
+
+Google gives a monthly free allowance; set a budget alert in Google Cloud billing so nothing surprises you.
+
+Fuel use comes from the EPA ratings of the exact car, or, for a car not in the list, from the median of real cars
+with the same year, engine size, body and drivetrain. The gas price starts from a typical Canadian figure and
+should be set to what the person actually pays (it's remembered).
+
+## Automated checks (free, no Claude usage)
+
+GitHub Actions runs these on GitHub's machines (`.github/workflows/`):
+
+- **CI**, on every push: lint, typechecks (website and app), unit tests, and the end-to-end suites (website,
+  bank connection, split with friends, trips) on a database set up like production.
+- **Production health**, every six hours: checks `/api/health` and that the website and app load. A failure
+  emails you (GitHub → Settings → Notifications → Actions). Run it by hand from the Actions tab any time.
+
+Private repositories get a monthly allowance of free Actions minutes; these use a small part of it.

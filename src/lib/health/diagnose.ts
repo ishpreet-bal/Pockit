@@ -37,6 +37,10 @@ export interface Diagnosis {
   dailyJobsConfigured: boolean;
   /** Who keeps one person's records from another's: the database (and under which role), or only the app's own filters. */
   rowLevelSecurity: string;
+  /** Optional features and whether this deployment has what each needs. Never any key itself. */
+  features: Record<string, boolean | string>;
+  /** In plain words, what is switched off and the key that turns it on. */
+  missing: string[];
 }
 
 export async function diagnose(): Promise<Diagnosis> {
@@ -48,6 +52,24 @@ export async function diagnose(): Promise<Diagnosis> {
   const plaidKeys = Boolean(process.env.PLAID_CLIENT_ID?.trim() && process.env.PLAID_SECRET?.trim());
   const bankConnection: Diagnosis['bankConnection'] = !plaidKeys ? 'off' : process.env.PLAID_ENV?.trim() === 'production' ? 'production' : 'sandbox';
   const dailyJobsConfigured = Boolean(process.env.CRON_SECRET?.trim());
+  const has = (k: string) => Boolean(process.env[k]?.trim());
+  const features: Diagnosis['features'] = {
+    aiAnswers: has('ANTHROPIC_API_KEY') || has('OPENAI_API_KEY'),
+    emails: has('RESEND_API_KEY') && has('EMAIL_FROM'),
+    supportEmail: has('SUPPORT_EMAIL'),
+    maps: has('GOOGLE_MAPS_API_KEY') ? 'google' : 'openstreetmap (free, no uptime promise)',
+    livePrices: has('TWELVEDATA_API_KEY') || has('FINNHUB_API_KEY'),
+    bankTokenKey: has('BANK_TOKEN_KEY'),
+  };
+  const missing = [
+    !features.aiAnswers && 'Ask Pock and receipt scanning: add ANTHROPIC_API_KEY (or OPENAI_API_KEY with AI_PROVIDER=openai).',
+    !features.emails && 'Password-reset and feedback emails: add RESEND_API_KEY and EMAIL_FROM.',
+    !features.supportEmail && 'Where feedback goes, and the contact on /privacy: add SUPPORT_EMAIL.',
+    !has('GOOGLE_MAPS_API_KEY') && 'Reliable trip search and routes: add GOOGLE_MAPS_API_KEY (Places API (New) and Routes API).',
+    !features.livePrices && 'Live stock prices: add TWELVEDATA_API_KEY.',
+    !dailyJobsConfigured && 'Daily bank sync and guest cleanup: add CRON_SECRET.',
+    bankConnection !== 'off' && !features.bankTokenKey && 'Bank logins encrypted with their own key: add BANK_TOKEN_KEY before real banks are connected.',
+  ].filter((x): x is string => Boolean(x));
 
   try {
     const { env, hasVisionProvider } = await import('@/lib/env');
@@ -152,5 +174,7 @@ export async function diagnose(): Promise<Diagnosis> {
     bankConnection,
     dailyJobsConfigured,
     rowLevelSecurity,
+    features,
+    missing,
   };
 }

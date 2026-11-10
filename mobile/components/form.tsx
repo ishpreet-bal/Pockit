@@ -1,3 +1,5 @@
+import Animated, { FadeIn } from 'react-native-reanimated';
+import { Press } from './Press';
 import { forwardRef, useState, type ReactNode } from 'react';
 import { ActivityIndicator, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View, type TextInputProps } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -43,19 +45,24 @@ export function Button({
   void dark;
   const fg = variant === 'primary' ? '#ffffff' : variant === 'secondary' ? c.text : tint;
   return (
-    <Pressable
+    <Press
       accessibilityRole="button"
       accessibilityState={{ disabled: off }}
       disabled={off}
       onPress={() => { void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); onPress(); }}
-      style={({ pressed }) => ({
+      style={{
         height: 54, borderRadius: radius.control, alignItems: 'center', justifyContent: 'center',
-        backgroundColor: bg, opacity: disabled ? 0.4 : pressed ? 0.8 : 1,
+        backgroundColor: bg, opacity: disabled ? 0.4 : 1,
         borderWidth: variant === 'secondary' ? 1 : 0, borderColor: c.border,
-      })}
+      }}
     >
-      {loading ? <ActivityIndicator color={fg} /> : <Text style={{ fontFamily: font.semibold, fontSize: 16, color: fg }}>{label}</Text>}
-    </Pressable>
+      {/* The spinner fades in so a button that starts working doesn't jolt. The label
+          appears at once: an entering animation briefly hides it, and the button's
+          name with it, from screen readers. */}
+      {loading
+        ? <Animated.View key="busy" entering={FadeIn.duration(160)}><ActivityIndicator color={fg} /></Animated.View>
+        : <Text style={{ fontFamily: font.semibold, fontSize: 16, color: fg }}>{label}</Text>}
+    </Press>
   );
 }
 

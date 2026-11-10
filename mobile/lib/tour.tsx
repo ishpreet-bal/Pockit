@@ -1,7 +1,8 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
-import { Pressable, Text, useWindowDimensions, View, type ViewStyle } from 'react-native';
+import { Dimensions, Pressable, Text, useWindowDimensions, View, type ViewStyle } from 'react-native';
 import { router } from 'expo-router';
-import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
+import Animated, { Easing, FadeIn, FadeOut, LinearTransition, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
+import { useScreenScroll } from '@/components/ui';
 import * as Haptics from 'expo-haptics';
 import { api } from './api';
 import { PREVIEW, useSession } from './session';
@@ -20,7 +21,7 @@ const STEPS: Step[] = [
   { route: '/', target: 'shortcuts', title: 'One tap to the tools', body: 'Add a purchase, check your bills, set a budget, or work out what a drive will cost in gas.' },
   { route: '/', target: 'runway', title: 'Your runway to payday', body: 'Each bill on the day it comes out, and what you’ll have left after it. Payday is at the bottom.' },
   { route: '/', target: 'pockNote', title: 'Pock keeps an eye out', body: 'A note about your month. Tap it to ask Pock anything about your money.' },
-  { route: '/spending', target: 'spendTools', title: 'Spending, and what goes with it', body: 'Your budget, bills, every purchase and trip costs all start from here.' },
+  { route: '/spending', target: 'spendTools', title: 'Spending, and what goes with it', body: 'Your budget, bills, trends, every purchase, and who owes who with friends all start from here.' },
   { route: '/spending', target: 'calendar', title: 'Your month at a glance', body: 'Each square is a day. The brighter it is, the more went out.' },
   { route: '/ask', target: 'askBox', title: 'Ask Pock', body: 'Ask in plain words — “can I afford a $200 concert this month?” Pock sees your numbers and never moves money.' },
   { route: '/goals', target: 'goals', title: 'Goals', body: 'A trip, a car, a safety net. Pockit works out what to put aside each month and shows if you’re on pace.' },
@@ -45,15 +46,27 @@ export function useTour() {
 /** Wrap a part of a page the tour should be able to light up. */
 export function TourTarget({ id, children, style }: { id: string; children: ReactNode; style?: ViewStyle }) {
   const ctx = useContext(Ctx);
+  const scroll = useScreenScroll();
   const ref = useRef<View>(null);
   useEffect(() => {
     if (!ctx) return;
-    ctx.register(id, () => new Promise((resolve) => {
+    const measure = () => new Promise<{ x: number; y: number; width: number; height: number } | null>((resolve) => {
       if (!ref.current) return resolve(null);
       ref.current.measureInWindow((x, y, width, height) => resolve(width ? { x, y, width, height } : null));
-    }));
+    });
+    ctx.register(id, async () => {
+      const first = await measure();
+      if (!first || !scroll) return first;
+      // Bring it into a comfortable spot (near the top, room left for the card) before lighting it up.
+      const screen = Dimensions.get('window').height;
+      const comfortable = first.y >= 90 && first.y + Math.min(first.height, screen * 0.45) <= screen - 240;
+      if (comfortable) return first;
+      scroll.scrollBy(first.y - 120);
+      await new Promise((r) => setTimeout(r, 420));
+      return measure();
+    });
     return () => ctx.register(id, null);
-  }, [id]);
+  }, [id, scroll]);
   return <View ref={ref} collapsable={false} style={style}>{children}</View>;
 }
 
@@ -80,12 +93,12 @@ function Overlay({ step, setStep, targets }: { step: number; setStep: (s: number
   const s = step >= 0 ? STEPS[step] : null;
 
   useEffect(() => {
-    setRect(null);
-    if (!s) return;
+    if (!s) { setRect(null); return; }
+    // The previous highlight stays put while the next part is found, then glides to it.
     router.navigate(s.route);
-    // Let the page slide in before measuring where the highlighted part ended up.
-    const t = setTimeout(async () => { setRect((await targets.get(s.target)?.()) ?? null); }, 480);
-    return () => clearTimeout(t);
+    let alive = true;
+    const t = setTimeout(async () => { const r = await targets.get(s.target)?.(); if (alive) setRect(r ?? null); }, 420);
+    return () => { alive = false; clearTimeout(t); };
   }, [step]);
 
   async function finish() {
@@ -101,11 +114,13 @@ function Overlay({ step, setStep, targets }: { step: number; setStep: (s: number
   const below = r ? r.y + r.h / 2 < height * 0.5 : true;
 
   const card = (
-    <Animated.View key={step} entering={FadeIn.duration(220)} style={{
+    <Animated.View layout={LinearTransition.duration(320).easing(Easing.out(Easing.cubic))} style={{
       position: 'absolute', left: space.lg, right: space.lg,
-      ...(r ? (below ? { top: r.y + r.h + 14 } : { bottom: height - r.y + 14 }) : { top: height * 0.32 }),
-      backgroundColor: c.surface, borderRadius: 12, borderWidth: 0.5, borderColor: c.border, padding: space.lg,
+      // Nothing to light on this page (yet): sit low, above the tabs, and leave the page readable.
+      ...(r ? (below ? { top: r.y + r.h + 14 } : { bottom: height - r.y + 14 }) : s ? { bottom: 110 } : { top: height * 0.32 }),
+      backgroundColor: c.surface, borderRadius: 16, borderWidth: 0.5, borderColor: c.border, padding: space.lg,
     }}>
+     <Animated.View key={step} entering={FadeIn.duration(260)}>
       {s ? (
         <>
           <Text style={[type.caption, { color: a }]}>{`${step + 1} OF ${STEPS.length}`}</Text>
@@ -133,22 +148,46 @@ function Overlay({ step, setStep, targets }: { step: number; setStep: (s: number
           </View>
         </>
       )}
+     </Animated.View>
     </Animated.View>
   );
 
   return (
-    <Animated.View entering={FadeIn.duration(200)} exiting={FadeOut.duration(160)} style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }} accessibilityViewIsModal>
-      {r ? (
-        <>
-          <View style={{ position: 'absolute', left: 0, right: 0, top: 0, height: r.y, backgroundColor: dim }} />
-          <View style={{ position: 'absolute', left: 0, right: 0, top: r.y + r.h, bottom: 0, backgroundColor: dim }} />
-          <View style={{ position: 'absolute', left: 0, width: r.x, top: r.y, height: r.h, backgroundColor: dim }} />
-          <View style={{ position: 'absolute', left: r.x + r.w, right: 0, top: r.y, height: r.h, backgroundColor: dim }} />
-          <View pointerEvents="none" style={{ position: 'absolute', left: r.x, top: r.y, width: r.w, height: r.h, borderRadius: 10, borderWidth: 1.5, borderColor: a }} />
-        </>
-      ) : <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: dim }} />}
+    <Animated.View entering={FadeIn.duration(240)} exiting={FadeOut.duration(180)} style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }} accessibilityViewIsModal>
+      <Spotlight r={r} dim={dim} color={a} width={width} height={height} />
       {card}
     </Animated.View>
   );
 }
 
+
+/**
+ * The dimmed page with one part lit. The four dim panes move together on a timing
+ * curve, so stepping through the tour glides from part to part instead of blinking.
+ */
+function Spotlight({ r, dim, color, width, height }: { r: { x: number; y: number; w: number; h: number } | null; dim: string; color: string; width: number; height: number }) {
+  // With nothing to light (yet), the hole closes to a point in the middle: the whole page dims.
+  const goal = r ?? { x: width / 2, y: height * 0.4, w: 0, h: 0 };
+  const x = useSharedValue(goal.x), y = useSharedValue(goal.y), w = useSharedValue(goal.w), h = useSharedValue(goal.h);
+  const ring = useSharedValue(r ? 1 : 0);
+  useEffect(() => {
+    const ease = { duration: 360, easing: Easing.inOut(Easing.cubic) };
+    x.value = withTiming(goal.x, ease); y.value = withTiming(goal.y, ease);
+    w.value = withTiming(goal.w, ease); h.value = withTiming(goal.h, ease);
+    ring.value = withTiming(r ? 1 : 0, { duration: 240 });
+  }, [goal.x, goal.y, goal.w, goal.h]);
+  const top = useAnimatedStyle(() => ({ height: y.value }));
+  const bottom = useAnimatedStyle(() => ({ top: y.value + h.value }));
+  const left = useAnimatedStyle(() => ({ top: y.value, height: h.value, width: x.value }));
+  const right = useAnimatedStyle(() => ({ top: y.value, height: h.value, left: x.value + w.value }));
+  const outline = useAnimatedStyle(() => ({ left: x.value, top: y.value, width: w.value, height: h.value, opacity: ring.value }));
+  return (
+    <>
+      <Animated.View style={[{ position: 'absolute', left: 0, right: 0, top: 0, backgroundColor: dim }, top]} />
+      <Animated.View style={[{ position: 'absolute', left: 0, right: 0, bottom: 0, backgroundColor: dim }, bottom]} />
+      <Animated.View style={[{ position: 'absolute', left: 0, backgroundColor: dim }, left]} />
+      <Animated.View style={[{ position: 'absolute', right: 0, backgroundColor: dim }, right]} />
+      <Animated.View pointerEvents="none" style={[{ position: 'absolute', borderRadius: 12, borderWidth: 1.5, borderColor: color }, outline]} />
+    </>
+  );
+}

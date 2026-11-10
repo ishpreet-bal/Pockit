@@ -69,8 +69,40 @@ export function useIsDark() {
   return chosen === 'system' ? system === 'dark' : chosen === 'dark';
 }
 
+/* ---------- TEMPORARY: try-a-colour (Settings). Remove in the next update. ---------- */
+// A hue from 0 to 360, or null for Pockit's own orange. The light theme gets a deeper
+// shade and the dark theme a brighter one, so text on it stays readable in both.
+let accentHue: number | null = null;
+const hueListeners = new Set<() => void>();
+export function setAccentHue(next: number | null) { accentHue = next; hueListeners.forEach((l) => l()); }
+export function useAccentHue(): number | null {
+  return useSyncExternalStore((l) => { hueListeners.add(l); return () => { hueListeners.delete(l); }; }, () => accentHue, () => accentHue);
+}
+export function hsl(h: number, s: number, l: number): string {
+  const a = (s / 100) * Math.min(l / 100, 1 - l / 100);
+  const f = (n: number) => {
+    const k = (n + h / 30) % 12;
+    const v = l / 100 - a * Math.max(-1, Math.min(k - 3, 9 - k, 1));
+    return Math.round(v * 255).toString(16).padStart(2, '0');
+  };
+  return `#${f(0)}${f(8)}${f(4)}`;
+}
+const tinted = new Map<string, Palette>();
+function withHue(base: Palette, isDark: boolean, hue: number): Palette {
+  const key = `${isDark ? 'd' : 'l'}${hue}`;
+  let p = tinted.get(key);
+  if (!p) {
+    p = { ...base, section: sections(isDark ? hsl(hue, 85, 62) : hsl(hue, 78, 40), isDark ? hsl(hue, 45, 16) : hsl(hue, 70, 92)) };
+    tinted.set(key, p);
+  }
+  return p;
+}
+
 export function useColors(): Palette {
-  return useIsDark() ? dark : light;
+  const isDark = useIsDark();
+  const hue = useAccentHue();
+  const base = isDark ? dark : light;
+  return hue === null ? base : withHue(base, isDark, hue);
 }
 
 /**

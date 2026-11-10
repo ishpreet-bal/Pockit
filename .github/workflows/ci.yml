@@ -1,0 +1,103 @@
+# Every push and pull request: the same checks a careful person would run by hand.
+# Runs on GitHub's machines (free minutes), so it costs no Claude usage.
+#
+# The database is set up the way production is: the app connects as a role that may
+# not create roles, and Supabase's `authenticated` role enforces row-level security.
+name: CI
+
+on:
+  push:
+    branches: [ios-app, main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  checks:
+    name: Lint, types and unit tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            mobile/package-lock.json
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm test
+      - name: App (iPhone) typecheck
+        working-directory: mobile
+        run: |
+          npm ci
+          npx tsc --noEmit -p .
+
+  end-to-end:
+    name: End to end (website, bank, friends, trips)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s --health-timeout 5s --health-retries 20
+    env:
+      DATABASE_URL: postgres://appuser:appuser@localhost:5432/hosted
+      AUTH_SECRET: ci-only-secret-ci-only-secret-0123456789abcdef
+      ADMIN_SECRET: ci-admin
+      CRON_SECRET: local-cron
+      PLAID_API_BASE: http://127.0.0.1:4010
+      PLAID_CLIENT_ID: test
+      PLAID_SECRET: test
+      NEXT_TELEMETRY_DISABLED: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - name: Database like production (restricted owner + authenticated role)
+        env:
+          PGPASSWORD: postgres
+        run: |
+          psql -h localhost -U postgres -v ON_ERROR_STOP=1 \
+            -c "CREATE ROLE authenticated NOLOGIN NOBYPASSRLS" \
+            -c "CREATE ROLE appuser LOGIN BYPASSRLS PASSWORD 'appuser'" \
+            -c "GRANT authenticated TO appuser" \
+            -c "CREATE DATABASE hosted OWNER appuser"
+      - run: npx tsx scripts/migrate.ts
+      - name: Start the Plaid stand-in and the app
+        run: |
+          nohup node e2e/fake-plaid.mjs > plaid.log 2>&1 &
+          nohup npx next dev -p 3000 > next.log 2>&1 &
+          for i in $(seq 1 90); do curl -fs -m 5 localhost:3000/api/health > /dev/null && break; sleep 2; done
+          curl -fs localhost:3000/api/health | tee health.json
+          node -e "const h=require('./health.json'); if (h.status!=='ready') { console.error('not ready'); process.exit(1) } if (!/enforced by the database/.test(h.rowLevelSecurity)) { console.error('row-level security not enforced: '+h.rowLevelSecurity); process.exit(1) }"
+      - name: Reset sign-up limits (every suite signs up from the same address)
+        run: psql "$DATABASE_URL" -c 'delete from pockit.rate_limits'
+      - run: node e2e/bank.mjs
+      - name: Reset sign-up limits (every suite signs up from the same address)
+        run: psql "$DATABASE_URL" -c 'delete from pockit.rate_limits'
+      - run: node e2e/friends.mjs
+      - name: Reset sign-up limits (every suite signs up from the same address)
+        run: psql "$DATABASE_URL" -c 'delete from pockit.rate_limits'
+      - run: npm run e2e
+      - name: Reset sign-up limits (every suite signs up from the same address)
+        run: psql "$DATABASE_URL" -c 'delete from pockit.rate_limits'
+      - run: npm run e2e:trip-investing
+      - name: Server log on failure
+        if: failure()
+        run: tail -n 200 next.log; tail -n 50 plaid.log

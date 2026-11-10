@@ -284,3 +284,57 @@ a, button, [role='button'] {
   .pk-assemble > *, .pk-assemble > * > * { animation: none !important; }
   .pk-orb { animation: none; }
 }
+
+/* ---------- Website motion (src/app/welcome/motion.tsx) ---------- */
+.pk-reveal {
+  opacity: 0;
+  transform: translateY(28px);
+  transition: opacity 700ms cubic-bezier(0.16, 1, 0.3, 1) var(--pk-delay, 0ms),
+              transform 800ms cubic-bezier(0.16, 1, 0.3, 1) var(--pk-delay, 0ms);
+}
+.pk-reveal.pk-in { opacity: 1; transform: none; }
+.pk-reveal [data-stagger] { opacity: 0; transform: translateY(18px); transition: opacity 600ms cubic-bezier(0.16, 1, 0.3, 1), transform 700ms cubic-bezier(0.16, 1, 0.3, 1); }
+.pk-reveal.pk-in [data-stagger] { opacity: 1; transform: none; }
+.pk-reveal.pk-in [data-stagger]:nth-child(2) { transition-delay: 70ms; }
+.pk-reveal.pk-in [data-stagger]:nth-child(3) { transition-delay: 140ms; }
+.pk-reveal.pk-in [data-stagger]:nth-child(4) { transition-delay: 210ms; }
+.pk-reveal.pk-in [data-stagger]:nth-child(5) { transition-delay: 280ms; }
+.pk-reveal.pk-in [data-stagger]:nth-child(6) { transition-delay: 350ms; }
+.pk-reveal.pk-in [data-stagger]:nth-child(7) { transition-delay: 420ms; }
+.pk-reveal.pk-in [data-stagger]:nth-child(8) { transition-delay: 490ms; }
+
+/* The payday runway lights up one stop after another. */
+.pk-seq > li { opacity: 0.25; transition: opacity 500ms ease; }
+.pk-seq > li .pk-dot { transform: scale(0.4); transition: transform 500ms cubic-bezier(0.34, 1.56, 0.64, 1); }
+.pk-seq.pk-in > li { opacity: 1; }
+.pk-seq.pk-in > li .pk-dot { transform: scale(1); }
+.pk-seq.pk-in > li:nth-child(2), .pk-seq.pk-in > li:nth-child(2) .pk-dot { transition-delay: 350ms; }
+.pk-seq.pk-in > li:nth-child(3), .pk-seq.pk-in > li:nth-child(3) .pk-dot { transition-delay: 650ms; }
+.pk-seq.pk-in > li:nth-child(4), .pk-seq.pk-in > li:nth-child(4) .pk-dot { transition-delay: 950ms; }
+
+/* Cards lift toward you a little, and their mark gives a small nod. */
+.pk-lift { transition: transform 260ms cubic-bezier(0.16, 1, 0.3, 1), box-shadow 260ms ease, border-color 260ms ease; }
+.pk-lift:hover { transform: translateY(-4px); box-shadow: 0 18px 40px -22px rgba(60, 30, 10, 0.35); border-color: var(--border-strong); }
+.pk-lift .pk-nod { transition: transform 360ms cubic-bezier(0.34, 1.56, 0.64, 1); }
+.pk-lift:hover .pk-nod { transform: rotate(-10deg) scale(1.08); }
+
+/* Buttons press in, like the app's. */
+.pk-press { transition: transform 160ms cubic-bezier(0.16, 1, 0.3, 1), opacity 160ms ease, background-color 160ms ease; }
+.pk-press:hover { transform: translateY(-1px); }
+.pk-press:active { transform: scale(0.97); }
+
+/* The phone floats, and leans toward the pointer. */
+@keyframes pk-float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-8px); } }
+.pk-float { animation: pk-float 6s ease-in-out infinite; }
+.pk-tilt { perspective: 1200px; }
+.pk-tilt > * { transform: rotateX(var(--pk-rx, 0deg)) rotateY(var(--pk-ry, 0deg)); transition: transform 600ms cubic-bezier(0.16, 1, 0.3, 1); transform-style: preserve-3d; }
+
+/* Open answers ease in. */
+details[open] > p { animation: pk-arrive 360ms cubic-bezier(0.16, 1, 0.3, 1) both; }
+
+@media (prefers-reduced-motion: reduce) {
+  .pk-reveal, .pk-reveal [data-stagger], .pk-seq > li, .pk-seq > li .pk-dot { opacity: 1 !important; transform: none !important; transition: none !important; }
+  .pk-float { animation: none; }
+  .pk-tilt > * { transform: none !important; }
+  .pk-lift, .pk-lift:hover, .pk-press:hover, .pk-press:active { transform: none; }
+}

@@ -50,6 +50,7 @@ function Body({ d }: { d: Summary }) {
           { icon: 'calendar', label: 'Bills', color: tool('bills'), onPress: () => router.push('/bills') },
           { icon: 'chart.line.uptrend.xyaxis', label: 'Trends', color: tool('lessons'), onPress: () => router.push('/trends') },
           { icon: 'list.bullet', label: 'Purchases', color: tool('purchases'), onPress: () => router.push('/transactions') },
+          { icon: 'person.2', label: 'Friends', color: tool('friends'), onPress: () => router.push('/friends') },
         ]} />
       </TourTarget>
 

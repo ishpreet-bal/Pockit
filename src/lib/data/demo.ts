@@ -2,8 +2,7 @@ import 'server-only';
 import { eq, and } from 'drizzle-orm';
 import { withUser } from '@/lib/db/client';
 import {
-  accounts, categories, transactions, goals, budgets, budgetAllocations, workspaces,
-  assets as assetsTable, liabilities as liabilitiesTable, holdings, debts,
+  accounts, categories, transactions, goals, budgets, budgetAllocations, workspaces, assets as assetsTable, liabilities as liabilitiesTable, holdings, debts, costShares, iouDebts,
 } from '@/lib/db/schema';
 import { ACCOUNT_NORMAL_BALANCE } from './bootstrap';
 import { addDays, addMonths, startOfMonth, endOfMonth } from '@/lib/finance/period';
@@ -192,6 +191,21 @@ export async function seedDemoData(userId: string, workspaceId: string, today: I
     for (let i = 0; i < rows.length; i += 200) {
       await tx.insert(transactions).values(rows.slice(i, i + 200));
     }
+
+    /* ----- split with friends: one dinner they owe you for, one thing you owe ----- */
+    const splitDay = addDays(today, -3);
+    const [dinner] = await tx.insert(transactions).values({
+      workspaceId, accountId: visa, postedDate: splitDay, description: 'Dinner at Pai', originalDescription: 'PAI NORTHERN THAI',
+      merchantName: 'Pai Northern Thai', amountMinor: 9_600n, currency, baseAmountMinor: 9_600n, baseCurrency: currency,
+      type: 'expense', categoryId: catId.get('restaurants') ?? null, source: 'demo', createdBy: userId,
+    }).returning({ id: transactions.id });
+    await tx.insert(costShares).values({ workspaceId, transactionId: dinner!.id, kind: 'split', people: 3, expectBack: true, withWhom: 'Sam, Priya', createdBy: userId });
+    const [concert] = await tx.insert(transactions).values({
+      workspaceId, accountId: chq, postedDate: addDays(today, -6), description: 'Concert tickets', originalDescription: 'Concert tickets',
+      merchantName: 'Concert tickets', amountMinor: -4_500n, currency, baseAmountMinor: -4_500n, baseCurrency: currency,
+      type: 'expense', categoryId: catId.get('events') ?? null, source: 'demo', createdBy: userId, notes: 'Your part; Priya paid',
+    }).returning({ id: transactions.id });
+    await tx.insert(iouDebts).values({ workspaceId, person: 'Priya', description: 'Concert tickets', amountMinor: 4_500n, transactionId: concert!.id, createdBy: userId });
 
     /* ----- goals ----- */
     await tx.insert(goals).values([

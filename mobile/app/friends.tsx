@@ -5,6 +5,7 @@ import * as Haptics from 'expo-haptics';
 import { Card, EmptyCard, formatMoney, friendlyDate, Loading, Screen, SectionHeader } from '@/components/ui';
 import { Button, Chip, ChipRow, Field, FormError, toMinor } from '@/components/form';
 import { Icon } from '@/components/Icon';
+import { Press } from '@/components/Press';
 import { api } from '@/lib/api';
 import { PREVIEW } from '@/lib/session';
 import { useSummary } from '@/lib/summary';
@@ -169,13 +170,10 @@ function Person({ f, expanded, onToggle, deposits, payments, onChanged }: {
                   </View>
                   <Text style={[type.subhead, { color: it.kind === 'owes-you' ? accent.accent : c.negative, fontVariant: ['tabular-nums'] }]}>{formatMoney(it.amountMinor)}</Text>
                 </View>
-                {it.kind === 'owes-you' ? (
-                  <Button label={busy === it.id ? 'Saving…' : `${f.name} paid me back`} accent={accent.accent} loading={busy === it.id}
-                    onPress={() => void run(it.id, () => api(`/api/mobile/owed/${it.id}`, { body: { amount: it.amountMinor / 100, person: f.name } }))} />
-                ) : (
-                  <Button label={busy === it.id ? 'Saving…' : `I paid ${f.name} back`} accent={accent.accent} loading={busy === it.id}
-                    onPress={() => void run(it.id, () => api(`/api/mobile/friends/${it.id}`, { body: {} }))} />
-                )}
+                <Pill label={busy === it.id ? 'Saving…' : it.kind === 'owes-you' ? `${f.name} paid me back` : `I paid ${f.name} back`} color={accent.accent} disabled={busy !== null}
+                  onPress={() => void run(it.id, () => it.kind === 'owes-you'
+                    ? api(`/api/mobile/owed/${it.id}`, { body: { amount: it.amountMinor / 100, person: f.name } })
+                    : api(`/api/mobile/friends/${it.id}`, { body: {} }))} />
                 {likely.length ? (
                   <View style={{ gap: 6 }}>
                     <Text style={[type.footnote, { color: c.textMuted }]}>
@@ -258,5 +256,15 @@ function AddIou({ categories, onCancel, onSaved }: { categories: Data['categorie
         <Button label="Cancel" variant="plain" onPress={onCancel} />
       </View>
     </Card>
+  );
+}
+
+/** A small, quiet action inside a list item: one big button per row turns a list into a wall. */
+function Pill({ label, color, onPress, disabled }: { label: string; color: string; onPress: () => void; disabled?: boolean }) {
+  return (
+    <Press onPress={onPress} disabled={disabled} accessibilityRole="button" depth={0.95}
+      style={{ alignSelf: 'flex-start', paddingHorizontal: 14, paddingVertical: 8, borderRadius: 999, backgroundColor: color, opacity: disabled ? 0.6 : 1 }}>
+      <Text style={[type.footnote, { color: '#ffffff', fontWeight: '600' }]}>{label}</Text>
+    </Press>
   );
 }

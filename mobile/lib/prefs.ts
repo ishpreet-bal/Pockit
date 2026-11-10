@@ -39,7 +39,7 @@ export async function saveAppearance(value: 'system' | 'light' | 'dark'): Promis
 }
 
 /** Small free-text settings kept on this device (investing level, lessons read). */
-export type TextKey = 'investLevel' | 'learnDone' | 'alertsSent' | 'space';
+export type TextKey = 'investLevel' | 'learnDone' | 'alertsSent' | 'space' | 'accentHue';
 export async function getText(key: TextKey): Promise<string | null> {
   try { return Platform.OS === 'web' ? (globalThis.localStorage?.getItem(`pockit.${key}`) ?? memory.get(key) ?? null) : await SecureStore.getItemAsync(`pockit.pref.${key}`); }
   catch { return memory.get(key) ?? null; }

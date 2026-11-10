@@ -104,7 +104,22 @@ try {
   check('a recent car can be selected through all four picker steps', true);
 
   await page.getByText('Change', { exact: true }).click();
-  await page.getByText('Can’t find your car? Enter fuel use manually', { exact: true }).click();
+  // Not in the list: estimated from what the person knows about the car.
+  await page.getByText('Can’t find your car? Enter it yourself', { exact: true }).click();
+  await page.getByPlaceholder('2016', { exact: true }).fill('2016');
+  await page.getByPlaceholder('2.0', { exact: true }).fill('2.0');
+  await page.getByPlaceholder('e.g. 2016 Mazda 3').fill('My estimated SUV');
+  await page.getByText('SUV or crossover', { exact: true }).click();
+  await page.getByText('All four (AWD or 4x4)', { exact: true }).click();
+  await page.getByText('Estimate my fuel use', { exact: true }).click();
+  await page.getByText(/similar SUVs with about a 2\.0L engine/).waitFor();
+  await page.getByRole('button', { name: 'Use this car', exact: true }).click();
+  await page.getByText('My estimated SUV', { exact: true }).waitFor();
+  check('a car not in the list is estimated from its year, engine and type', true);
+
+  await page.getByText('Change', { exact: true }).click();
+  await page.getByText('Can’t find your car? Enter it yourself', { exact: true }).click();
+  await page.getByText('I know my fuel use', { exact: true }).click();
   await page.getByRole('textbox', { name: 'Car name', exact: true }).fill('My Canadian car');
   await page.getByRole('textbox', { name: 'Consumption per 100 km' }).fill('7.5');
   await page.getByRole('button', { name: 'Use this car', exact: true }).click();

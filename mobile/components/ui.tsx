@@ -1,7 +1,8 @@
-import { createContext, useContext, useState, type ReactNode } from 'react';
+import { createContext, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { ActivityIndicator, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View, type ViewStyle } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import Animated, { FadeInDown } from 'react-native-reanimated';
+import Animated, { Easing, FadeIn, FadeInDown, useAnimatedStyle, useSharedValue, withRepeat, withTiming } from 'react-native-reanimated';
+import { Press } from './Press';
 import * as Haptics from 'expo-haptics';
 import { router } from 'expo-router';
 import { radius, space, type, useColors, useIsDark, type Section } from '@/theme/tokens';
@@ -10,6 +11,11 @@ import { Icon } from './Icon';
 import { useSession } from '@/lib/session';
 
 const SectionContext = createContext<Section>('home');
+
+/** Lets something inside a page (the tour) scroll that page to bring itself into view. */
+export interface ScreenScroll { scrollBy: (dy: number) => void }
+const ScrollContext = createContext<ScreenScroll | null>(null);
+export const useScreenScroll = () => useContext(ScrollContext);
 
 /** The current section's accent pair, for anything inside a <Screen>. */
 export function useAccent() {
@@ -27,9 +33,18 @@ export function Screen({
 }: { section: Section; eyebrow?: string; title: string; right?: ReactNode; children: ReactNode; onRefresh?: () => void; refreshing?: boolean; back?: boolean }) {
   const insets = useSafeAreaInsets();
   const c = useColors();
+  const ref = useRef<ScrollView>(null);
+  const offset = useRef(0);
+  const scroll = useMemo<ScreenScroll>(() => ({
+    scrollBy: (dy) => ref.current?.scrollTo({ y: Math.max(0, offset.current + dy), animated: true }),
+  }), []);
   return (
     <SectionContext.Provider value={section}>
+     <ScrollContext.Provider value={scroll}>
       <ScrollView
+        ref={ref}
+        onScroll={(e) => { offset.current = e.nativeEvent.contentOffset.y; }}
+        scrollEventThrottle={32}
         style={{ flex: 1, backgroundColor: c.bg }}
         contentContainerStyle={{ paddingTop: insets.top + space.md, paddingBottom: 120, paddingHorizontal: space.xl }}
         contentInsetAdjustmentBehavior="never"
@@ -50,6 +65,7 @@ export function Screen({
         {/* Every page eases in, so moving around feels like one continuous app. */}
         <Animated.View entering={FadeInDown.duration(320)}>{children}</Animated.View>
       </ScrollView>
+     </ScrollContext.Provider>
     </SectionContext.Provider>
   );
 }
@@ -57,14 +73,14 @@ export function Screen({
 export function Card({ children, style, onPress }: { children: ReactNode; style?: ViewStyle; onPress?: () => void }) {
   const c = useColors();
   const base = [s.card, { backgroundColor: c.surface }, style];
-  if (!onPress) return <View style={base}>{children}</View>;
+  // Cards arrive with a short fade, so data landing after a load eases in rather than popping.
+  if (!onPress) return <Animated.View entering={FadeIn.duration(260)} style={base}>{children}</Animated.View>;
   return (
-    <Pressable
-      onPress={() => { void Haptics.selectionAsync(); onPress(); }}
-      style={({ pressed }) => [base, pressed && { opacity: 0.6 }]}
-    >
-      {children}
-    </Pressable>
+    <Animated.View entering={FadeIn.duration(260)}>
+      <Press onPress={() => { void Haptics.selectionAsync(); onPress(); }} style={base}>
+        {children}
+      </Press>
+    </Animated.View>
   );
 }
 
@@ -95,9 +111,11 @@ export function Row({
   const dark = useIsDark();
   void icon; void emoji;
   return (
-    <Pressable
+    <Press
+      disabled={!onPress}
+      depth={onPress ? 0.985 : 1} dim={onPress ? 0.7 : 1}
       onPress={onPress ? () => { void Haptics.selectionAsync(); onPress(); } : undefined}
-      style={({ pressed }) => [s.row, !last && { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: c.border }, pressed && onPress && { opacity: 0.6 }]}
+      style={[s.row, !last && { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: c.border }]}
     >
       {color ? (
         <View style={{ width: 34, height: 34, borderRadius: 12, backgroundColor: soft(color, dark), alignItems: 'center', justifyContent: 'center' }}>
@@ -109,7 +127,7 @@ export function Row({
         {detail ? <Text style={[type.footnote, { color: c.textMuted, marginTop: 1 }]}>{detail}</Text> : null}
       </View>
       {value ? <Text style={[type.bodyStrong, { color: valueColor ?? c.text, fontVariant: ['tabular-nums'] }]}>{value}</Text> : null}
-    </Pressable>
+    </Press>
   );
 }
 
@@ -234,12 +252,33 @@ export function StaleNote({ message }: { message: string | null }) {
 }
 
 /** First load: a spinner, or the error with how to retry. */
+/**
+ * While a page loads: soft shapes where the content will be, breathing gently,
+ * instead of a spinner and then everything popping in at once.
+ */
 export function Loading({ error }: { error: string | null }) {
   const c = useColors();
+  const pulse = useSharedValue(0.55);
+  useEffect(() => { pulse.value = withRepeat(withTiming(1, { duration: 900, easing: Easing.inOut(Easing.quad) }), -1, true); }, [pulse]);
+  const breathe = useAnimatedStyle(() => ({ opacity: pulse.value }));
+  if (error) {
+    return (
+      <View style={{ paddingVertical: 80, alignItems: 'center' }}>
+        <Text style={[type.subhead, { color: c.textMuted, textAlign: 'center' }]}>{error}{'\n'}Pull down to try again.</Text>
+      </View>
+    );
+  }
+  const block = (h: number, w: number | `${number}%` = '100%', r = 14) => ({ height: h, width: w, borderRadius: r, backgroundColor: c.surface2 });
   return (
-    <View style={{ paddingVertical: 80, alignItems: 'center' }}>
-      {error ? <Text style={[type.subhead, { color: c.textMuted, textAlign: 'center' }]}>{error}{'\n'}Pull down to try again.</Text> : <ActivityIndicator />}
-    </View>
+    <Animated.View style={[{ gap: space.md, paddingTop: space.sm }, breathe]} accessibilityLabel="Loading" accessibilityRole="progressbar">
+      <View style={block(44, '55%', 12)} />
+      <View style={block(14, '70%', 7)} />
+      <View style={{ flexDirection: 'row', gap: space.md, marginTop: space.md }}>
+        {[0, 1, 2, 3].map((i) => <View key={i} style={[block(52, 52, 18), { flex: 0 }]} />)}
+      </View>
+      <View style={[block(150), { marginTop: space.md }]} />
+      <View style={block(96)} />
+    </Animated.View>
   );
 }
 
@@ -255,14 +294,14 @@ export function Shortcuts({ items }: { items: { icon: string; label: string; onP
   return (
     <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: space.xl }}>
       {items.map((it) => (
-        <Pressable key={it.label} accessibilityRole="button" accessibilityLabel={it.label}
+        <Press key={it.label} accessibilityRole="button" accessibilityLabel={it.label} depth={0.92}
           onPress={() => { void Haptics.selectionAsync(); it.onPress(); }}
-          style={({ pressed }) => ({ alignItems: 'center', gap: 7, width: `${100 / items.length}%`, opacity: pressed ? 0.6 : 1, transform: [{ scale: pressed ? 0.94 : 1 }] })}>
+          style={{ alignItems: 'center', gap: 7, width: `${100 / items.length}%` }}>
           <View style={{ width: 52, height: 52, borderRadius: 18, backgroundColor: it.color ? soft(it.color, dark) : c.surface, alignItems: 'center', justifyContent: 'center' }}>
             <Icon name={it.icon} size={21} color={it.color ?? a.accent} />
           </View>
           <Text style={[type.footnote, { fontSize: 12, color: c.textMuted }]} numberOfLines={1}>{it.label}</Text>
-        </Pressable>
+        </Press>
       ))}
     </View>
   );

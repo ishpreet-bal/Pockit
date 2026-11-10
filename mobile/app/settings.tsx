@@ -1,15 +1,16 @@
 import { useEffect, useState } from 'react';
-import { Linking, Platform, Switch, Text, View } from 'react-native';
+import { Linking, Platform, Pressable, Switch, Text, View } from 'react-native';
+import * as Haptics from 'expo-haptics';
 import Constants from 'expo-constants';
 import { Card, Row, Screen, SectionHeader, Segmented } from '@/components/ui';
 import { router } from 'expo-router';
 import { api, API_URL } from '@/lib/api';
 import { biometricsAvailable, confirmWithBiometrics } from '@/lib/lock';
-import { getPref, saveAppearance, setPref } from '@/lib/prefs';
+import { getPref, saveAppearance, setPref, setText } from '@/lib/prefs';
 import { askForNotifications, checkBudgetAlerts, syncBillReminders, syncWeeklySummary } from '@/lib/reminders';
 import { useSummary } from '@/lib/summary';
 import { useSession } from '@/lib/session';
-import { setAppearance, space, type, useAppearance, useColors, type Appearance } from '@/theme/tokens';
+import { hsl, setAccentHue, setAppearance, space, type, useAccentHue, useAppearance, useColors, useIsDark, type Appearance } from '@/theme/tokens';
 import { GuestBanner } from '@/components/GuestBanner';
 
 function Toggle({ title, detail, value, onChange, disabled, last }: { title: string; detail: string; value: boolean; onChange: (v: boolean) => void; disabled?: boolean; last?: boolean }) {
@@ -84,6 +85,7 @@ export default function Settings() {
       <GuestBanner />
       <SectionHeader title="Appearance" />
       <AppearancePicker />
+      <ColourTryout />
       <SectionHeader title="Security" />
       <Card>
         <Toggle title={`Lock with ${bio.label}`} detail={bio.ok ? `Ask for ${bio.label} when Pockit opens, and after a minute away.` : `${bio.label} isn’t set up on this phone.`}
@@ -137,5 +139,36 @@ function AppearancePicker() {
       value={LOOKS.find((l) => l.value === current)!.label}
       onChange={(label) => { const v = LOOKS.find((l) => l.label === label)!.value; setAppearance(v); void saveAppearance(v); }}
     />
+  );
+}
+
+/**
+ * TEMPORARY: try Pockit in other colours. Tap the strip to pick a hue; the whole app
+ * changes at once. Remove this (and setAccentHue in theme/tokens.ts) next update.
+ */
+function ColourTryout() {
+  const c = useColors();
+  const hue = useAccentHue();
+  const dark = useIsDark();
+  const hues = Array.from({ length: 24 }, (_, i) => i * 15);
+  const pick = (h: number | null) => { void Haptics.selectionAsync(); setAccentHue(h); void setText('accentHue', h === null ? null : String(h)); };
+  return (
+    <View style={{ marginTop: space.lg, gap: 10 }}>
+      <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+        <Text style={[type.subhead, { color: c.text, flex: 1 }]}>Try a colour <Text style={{ color: c.textSubtle }}>(temporary)</Text></Text>
+        {hue !== null ? (
+          <Pressable onPress={() => pick(null)} hitSlop={8} accessibilityRole="button"><Text style={[type.footnote, { color: c.section.home.accent, fontWeight: '600' }]}>Back to orange</Text></Pressable>
+        ) : null}
+      </View>
+      <View style={{ flexDirection: 'row', height: 40, borderRadius: 20, overflow: 'hidden' }} accessibilityLabel="Colour wheel">
+        {hues.map((h) => (
+          <Pressable key={h} onPress={() => pick(h)} accessibilityRole="button" accessibilityLabel={`Hue ${h}`}
+            style={{ flex: 1, backgroundColor: dark ? hsl(h, 85, 62) : hsl(h, 78, 40), alignItems: 'center', justifyContent: 'center' }}>
+            {hue === h ? <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: '#fff' }} /> : null}
+          </Pressable>
+        ))}
+      </View>
+      <Text style={[type.footnote, { color: c.textMuted }]}>Tap a colour and every page changes. Just for trying ideas; it goes away in the next update.</Text>
+    </View>
   );
 }

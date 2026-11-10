@@ -17,20 +17,24 @@ import { font, space, type, useColors } from '@/theme/tokens';
 // Once per app launch at most, so dismissing it never brings it straight back.
 let tourOffered = false;
 
+/** How many stops the runway shows before folding the rest away. */
+const RUNWAY_FOLD = 5;
+
 export default function Home() {
   const { me, demo } = useSession();
   const tour = useTour();
+  const { data, error, refreshing, refresh } = useSummary();
   // The walkthrough opens by itself the first time: after setup, or when someone
-  // starts the demo. Skipping it counts as seeing it.
+  // starts the demo. Skipping it counts as seeing it. It waits for the page to have
+  // its numbers, so it never talks over a loading screen.
   useEffect(() => {
-    if (tourOffered || !me) return;
+    if (tourOffered || !me || !data) return;
     if (demo || me.tourDone === false) {
       tourOffered = true;
       const t = setTimeout(() => tour.offer(), 900);
       return () => clearTimeout(t);
     }
-  }, [me, demo]);
-  const { data, error, refreshing, refresh } = useSummary();
+  }, [me, demo, data]);
   const first = me?.name?.split(' ')[0];
   return (
     <Screen section="home" title={data ? todayLine(data.today) : 'Pockit'} eyebrow={data?.space?.shared ? `${data.space.name} · shared` : first ? `Hi ${first}` : undefined} right={<ProfileButton />} onRefresh={refresh} refreshing={refreshing}>
@@ -87,6 +91,10 @@ function Body({ d }: { d: Summary }) {
   const days = h.nextIncome ? Math.max(1, daysBetween(d.today, h.nextIncome.date)) : null;
   const goal = d.goals.find((g) => !g.achieved) ?? null;
   const stops = runway(d);
+  const [openRunway, setOpenRunway] = useState(false);
+  // Folded: the first few stops, then payday. Open: every stop.
+  const shown = openRunway || stops.length <= RUNWAY_FOLD ? stops : [...stops.slice(0, RUNWAY_FOLD - 1), stops[stops.length - 1]!];
+  const hidden = stops.length - shown.length;
   const tool = useToolTint();
 
   return (
@@ -113,10 +121,20 @@ function Body({ d }: { d: Summary }) {
 
       <SectionHeader title="To payday" action="All bills" onAction={() => router.push('/bills')} />
       <TourTarget id="runway">
-        {stops.map((st, i) => (
-          <StopRow key={st.key} stop={st} first={i === 0} last={i === stops.length - 1} onPress={st.kind === 'bill' ? () => router.push('/bills') : undefined} />
+        {shown.map((st, i) => (
+          <StopRow key={st.key} stop={st} first={i === 0} last={i === shown.length - 1} onPress={st.kind === 'bill' ? () => router.push('/bills') : undefined} />
         ))}
       </TourTarget>
+      {hidden > 0 ? (
+        // A long run of bills folds away; the next few and payday are what matter at a glance.
+        <Pressable onPress={() => setOpenRunway(true)} accessibilityRole="button" hitSlop={8} style={{ alignSelf: 'flex-start', marginTop: space.sm, marginLeft: 74 }}>
+          <Text style={[type.footnote, { color: a.accent, fontWeight: '600' }]}>{hidden} more before payday</Text>
+        </Pressable>
+      ) : openRunway && stops.length > RUNWAY_FOLD ? (
+        <Pressable onPress={() => setOpenRunway(false)} accessibilityRole="button" hitSlop={8} style={{ alignSelf: 'flex-start', marginTop: space.sm, marginLeft: 74 }}>
+          <Text style={[type.footnote, { color: c.textMuted, fontWeight: '600' }]}>Show less</Text>
+        </Pressable>
+      ) : null}
       {!h.nextIncome ? (
         <Text style={[type.footnote, { color: c.textMuted, marginTop: space.md, lineHeight: 20 }]}>
           Add your pay under Bills & income and this becomes a countdown to payday.
@@ -126,9 +144,9 @@ function Body({ d }: { d: Summary }) {
         <Text style={[type.footnote, { color: c.textMuted, marginTop: space.sm }]}>Nothing due before payday.</Text>
       ) : null}
 
-      <TourTarget id="pockNote">
+      <TourTarget id="pockNote" style={{ marginTop: 28 }}>
         <Pressable onPress={() => router.navigate('/ask')} accessibilityRole="button" accessibilityLabel="Ask Pock"
-          style={({ pressed }) => ({ flexDirection: 'row', gap: 12, alignItems: 'flex-start', marginTop: 28, paddingVertical: 14, paddingHorizontal: 14, borderRadius: 10, backgroundColor: c.surface, borderWidth: 0.5, borderColor: c.border, opacity: pressed ? 0.7 : 1 })}>
+          style={({ pressed }) => ({ flexDirection: 'row', gap: 12, alignItems: 'flex-start', paddingVertical: 14, paddingHorizontal: 14, borderRadius: 10, backgroundColor: c.surface, borderWidth: 0.5, borderColor: c.border, opacity: pressed ? 0.7 : 1 })}>
           <PockMark size={20} color={a.accent} />
           <View style={{ flex: 1 }}>
             <Text style={{ fontFamily: font.serifItalic, fontSize: 17, lineHeight: 22, color: c.text }}>{tip(d)}</Text>
@@ -141,7 +159,7 @@ function Body({ d }: { d: Summary }) {
       <Card>
         {d.owed && d.owed.minor > 0 ? (
           <Row icon="" title="Owed to you" detail={`From ${d.owed.count} split${d.owed.count === 1 ? '' : 's'} · tap when it comes back`}
-            value={formatMoney(d.owed.minor, { cents: false })} valueColor={a.accent} onPress={() => router.push('/owed')} />
+            value={formatMoney(d.owed.minor, { cents: false })} valueColor={a.accent} onPress={() => router.push('/friends')} />
         ) : null}
         <Row icon="" title={goal ? goal.name : 'Goals'} detail={goal ? (goal.targetMinor ? `${Math.round((goal.currentMinor / goal.targetMinor) * 100)}% saved` : 'Add an amount') : 'Set one and watch it fill'}
           value={goal ? formatMoney(goal.currentMinor, { cents: false }) : '›'} valueColor={goal ? c.text : c.textSubtle} onPress={() => router.push('/goals')} />

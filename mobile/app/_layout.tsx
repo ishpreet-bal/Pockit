@@ -5,8 +5,8 @@ import * as SplashScreen from 'expo-splash-screen';
 import { useFonts, Tinos_400Regular, Tinos_400Regular_Italic, Tinos_700Bold } from '@expo-google-fonts/tinos';
 import { DMSans_400Regular, DMSans_400Regular_Italic, DMSans_500Medium, DMSans_600SemiBold, DMSans_700Bold } from '@expo-google-fonts/dm-sans';
 import 'react-native-reanimated';
-import { setAppearance, useColors, useIsDark } from '@/theme/tokens';
-import { getAppearance } from '@/lib/prefs';
+import { setAccentHue, setAppearance, useColors, useIsDark } from '@/theme/tokens';
+import { getAppearance, getText } from '@/lib/prefs';
 import { SessionProvider } from '@/lib/session';
 import { SummaryProvider } from '@/lib/summary';
 import { AppLock } from '@/lib/lock';
@@ -25,6 +25,8 @@ export default function RootLayout() {
   const dark = useIsDark();
 
   useEffect(() => { void getAppearance().then(setAppearance); }, []);
+  // TEMPORARY try-a-colour: restore the hue picked in Settings.
+  useEffect(() => { void getText('accentHue').then((v) => { const h = v === null ? NaN : Number(v); if (Number.isFinite(h)) setAccentHue(h); }); }, []);
   useEffect(() => { if (loaded) void SplashScreen.hideAsync(); }, [loaded]);
   if (!loaded) return null;
 
