@@ -384,6 +384,13 @@ export interface CashPosition {
   debtMinor: bigint;
   /** cash − debt across tracked accounts. */
   netMinor: bigint;
+  /**
+   * What "safe to spend" starts from: everyday money (chequing and cash) minus what
+   * is owed on credit cards, since those purchases are already made and are paid
+   * from chequing. Savings is set aside, not spending money; loans and mortgages
+   * have their own payments, which arrive as bills.
+   */
+  spendableMinor: bigint;
 }
 
 const LIQUID_TYPES = new Set(['chequing', 'savings', 'cash', 'business_chequing']);
@@ -395,14 +402,16 @@ export function cashPosition(
   const byId = new Map(balances.map((b) => [b.accountId, b]));
   let cash = 0n;
   let debt = 0n;
+  let everyday = 0n;
+  let cards = 0n;
   for (const a of accounts) {
     if (a.excludeFromNetWorth || !a.isActive) continue;
     const b = byId.get(a.id);
     if (!b) continue;
-    if (a.normalBalance === 'credit') debt += b.rawMinor;
-    else if (LIQUID_TYPES.has(a.type)) cash += b.rawMinor;
+    if (a.normalBalance === 'credit') { debt += b.rawMinor; if (a.type === 'credit_card') cards += b.rawMinor; }
+    else if (LIQUID_TYPES.has(a.type)) { cash += b.rawMinor; if (a.type !== 'savings') everyday += b.rawMinor; }
   }
-  return { cashMinor: cash, debtMinor: debt, netMinor: cash - debt };
+  return { cashMinor: cash, debtMinor: debt, netMinor: cash - debt, spendableMinor: everyday - cards };
 }
 
 /* ------------------------------------------------------------------ */

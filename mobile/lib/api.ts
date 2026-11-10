@@ -37,6 +37,14 @@ export class ApiError extends Error {
   constructor(message: string, readonly status: number, readonly body: Record<string, unknown>) { super(message); }
 }
 
+/**
+ * Told when the server no longer accepts the session (signed out elsewhere, expired,
+ * account deleted). The session provider listens, clears it and goes to Welcome,
+ * instead of every screen showing a bare "Unauthorized".
+ */
+let sessionEnded: (() => void) | null = null;
+export function onSessionEnded(handler: (() => void) | null) { sessionEnded = handler; }
+
 /** JSON in, JSON out, with the session attached. Errors carry the server's own sentence. */
 export async function api<T = Record<string, unknown>>(path: string, init: { method?: string; body?: unknown } = {}): Promise<T> {
   const token = await readToken();
@@ -56,6 +64,10 @@ export async function api<T = Record<string, unknown>>(path: string, init: { met
   }
   const body = (await res.json().catch(() => ({}))) as Record<string, unknown>;
   if (!res.ok) {
+    if (res.status === 401 && token && !path.startsWith('/api/mobile/auth/')) {
+      sessionEnded?.();
+      throw new ApiError('You’ve been signed out. Sign in again to carry on.', 401, body);
+    }
     const message = typeof body.error === 'string' ? body.error : 'Something went wrong. Please try again.';
     throw new ApiError(message, res.status, body);
   }

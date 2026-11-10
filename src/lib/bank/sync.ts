@@ -1,9 +1,10 @@
 import 'server-only';
 import { and, eq, inArray } from 'drizzle-orm';
 import { withUser } from '@/lib/db/client';
-import { accounts, bankConnections, categories, transactions } from '@/lib/db/schema';
-import { accountType, categorySlug, isLiability, signedMinor, txType, type PlaidAccount, type PlaidTxn } from './map';
-import { getAccounts, openToken, syncTransactions, PlaidError } from './plaid';
+import { accounts, bankConnections, categories, merchantRules, transactions } from '@/lib/db/schema';
+import { matchesRule, resolveMerchant } from '@/lib/import/normalize';
+import { accountType, categorySlug, isLiability, signedMinor, txType, type PlaidAccount, type PlaidTxn, type TxType } from './map';
+import { getAccounts, openToken, syncTransactions, PlaidError, TokenUnreadable } from './plaid';
 
 /**
  * Bring one bank connection up to date: its accounts (and balances), then every
@@ -22,15 +23,17 @@ export async function syncConnection(ctx: Ctx, connectionId: string): Promise<Sy
   const conn = (await withUser(ctx.userId, (tx) => tx.select().from(bankConnections)
     .where(and(eq(bankConnections.id, connectionId), eq(bankConnections.workspaceId, ctx.workspaceId))).limit(1)))[0];
   if (!conn) throw new Error('Connection not found');
-  const access = openToken(conn.accessTokenEnc);
   try {
+    // Inside the try: a token that can't be opened (AUTH_SECRET changed) must mark
+    // the bank as needing a reconnect, not fail silently every day.
+    const access = openToken(conn.accessTokenEnc);
     const [acc, delta] = await Promise.all([getAccounts(access), syncTransactions(access, conn.cursor)]);
     const result = await applySync(ctx, conn.id, conn.institutionName, acc.accounts, delta);
     await withUser(ctx.userId, (tx) => tx.update(bankConnections).set({ cursor: delta.cursor, lastSyncedAt: new Date(), status: 'active', error: null }).where(eq(bankConnections.id, conn.id)));
     return result;
   } catch (e) {
     // ITEM_LOGIN_REQUIRED and friends: the person has to sign in to their bank again.
-    const needsLogin = e instanceof PlaidError && /LOGIN|EXPIRED|PENDING_EXPIRATION|INVALID_CREDENTIALS/.test(e.code ?? '');
+    const needsLogin = (e instanceof PlaidError && /LOGIN|EXPIRED|PENDING_EXPIRATION|INVALID_CREDENTIALS|INVALID_ACCESS_TOKEN/.test(e.code ?? '')) || e instanceof TokenUnreadable;
     await withUser(ctx.userId, (tx) => tx.update(bankConnections).set({ status: needsLogin ? 'reconnect' : 'error', error: e instanceof Error ? e.message.slice(0, 300) : 'Sync failed' }).where(eq(bankConnections.id, conn.id)));
     throw e;
   }
@@ -63,9 +66,13 @@ export async function applySync(
       byPlaid.set(a.account_id, { id: made[0]!.id, type });
     }
 
-    // 2. Categories by slug, for Plaid's category guesses.
-    const cats = await tx.select({ id: categories.id, slug: categories.slug }).from(categories).where(eq(categories.workspaceId, ctx.workspaceId));
-    const catBySlug = new Map(cats.map((c) => [c.slug, c.id]));
+    // 2. What decides a category: the person's own rules (what "remember this" saved),
+    //    then Pockit's list of known merchants, then Plaid's guess.
+    const cats = await tx.select({ id: categories.id, slug: categories.slug, kind: categories.kind }).from(categories)
+      .where(and(eq(categories.workspaceId, ctx.workspaceId), eq(categories.isArchived, false)));
+    const rules = await tx.select({ pattern: merchantRules.pattern, matchType: merchantRules.matchType, categoryId: merchantRules.categoryId, id: merchantRules.id })
+      .from(merchantRules).where(and(eq(merchantRules.workspaceId, ctx.workspaceId), eq(merchantRules.isActive, true))).orderBy(merchantRules.priority);
+    const categorize = categorizer(cats, rules);
 
     // 3. Added: skip pending and anything already stored.
     const posted = delta.added.filter((t) => !t.pending && byPlaid.has(t.account_id));
@@ -78,14 +85,16 @@ export async function applySync(
       if (seen.has(t.transaction_id)) continue;
       const acct = byPlaid.get(t.account_id)!;
       const amount = signedMinor(t, acct.type);
-      const slug = categorySlug(t);
+      const type = txType(t, acct.type);
+      const merchant = resolveMerchant(t.name, t.merchant_name);
+      const pick = categorize(t, type, merchant.categorySlug);
       await tx.insert(transactions).values({
         workspaceId: ctx.workspaceId, accountId: acct.id, postedDate: t.date,
-        description: t.merchant_name || t.name, originalDescription: t.name, merchantName: t.merchant_name ?? null,
+        description: t.merchant_name || merchant.displayName || t.name, originalDescription: t.name, merchantName: t.merchant_name ?? merchant.displayName ?? null,
         amountMinor: amount, currency: t.iso_currency_code ?? ctx.currency, baseAmountMinor: amount, baseCurrency: ctx.currency,
-        type: txType(t, acct.type), categoryId: slug ? catBySlug.get(slug) ?? null : null,
+        type, categoryId: pick.categoryId,
         source: 'api', externalId: t.transaction_id, createdBy: ctx.userId,
-        provenance: { provider: 'plaid', category: t.personal_finance_category ?? null },
+        provenance: { provider: 'plaid', category: t.personal_finance_category ?? null, categorizedBy: pick.by },
       });
       added++;
     }
@@ -110,4 +119,42 @@ export async function applySync(
     }
     return { accounts: plaidAccounts.length, added, updated, removed };
   });
+}
+
+type Cat = { id: string; slug: string; kind: string };
+type Rule = { id: string; pattern: string; matchType: string; categoryId: string | null };
+
+/**
+ * Picks a category for one bank transaction. Exported for tests.
+ *
+ * A category must suit the kind of money: pay never lands in Groceries because a
+ * grocery chain paid you, and a purchase never lands in Salary. Transfers between
+ * your own accounts get Transfer, so they never count as spending or income.
+ */
+export function categorizer(cats: Cat[], rules: Rule[]) {
+  const bySlug = new Map(cats.map((c) => [c.slug, c]));
+  const byId = new Map(cats.map((c) => [c.id, c]));
+  const fits = (c: Cat | undefined, type: TxType) => {
+    if (!c) return false;
+    if (type === 'transfer' || type === 'debt_payment') return c.kind === 'transfer' || c.slug === 'debt-payments';
+    if (type === 'income') return c.kind === 'income';
+    return c.kind === 'expense';
+  };
+  return (t: Pick<PlaidTxn, 'name' | 'merchant_name' | 'personal_finance_category'>, type: TxType, lexiconSlug: string | null): { categoryId: string | null; by: 'rule' | 'merchant' | 'bank' | null } => {
+    const haystack = `${t.name} ${t.merchant_name ?? ''}`.toLowerCase();
+    for (const r of rules) {
+      if (!r.categoryId || !matchesRule(haystack, r.pattern.toLowerCase(), r.matchType)) continue;
+      const c = byId.get(r.categoryId);
+      // A refund back to a card is still that shop's category.
+      if (c && (fits(c, type) || (type === 'refund' && c.kind === 'expense'))) return { categoryId: c.id, by: 'rule' };
+    }
+    if (type === 'transfer') { const c = bySlug.get('transfer'); return { categoryId: c?.id ?? null, by: c ? 'bank' : null }; }
+    const want = (slug: string | null) => { const c = slug ? bySlug.get(slug) : undefined; return c && (fits(c, type) || (type === 'refund' && c.kind === 'expense')) ? c : undefined; };
+    const fromMerchant = want(lexiconSlug);
+    if (fromMerchant) return { categoryId: fromMerchant.id, by: 'merchant' };
+    const fromBank = want(categorySlug(t));
+    if (fromBank) return { categoryId: fromBank.id, by: 'bank' };
+    if (type === 'income') { const c = bySlug.get('other-income'); if (c) return { categoryId: c.id, by: 'bank' }; }
+    return { categoryId: null, by: null };
+  };
 }

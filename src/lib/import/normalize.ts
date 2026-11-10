@@ -273,3 +273,14 @@ export function detectDecimalHint(samples: readonly string[]): DecimalHint {
   // is the safer reading for statements of unknown origin.
   return 'auto';
 }
+
+/** Does a merchant rule's pattern match this (lower-cased) description? Shared by imports and bank sync. */
+export function matchesRule(haystack: string, pattern: string, matchType: string): boolean {
+  switch (matchType) {
+    case 'exact': return haystack.trim() === pattern;
+    case 'starts_with': return haystack.startsWith(pattern);
+    case 'regex':
+      try { return new RegExp(pattern, 'i').test(haystack); } catch { return false; }
+    default: return haystack.includes(pattern);
+  }
+}

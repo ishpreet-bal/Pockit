@@ -12,7 +12,7 @@ import { detectSourceKind, parseCsv, type ParsedSource, type SourceKind } from '
 import { parseXlsx } from './parsers/xlsx';
 import { parsePdf } from './parsers/pdf';
 import {
-  normalizeDate, normalizeAmount, inferTransactionType, resolveMerchant, detectDecimalHint,
+  normalizeDate, normalizeAmount, inferTransactionType, resolveMerchant, detectDecimalHint, matchesRule,
   type DateFormatHint,
 } from './normalize';
 import { findDuplicate, findInternalDuplicates, normalizeMerchant, type DuplicateSubject } from '@/lib/finance/duplicates';
@@ -459,16 +459,6 @@ function prepareCandidate(row: ExtractedTransaction, index: number, ctx: Prepare
     raw: row as unknown as Record<string, unknown>,
     needsReview: overall < CONFIDENCE_REVIEW_FLOOR || date.ambiguous,
   };
-}
-
-function matchesRule(haystack: string, pattern: string, matchType: string): boolean {
-  switch (matchType) {
-    case 'exact': return haystack.trim() === pattern;
-    case 'starts_with': return haystack.startsWith(pattern);
-    case 'regex':
-      try { return new RegExp(pattern, 'i').test(haystack); } catch { return false; }
-    default: return haystack.includes(pattern);
-  }
 }
 
 export { normalizeMerchant, CONFIDENCE_REVIEW_FLOOR };

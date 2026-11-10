@@ -51,20 +51,37 @@ export function signedMinor(t: Pick<PlaidTxn, 'amount'>, acct: PockitAccountType
   return isLiability(acct) ? minor : -minor;
 }
 
-/** Plaid's detailed category → one of Pockit's built-in category slugs. */
+/**
+ * Plaid's detailed category → one of Pockit's built-in category slugs
+ * (src/lib/data/default-categories.ts). Detailed first, then the primary as a
+ * fallback, so a new Plaid subcategory still lands somewhere sensible.
+ */
 const DETAILED: Record<string, string> = {
+  INCOME_WAGES: 'salary', INCOME_DIVIDENDS: 'other-income', INCOME_INTEREST_EARNED: 'other-income', INCOME_RETIREMENT_PENSION: 'other-income',
+  INCOME_TAX_REFUND: 'other-income', INCOME_UNEMPLOYMENT: 'other-income', INCOME_OTHER_INCOME: 'other-income',
   FOOD_AND_DRINK_GROCERIES: 'groceries', FOOD_AND_DRINK_COFFEE: 'coffee', FOOD_AND_DRINK_FAST_FOOD: 'fast-food', FOOD_AND_DRINK_RESTAURANT: 'restaurants',
+  FOOD_AND_DRINK_BEER_WINE_AND_LIQUOR: 'groceries', FOOD_AND_DRINK_VENDING_MACHINES: 'fast-food',
   TRANSPORTATION_GAS: 'gas', TRANSPORTATION_PARKING: 'parking', TRANSPORTATION_PUBLIC_TRANSIT: 'public-transit', TRANSPORTATION_TAXIS_AND_RIDE_SHARES: 'public-transit',
+  TRANSPORTATION_TOLLS: 'transportation', TRANSPORTATION_BIKES_AND_SCOOTERS: 'public-transit',
   RENT_AND_UTILITIES_RENT: 'rent', RENT_AND_UTILITIES_TELEPHONE: 'phone', RENT_AND_UTILITIES_INTERNET_AND_CABLE: 'internet',
-  RENT_AND_UTILITIES_GAS_AND_ELECTRICITY: 'utilities', RENT_AND_UTILITIES_WATER: 'utilities',
-  GENERAL_MERCHANDISE_CLOTHING_AND_ACCESSORIES: 'clothing', GENERAL_MERCHANDISE_ELECTRONICS: 'electronics',
+  RENT_AND_UTILITIES_GAS_AND_ELECTRICITY: 'utilities', RENT_AND_UTILITIES_WATER: 'utilities', RENT_AND_UTILITIES_SEWAGE_AND_WASTE_MANAGEMENT: 'utilities',
+  GENERAL_MERCHANDISE_CLOTHING_AND_ACCESSORIES: 'clothing', GENERAL_MERCHANDISE_ELECTRONICS: 'electronics', GENERAL_MERCHANDISE_SUPERSTORES: 'shopping',
+  GENERAL_MERCHANDISE_ONLINE_MARKETPLACES: 'shopping', GENERAL_MERCHANDISE_GIFTS_AND_NOVELTIES: 'gifts-giving', GENERAL_MERCHANDISE_PET_SUPPLIES: 'household',
+  GENERAL_MERCHANDISE_DISCOUNT_STORES: 'shopping', GENERAL_MERCHANDISE_DEPARTMENT_STORES: 'shopping',
+  HOME_IMPROVEMENT_FURNITURE: 'household', HOME_IMPROVEMENT_HARDWARE: 'home-maintenance', HOME_IMPROVEMENT_REPAIR_AND_MAINTENANCE: 'home-maintenance',
   MEDICAL_PHARMACIES_AND_SUPPLEMENTS: 'pharmacy', PERSONAL_CARE_GYMS_AND_FITNESS_CENTERS: 'fitness',
-  ENTERTAINMENT_TV_AND_MOVIES: 'subscriptions', ENTERTAINMENT_MUSIC_AND_AUDIO: 'subscriptions',
+  ENTERTAINMENT_TV_AND_MOVIES: 'subscriptions', ENTERTAINMENT_MUSIC_AND_AUDIO: 'subscriptions', ENTERTAINMENT_SPORTING_EVENTS_AMUSEMENT_PARKS_AND_MUSEUMS: 'events',
+  ENTERTAINMENT_VIDEO_GAMES: 'hobbies',
+  GENERAL_SERVICES_INSURANCE: 'insurance', GENERAL_SERVICES_EDUCATION: 'education', GENERAL_SERVICES_AUTOMOTIVE: 'car-maintenance',
+  GENERAL_SERVICES_CHILDCARE: 'household', GENERAL_SERVICES_POSTAGE_AND_SHIPPING: 'miscellaneous',
+  GOVERNMENT_AND_NON_PROFIT_DONATIONS: 'gifts-giving',
 };
 const PRIMARY: Record<string, string> = {
+  INCOME: 'other-income', TRANSFER_IN: 'transfer', TRANSFER_OUT: 'transfer',
   FOOD_AND_DRINK: 'restaurants', TRANSPORTATION: 'transportation', TRAVEL: 'travel', RENT_AND_UTILITIES: 'utilities',
   GENERAL_MERCHANDISE: 'shopping', HOME_IMPROVEMENT: 'home-maintenance', MEDICAL: 'medical', PERSONAL_CARE: 'personal-care',
-  ENTERTAINMENT: 'entertainment', GENERAL_SERVICES: 'miscellaneous', GOVERNMENT_AND_NON_PROFIT: 'gifts-giving', LOAN_PAYMENTS: 'debt-payments',
+  ENTERTAINMENT: 'entertainment', GENERAL_SERVICES: 'miscellaneous', GOVERNMENT_AND_NON_PROFIT: 'miscellaneous', LOAN_PAYMENTS: 'debt-payments',
+  BANK_FEES: 'miscellaneous',
 };
 export function categorySlug(t: Pick<PlaidTxn, 'personal_finance_category'>): string | null {
   const c = t.personal_finance_category;

@@ -17,11 +17,28 @@ export class PlaidError extends Error {
   constructor(message: string, readonly code: string | null, readonly status: number) { super(message); }
 }
 
+/**
+ * Plaid's address. PLAID_API_BASE exists only for tests, which point it at a local
+ * stand-in (e2e/fake-plaid.mjs); it is refused in production so a stray variable can
+ * never send the keys anywhere but Plaid.
+ */
+function base(): string {
+  const override = process.env.PLAID_API_BASE?.trim();
+  if (override && process.env.NODE_ENV !== 'production' && /^http:\/\/(127\.0\.0\.1|localhost)(:\d+)?$/.test(override)) return override;
+  return `https://${ENV()}.plaid.com`;
+}
+
 async function call<T>(path: string, body: Record<string, unknown>): Promise<T> {
-  const res = await fetch(`https://${ENV()}.plaid.com${path}`, {
+  // The keys travel in Plaid's own headers rather than the body, so they never sit
+  // in a request body that might be logged.
+  const res = await fetch(`${base()}${path}`, {
     method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ client_id: process.env.PLAID_CLIENT_ID, secret: process.env.PLAID_SECRET, ...body }),
+    headers: {
+      'content-type': 'application/json',
+      'PLAID-CLIENT-ID': process.env.PLAID_CLIENT_ID?.trim() ?? '',
+      'PLAID-SECRET': process.env.PLAID_SECRET?.trim() ?? '',
+    },
+    body: JSON.stringify(body),
   });
   const json = (await res.json().catch(() => ({}))) as Record<string, unknown>;
   if (!res.ok) throw new PlaidError(String(json.error_message ?? `Plaid ${res.status}`), (json.error_code as string) ?? null, res.status);
@@ -49,6 +66,16 @@ export async function linkResult(linkToken: string): Promise<{ publicToken: stri
     if (add?.public_token) return { publicToken: add.public_token, institution: add.institution?.name ?? null };
   }
   return null;
+}
+
+/**
+ * Update mode (signing in again to a bank Pockit already has): there is no new token
+ * to collect, only whether they finished. A session that finished, or reported a
+ * success, means try syncing; the sync itself is the real test that the login works.
+ */
+export async function linkFinished(linkToken: string): Promise<boolean> {
+  const r = await call<{ link_sessions?: { finished_at?: string | null; on_success?: unknown; results?: unknown }[] }>('/link/token/get', { link_token: linkToken });
+  return (r.link_sessions ?? []).some((s) => Boolean(s.finished_at || s.on_success || s.results));
 }
 
 export const exchangePublicToken = (publicToken: string) =>
@@ -83,10 +110,17 @@ export function sealToken(token: string): string {
   return ['v1', iv.toString('base64url'), c.getAuthTag().toString('base64url'), body.toString('base64url')].join('.');
 }
 
+/** The stored bank token can't be opened: written under a different AUTH_SECRET, or damaged. Only a reconnect fixes it. */
+export class TokenUnreadable extends Error {}
+
 export function openToken(sealed: string): string {
   const [v, iv, tag, body] = sealed.split('.');
-  if (v !== 'v1' || !iv || !tag || !body) throw new Error('Unreadable bank token');
-  const d = createDecipheriv('aes-256-gcm', key(), Buffer.from(iv, 'base64url'));
-  d.setAuthTag(Buffer.from(tag, 'base64url'));
-  return Buffer.concat([d.update(Buffer.from(body, 'base64url')), d.final()]).toString('utf8');
+  if (v !== 'v1' || !iv || !tag || !body) throw new TokenUnreadable('Unreadable bank token');
+  try {
+    const d = createDecipheriv('aes-256-gcm', key(), Buffer.from(iv, 'base64url'));
+    d.setAuthTag(Buffer.from(tag, 'base64url'));
+    return Buffer.concat([d.update(Buffer.from(body, 'base64url')), d.final()]).toString('utf8');
+  } catch {
+    throw new TokenUnreadable('Unreadable bank token');
+  }
 }

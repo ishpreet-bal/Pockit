@@ -58,7 +58,7 @@ export interface MoneyPosition {
   /** Bills the user has committed to but not yet paid, before the period ends. */
   committedMinor: bigint;
 
-  /** Liquid cash right now, counting only money that has actually moved. */
+  /** Everyday money right now (chequing and cash, minus card balances owed), counting only money that has actually moved. */
   cashNowMinor: bigint;
   /**
    * The headline number: cash in hand minus what is already spoken for.
@@ -206,8 +206,8 @@ export function computePosition(input: PositionInput): MoneyPosition {
     incomeExpectedMinor: incomeExpected,
     spentMinor: spent,
     committedMinor: committed,
-    cashNowMinor: cash.cashMinor,
-    availableNowMinor: cash.cashMinor - committed,
+    cashNowMinor: cash.spendableMinor,
+    availableNowMinor: cash.spendableMinor - committed,
     leftThisPeriodMinor: incomeReceived + incomeExpected - spent - committed,
     commitments: inPeriod,
     soonCommitments: soon,

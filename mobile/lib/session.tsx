@@ -1,6 +1,6 @@
 import { restoreSpace, switchSpace } from './spaces';
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
-import { api, ApiError, readToken, writeToken } from './api';
+import { api, ApiError, onSessionEnded, readToken, writeToken } from './api';
 import { configurePurchases } from './purchases';
 
 export interface Me {
@@ -81,6 +81,11 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   }, [me, status]);
 
   useEffect(() => { void refresh(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  // Any screen hearing "not signed in" from the server ends the session here.
+  useEffect(() => {
+    onSessionEnded(() => { void writeToken(null); setMe(null); setStatus('signed-out'); });
+    return () => onSessionEnded(null);
+  }, []);
 
   const value = useMemo<SessionValue>(() => ({
     status, me, refresh, demo,

@@ -1,7 +1,7 @@
 # Launch checklist
 
 The state of Pockit before its first App Store release. Tick things off here as they
-are done. Last updated November 9, 2026.
+are done. Last updated November 10, 2026.
 
 ## Step 0: fix the two-project mix-up on Vercel (do this first)
 
@@ -49,9 +49,9 @@ This is why your keys seemed to "stop working". The newer deployments went to th
 | `DATABASE_URL`, `AUTH_SECRET`, `ADMIN_SECRET`, `ADMIN_EMAILS` | Everything | Set |
 | `ANTHROPIC_API_KEY`, or `OPENAI_API_KEY` + `AI_PROVIDER=openai` | Pock, receipts, screenshot import | Anthropic set; add OpenAI if you want it |
 | `TWELVEDATA_API_KEY` | Real stock prices | Set |
-| `CRON_SECRET` | Daily guest cleanup | **Add**: any long random string |
+| `CRON_SECRET` | Daily bank sync and guest cleanup | **Add**: any long random string |
 | `RESEND_API_KEY`, `EMAIL_FROM`, `SUPPORT_EMAIL` | Forgot password, feedback emails, contact on /privacy | **Add** (needs your own domain for `EMAIL_FROM`) |
-| `PLAID_CLIENT_ID`, `PLAID_SECRET`, `PLAID_ENV` | Bank connection | Leave out until Plaid approves production |
+| `PLAID_CLIENT_ID`, `PLAID_SECRET`, `PLAID_ENV` | Bank connection | Sandbox keys to try it; production keys for real banks (see below) |
 | `GOOGLE_MAPS_API_KEY` | Better trip search (optional) | Optional |
 
 Set each one for **Production** (and Preview, if you want previews to work too), then redeploy. Vercel only applies variable changes to new deployments.
@@ -94,8 +94,20 @@ Apple doesn't reject apps for being built with Claude or any other AI tool. It r
 
 ## Bank connection (Plaid)
 
-- [ ] **Don't launch with `PLAID_ENV=sandbox`**: real people would see fake test banks. Launch without the Plaid keys (the app says "coming soon"), and apply for Plaid **production** access in parallel.
-  - Plaid needs your privacy policy URL, a sole-proprietor or company profile, and a description of the use.
+Built and tested end to end (`e2e/bank.mjs` against a local stand-in for Plaid, `e2e/fake-plaid.mjs`):
+connect on the bank's secure page, accounts and balances arrive, 180 days of transactions come in and are
+categorised (your own "remember this" rules first, then Pockit's known merchants, then Plaid's category),
+pending purchases wait until they post, the bank's corrections and removals are applied, a daily sync runs
+by itself, an expired login shows **Sign in** and reconnects without doubling anything, and disconnecting keeps
+your history. Safe to spend counts chequing minus what's owed on cards; savings isn't spending money.
+
+- [ ] **Try it with Plaid's sandbox first.** Plaid dashboard → Developers → Keys. In Vercel (pockit-7xmx) add
+  `PLAID_CLIENT_ID`, `PLAID_SECRET` (the **Sandbox** secret) and `PLAID_ENV=sandbox`, redeploy, then in the app:
+  Accounts → Connect a bank → pick any bank → username `user_good`, password `pass_good`.
+- [ ] **For the beta with real banks**: apply for Plaid production access (it needs the privacy policy URL,
+  a sole-proprietor or company profile, and a description of the use), then swap in the **Production** secret and
+  `PLAID_ENV=production`. Don't open the beta to other people while it's on sandbox: they'd see fake test banks.
+- [ ] `CRON_SECRET` must be set for the daily bank sync (and the guest cleanup).
 
 ## Read these yourself
 

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { connectBank, disconnectBank, listConnections, syncBanks, type Connection } from '@/lib/bank';
-import { Text, View } from 'react-native';
+import { Alert, Platform, Text, View } from 'react-native';
 import { Button, Field, FormError, toMinor } from '@/components/form';
 import { Card, EmptyCard, Loading, Row, Screen, SectionHeader, formatMoney } from '@/components/ui';
 import { previewAccounts } from '@/data/preview';
@@ -60,6 +60,33 @@ export default function Accounts() {
     } catch (e) { setError(e instanceof Error ? e.message : 'Sync failed.'); }
     finally { setBankBusy(null); }
   }
+  async function signInAgain(b: Connection) {
+    setError(null); setNote(null);
+    try {
+      const fixed = await connectBank(setBankBusy, b.id);
+      setBankBusy(null);
+      if (fixed) { setNote(`${b.institution ?? 'Your bank'} is working again.`); await refresh(); load(); }
+      else setNote('Signing in wasn’t finished. You can try again any time.');
+    } catch (e) { setBankBusy(null); setError(e instanceof Error ? e.message : 'Couldn’t reconnect your bank.'); }
+  }
+  /** Tapping a bank: sign in again if it needs it, otherwise offer to disconnect (and ask first). */
+  function manage(b: Connection) {
+    if (bankBusy) return;
+    const name = b.institution ?? 'this bank';
+    const body = 'Pockit stops updating it. The transactions already here are kept.';
+    if (Platform.OS === 'web') {
+      if (b.status === 'reconnect' && globalThis.confirm?.(`Sign in to ${name} again?`)) { void signInAgain(b); return; }
+      if (globalThis.confirm?.(`Disconnect ${name}? ${body}`)) void disconnect(b.id);
+      return;
+    }
+    Alert.alert(b.status === 'reconnect' ? `${name} needs you to sign in again` : name, b.status === 'reconnect' ? 'Your bank asked for your login again. Nothing is lost while it waits.' : undefined, [
+      ...(b.status === 'reconnect' ? [{ text: 'Sign in again', onPress: () => void signInAgain(b) }] : []),
+      { text: 'Disconnect', style: 'destructive' as const, onPress: () => Alert.alert(`Disconnect ${name}?`, body, [
+        { text: 'Cancel', style: 'cancel' }, { text: 'Disconnect', style: 'destructive', onPress: () => void disconnect(b.id) },
+      ]) },
+      { text: 'Cancel', style: 'cancel' as const },
+    ]);
+  }
   async function disconnect(id: string) {
     setBankBusy('Disconnecting…');
     try { await disconnectBank(id); load(); setNote('Disconnected. Your past transactions are kept.'); } catch (e) { setError(e instanceof Error ? e.message : 'Couldn’t disconnect.'); }
@@ -75,6 +102,7 @@ export default function Accounts() {
     finally { setBusy(false); }
   }
 
+  const bankLinked = Boolean(banks?.connections.length);
   return (
     <Screen section="more" title="Accounts" back>
       {!accounts ? <Loading error={error} /> : (
@@ -93,7 +121,7 @@ export default function Accounts() {
               {banks.connections.map((b, i) => (
                 <Row key={b.id} icon="building.columns" title={b.institution ?? 'Bank'}
                   detail={b.status === 'active' ? (b.lastSyncedAt ? `Synced ${new Date(b.lastSyncedAt).toLocaleString('en-CA', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}` : 'Connected') : b.status === 'reconnect' ? 'Needs you to sign in again' : 'Couldn’t sync — try Sync now'}
-                  value="Disconnect" valueColor={c.textMuted} last={i === banks.connections.length - 1} onPress={() => void disconnect(b.id)} />
+                  value={b.status === 'reconnect' ? 'Sign in' : 'Manage'} valueColor={b.status === 'reconnect' ? c.negative : c.textMuted} last={i === banks.connections.length - 1} onPress={() => manage(b)} />
               ))}
             </Card>
           ) : (
@@ -106,17 +134,27 @@ export default function Accounts() {
               <Button label={bankBusy ?? (banks.connections.length ? 'Connect another bank' : 'Connect a bank')} loading={Boolean(bankBusy)} onPress={() => void connect()} />
             </View>
           ) : null}
-
-          <SectionHeader title="Everyday balance" />
-          <Text style={[type.footnote, { color: c.textMuted, lineHeight: 20, marginBottom: space.md }]}>
-            What’s in your chequing account right now. Pockit counts from here, so update it if the numbers ever drift from your bank.
-          </Text>
-          <View style={{ gap: space.md }}>
-            <Field label="Balance right now" prefix="$" value={amount} onChangeText={setAmount} keyboardType="decimal-pad" placeholder="1,500" />
-            <FormError message={error} />
-            {note ? <Text style={[type.footnote, { color: c.positive }]}>{note}</Text> : null}
-            <Button label="Update balance" loading={busy} disabled={toMinor(amount) === null} onPress={() => void save()} />
-          </View>
+          {bankLinked ? (
+            <View style={{ marginTop: space.md, gap: space.sm }}>
+              <FormError message={error} />
+              {note ? <Text style={[type.footnote, { color: c.positive }]}>{note}</Text> : null}
+              <Text style={[type.footnote, { color: c.textMuted, lineHeight: 20 }]}>Balances come from your bank and update every day, or when you tap Sync now.</Text>
+            </View>
+          ) : (
+            <>
+              {/* Typing a balance only makes sense without a bank: the next sync would overwrite it. */}
+              <SectionHeader title="Everyday balance" />
+              <Text style={[type.footnote, { color: c.textMuted, lineHeight: 20, marginBottom: space.md }]}>
+                What’s in your chequing account right now. Pockit counts from here, so update it if the numbers ever drift from your bank.
+              </Text>
+              <View style={{ gap: space.md }}>
+                <Field label="Balance right now" prefix="$" value={amount} onChangeText={setAmount} keyboardType="decimal-pad" placeholder="1,500" />
+                <FormError message={error} />
+                {note ? <Text style={[type.footnote, { color: c.positive }]}>{note}</Text> : null}
+                <Button label="Update balance" loading={busy} disabled={toMinor(amount) === null} onPress={() => void save()} />
+              </View>
+            </>
+          )}
         </>
       )}
     </Screen>

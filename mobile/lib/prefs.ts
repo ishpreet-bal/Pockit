@@ -4,7 +4,18 @@ import { Platform } from 'react-native';
 /** Small on-device settings (Face ID lock, reminders). Kept in the Keychain alongside the session. */
 export type PrefKey = 'faceId' | 'billReminders' | 'budgetAlerts' | 'weeklySummary';
 
-const memory = new Map<string, string>();
+/**
+ * In a browser these live in localStorage, so the look and the toggles survive a
+ * reload (a plain Map forgot Dark every time the page refreshed). It falls back to
+ * memory where storage is blocked, such as some private windows.
+ */
+const fallback = new Map<string, string>();
+const store = () => { try { return typeof localStorage === 'undefined' ? null : localStorage; } catch { return null; } };
+const memory = {
+  get: (k: string): string | undefined => { try { return store()?.getItem(`pockit.pref.${k}`) ?? fallback.get(k); } catch { return fallback.get(k); } },
+  set: (k: string, v: string) => { fallback.set(k, v); try { store()?.setItem(`pockit.pref.${k}`, v); } catch { /* blocked */ } },
+  delete: (k: string) => { fallback.delete(k); try { store()?.removeItem(`pockit.pref.${k}`); } catch { /* blocked */ } },
+};
 
 export async function getPref(key: PrefKey): Promise<boolean> {
   const raw = Platform.OS === 'web' ? memory.get(key) : await SecureStore.getItemAsync(`pockit.pref.${key}`);

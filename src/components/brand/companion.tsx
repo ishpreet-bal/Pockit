@@ -74,7 +74,7 @@ export function Companion({ tip }: { tip: CompanionTip | null }) {
       setPanel('ask');
       setOpen(true);
     }
-    // The phone header's otter opens the same menu this button does.
+    // The phone header's Pock opens the same menu this button does.
     function onOpen() { setHidden(false); setPanel('tip'); setOpen((v) => !v); }
     window.addEventListener('pock:ask', onAsk);
     window.addEventListener('pock:open', onOpen);
@@ -253,12 +253,12 @@ export function Companion({ tip }: { tip: CompanionTip | null }) {
           // On a phone Pock lives in the header instead: two floating buttons
           // stacked over the right edge were covering the amounts beside them.
           'pointer-events-auto relative hidden h-14 w-14 place-items-center rounded-full md:grid',
-          // A little pool for the otter to float in, rather than a flat brand disc.
-          'bg-[radial-gradient(circle_at_50%_70%,color-mix(in_srgb,var(--goal)_35%,var(--surface))_0%,var(--surface)_70%)]',
+          // The same soft tile the mark sits on in the app.
+          'bg-[var(--accent-soft)]',
           'border border-[var(--border-strong)] shadow-[var(--shadow-md)]',
         )}
       >
-        <Mascot mood={mood} className="h-12 w-12" />
+        <Mascot mood={mood} className="h-8 w-8" />
         {activeTip && !open ? (
           // One quiet dot, not a bouncing badge. It says "there is something here"
           // without demanding the screen.

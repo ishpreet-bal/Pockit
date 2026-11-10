@@ -257,6 +257,16 @@ describe('balances', () => {
     expect(pos.debtMinor).toBe(30_000n);
     expect(pos.netMinor).toBe(420_000n);
   });
+
+  it('safe to spend starts from everyday money minus cards owed, not savings or the mortgage', () => {
+    const savings: LedgerAccount = { ...chequing, id: 'acct-sav', name: 'Savings', type: 'savings', openingBalanceMinor: 620_000n };
+    const mortgage: LedgerAccount = { ...visa, id: 'acct-mtg', name: 'Mortgage', type: 'mortgage', openingBalanceMinor: 30_000_000n, creditLimitMinor: null };
+    const txns = [txn({ type: 'expense', amountMinor: 64_255n, accountId: 'acct-visa' })];
+    const accts = [chequing, savings, visa, mortgage];
+    const pos = cashPosition(accts, allAccountBalances(accts, txns));
+    expect(pos.cashMinor).toBe(1_120_000n);          // chequing + savings, for net worth
+    expect(pos.spendableMinor).toBe(500_000n - 64_255n); // chequing − the Visa balance
+  });
 });
 
 describe('time series', () => {

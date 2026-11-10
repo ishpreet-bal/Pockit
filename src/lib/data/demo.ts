@@ -83,7 +83,7 @@ export async function seedDemoData(userId: string, workspaceId: string, today: I
       return rows[0]!.id;
     };
 
-    const chq = await mkAccount('Everyday Chequing', 'chequing', 412_500n);
+    const chq = await mkAccount('Everyday Chequing', 'chequing', 562_500n);
     const sav = await mkAccount('High-Interest Savings', 'savings', 1_240_000n);
     const visa = await mkAccount('Visa Infinite', 'credit_card', 0n, 750_000n);
     const tfsa = await mkAccount('TFSA', 'investment', 1_850_000n);
