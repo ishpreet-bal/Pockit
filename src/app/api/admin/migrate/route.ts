@@ -75,10 +75,22 @@ export async function POST(request: Request) {
     const { runMigrations } = await import('@/lib/db/migrate');
     const result = await runMigrations(env.DATABASE_URL);
     if (result.failed) {
-      return NextResponse.json({ ok: false, ...result }, { status: 500 });
+      // Said out loud twice: in the function log (a 500 that prints nothing is invisible
+      // there), and in `error`, which is the field the setup page shows the person.
+      console.error('Migration failed', result.failed.file, result.failed.error, result.failed.statement);
+      return NextResponse.json(
+        {
+          ok: false,
+          ...result,
+          error: `Update ${result.failed.file} failed: ${result.failed.error}` +
+            (result.applied.length ? ` (${result.applied.length} earlier update${result.applied.length === 1 ? '' : 's'} applied; running setup again continues from here).` : ''),
+        },
+        { status: 500 },
+      );
     }
     return NextResponse.json({ ok: true, ...result });
   } catch (error) {
+    console.error('Migration failed', error);
     return NextResponse.json(
       { ok: false, error: error instanceof Error ? error.message : 'Migration failed' },
       { status: 500 },

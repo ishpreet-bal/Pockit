@@ -62,4 +62,13 @@ ALTER DEFAULT PRIVILEGES IN SCHEMA pockit GRANT EXECUTE ON FUNCTIONS TO pockit_a
 --> statement-breakpoint
 
 -- The connecting role may switch into it.
-GRANT pockit_app TO CURRENT_USER;
+--
+-- Hosted databases connect as a role that is not a superuser, and it may lack the
+-- right to grant this role (it does if it created it; not if someone else did). That
+-- must not stop setup: the app checks whether it can switch (canEnforceRls) and runs
+-- as the connecting role when it cannot, exactly as it did before this migration.
+DO $$ BEGIN
+  EXECUTE 'GRANT pockit_app TO ' || quote_ident(current_user);
+EXCEPTION WHEN insufficient_privilege OR invalid_grant_operation THEN
+  RAISE NOTICE 'Could not grant pockit_app to %; row-level security stays with the connecting role', current_user;
+END $$;
