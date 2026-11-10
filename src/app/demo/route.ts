@@ -23,9 +23,16 @@ export async function GET(request: Request) {
   // guest account with sample money, straight into the app and its tour.
   if (!user) {
     const { ip, userAgent } = await requestContext();
-    const made = await createGuest(ip);
-    if (!made.ok) return NextResponse.redirect(new URL('/sign-up?busy=1', url));
-    await createSession(made.userId, ip, userAgent);
+    try {
+      const made = await createGuest(ip);
+      if (!made.ok) return NextResponse.redirect(new URL('/sign-up?busy=1', url));
+      await createSession(made.userId, ip, userAgent);
+    } catch (error) {
+      // Almost always a database that hasn't been updated for this version yet
+      // (or no database at all): the setup page says which, instead of a bare 500.
+      console.error('Look around first failed', error);
+      return NextResponse.redirect(new URL('/setup', url));
+    }
     return NextResponse.redirect(new URL('/overview', url));
   }
 
