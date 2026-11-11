@@ -69,7 +69,7 @@ export function useIsDark() {
   return chosen === 'system' ? system === 'dark' : chosen === 'dark';
 }
 
-/* ---------- TEMPORARY: try-a-colour (Settings). Remove in the next update. ---------- */
+/* ---------- Accent colour (Settings): Pockit orange unless the person picks another. ---------- */
 // A hue from 0 to 360, or null for Pockit's own orange. The light theme gets a deeper
 // shade and the dark theme a brighter one, so text on it stays readable in both.
 let accentHue: number | null = null;

@@ -25,7 +25,7 @@ export default function RootLayout() {
   const dark = useIsDark();
 
   useEffect(() => { void getAppearance().then(setAppearance); }, []);
-  // TEMPORARY try-a-colour: restore the hue picked in Settings.
+  // The accent colour picked in Settings, if any (Pockit orange otherwise).
   useEffect(() => { void getText('accentHue').then((v) => { const h = v === null ? NaN : Number(v); if (Number.isFinite(h)) setAccentHue(h); }); }, []);
   useEffect(() => { if (loaded) void SplashScreen.hideAsync(); }, [loaded]);
   if (!loaded) return null;

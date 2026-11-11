@@ -27,6 +27,7 @@ export default function More() {
 function Body() {
   const c = useColors();
   const tour = useTour();
+  const { me } = useSession();
   const go = (title: string) => {
     if (title === 'Bills') return router.push('/bills');
     if (title === 'Accounts') return router.push('/accounts');
@@ -40,6 +41,10 @@ function Body() {
         <Row icon="chart.bar" title="Budget" detail="A monthly plan for each category" value="›" valueColor={c.textSubtle} onPress={() => router.push('/budget')} />
         <Row icon="car" title="Plan a trip" detail="Gas cost for a drive or your commute" value="›" valueColor={c.textSubtle} onPress={() => router.push('/trip')} />
         <Row icon="bubble.left" title="Send feedback" detail="Something broken, confusing, or great" value="›" valueColor={c.textSubtle} onPress={() => router.push('/feedback')} />
+        {me?.admin ? (
+          // Only for the people who run Pockit: sign-ups and usage, counts only.
+          <Row icon="chart.bar" title="Pockit stats" detail="How many people use Pockit" value="›" valueColor={c.textSubtle} onPress={() => void Linking.openURL(`${API_URL}/admin`)} />
+        ) : null}
         <Row icon="person.2" title="Split with friends" detail="Who owes who, both ways, like Splitwise" value="›" valueColor={c.textSubtle} onPress={() => router.push('/friends')} />
         <Row icon="arrow.uturn.left" title="Owed to you" detail="Split bills and money you’re getting back" value="›" valueColor={c.textSubtle} onPress={() => router.push('/owed')} />
         <Row icon="person.crop.circle" title="Shared spaces" detail="Budget with a partner or roommates" value="›" valueColor={c.textSubtle} onPress={() => router.push('/spaces')} />

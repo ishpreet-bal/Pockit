@@ -7,6 +7,7 @@ import { createUserWithWorkspace } from '@/lib/data/bootstrap';
 import { seedDemoData } from '@/lib/data/demo';
 import { todayIn } from '@/lib/finance/period';
 import { checkRateLimit } from './rate-limit';
+import { audit } from './session';
 
 /**
  * Guest accounts: "Look around first" without signing up (App Store guideline
@@ -45,6 +46,7 @@ export async function createGuest(ip: string | null): Promise<GuestResult> {
       .where(eq(userProfiles.userId, userId));
   });
   await seedDemoData(userId, workspaceIds[0]!, todayIn(TIMEZONE));
+  await audit({ action: 'guest.start', entity: 'user' });
   return { ok: true, userId };
 }
 

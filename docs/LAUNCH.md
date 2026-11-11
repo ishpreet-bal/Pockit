@@ -163,3 +163,39 @@ GitHub Actions runs these on GitHub's machines (`.github/workflows/`):
   emails you (GitHub → Settings → Notifications → Actions). Run it by hand from the Actions tab any time.
 
 Private repositories get a monthly allowance of free Actions minutes; these use a small part of it.
+
+## What it costs to run (estimates, November 2026)
+
+| Service | Now (testing, a few users) | At launch, charging for Plus |
+|---|---|---|
+| Apple Developer Program | US$99/year | US$99/year |
+| Vercel (website + server) | Free (Hobby) | US$20/month (Pro; Hobby is non-commercial) |
+| Supabase (database) | Free | US$25/month (Pro: daily backups, never pauses) |
+| Plaid (bank connection) | Free Trial plan (real banks, a small number of connections) | Pay as you go, roughly US$0.25–0.60 per connected bank per month (check your Plaid dashboard) |
+| Anthropic (Pock) | Pay per use: cents per conversation | Grows with use; set a monthly limit in the Anthropic console |
+| Google Maps (trips) | Monthly free credit covers light use | Pay per use beyond it; set a budget alert |
+| Resend (emails) | Free tier | Free tier until thousands of emails a month |
+| A domain | about $15–20/year | same |
+| RevenueCat (subscriptions) | Free | Free to a revenue threshold, then a small share |
+
+Rough totals: **about $10/month** while testing (Apple's fee spread over the year), **about US$55–70/month plus
+per-bank Plaid fees** once launched commercially.
+
+## Users
+
+`/admin` shows how many people have an account, new sign-ups (today, week, month, and a 30-day chart), how many
+were active, banks connected, Plus subscribers, guests and deleted accounts. Counts only. It opens for the emails
+in `ADMIN_EMAILS` (sign in on the website first); in the app, admins see **More → Pockit stats**.
+
+## Getting paid for Pockit Plus (later)
+
+Built but switched off (`PLUS_ENABLED`). Subscriptions inside an iPhone app go through Apple's in-app purchase:
+
+1. App Store Connect → Agreements, Tax, and Banking: sign the Paid Apps agreement, add your bank account and tax
+   forms. Apple pays out monthly.
+2. Join the App Store Small Business Program (Apple keeps 15% instead of 30% while you earn under US$1M/year).
+3. App Store Connect → your app → Subscriptions: create "Pockit Plus" (monthly and yearly prices).
+4. RevenueCat (free account): add the app and the subscription, then set `EXPO_PUBLIC_REVENUECAT_IOS_KEY` for the
+   app build and, in Vercel, `REVENUECAT_WEBHOOK_SECRET` (the same value in RevenueCat's webhook settings, pointed
+   at `https://<your site>/api/mobile/revenuecat`).
+5. Set `PLUS_ENABLED=true` in Vercel and ship a new app build.

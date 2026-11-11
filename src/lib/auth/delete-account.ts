@@ -3,6 +3,7 @@ import { and, asc, eq, inArray, ne } from 'drizzle-orm';
 import { withUser, withoutUser } from '@/lib/db/client';
 import { bankConnections, users, workspaceMembers, workspaces } from '@/lib/db/schema';
 import { openToken, removeItem } from '@/lib/bank/plaid';
+import { audit } from './session';
 
 /**
  * Delete a person and everything that is only theirs (App Store rule 5.1.1(v):
@@ -61,5 +62,7 @@ export async function deleteAccount(userId: string): Promise<{ handedOver: numbe
 
   // The users table carries no row-level security; its cascades remove the rest.
   await withoutUser((tx) => tx.delete(users).where(eq(users.id, userId)));
+  // Counted, not described: who it was goes with them.
+  await audit({ action: 'account.delete', entity: 'user' });
   return { handedOver, banksDisconnected };
 }

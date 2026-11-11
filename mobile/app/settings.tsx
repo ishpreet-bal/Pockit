@@ -143,32 +143,37 @@ function AppearancePicker() {
 }
 
 /**
- * TEMPORARY: try Pockit in other colours. Tap the strip to pick a hue; the whole app
- * changes at once. Remove this (and setAccentHue in theme/tokens.ts) next update.
+ * Accent colour: Pockit orange unless the person picks another. The first swatch is
+ * always orange, so getting back is one tap; the choice is kept on this device.
  */
 function ColourTryout() {
   const c = useColors();
   const hue = useAccentHue();
   const dark = useIsDark();
-  const hues = Array.from({ length: 24 }, (_, i) => i * 15);
+  const hues = Array.from({ length: 22 }, (_, i) => 50 + i * 15);
   const pick = (h: number | null) => { void Haptics.selectionAsync(); setAccentHue(h); void setText('accentHue', h === null ? null : String(h)); };
+  const dot = <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: '#fff' }} />;
   return (
     <View style={{ marginTop: space.lg, gap: 10 }}>
       <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-        <Text style={[type.subhead, { color: c.text, flex: 1 }]}>Try a colour <Text style={{ color: c.textSubtle }}>(temporary)</Text></Text>
-        {hue !== null ? (
-          <Pressable onPress={() => pick(null)} hitSlop={8} accessibilityRole="button"><Text style={[type.footnote, { color: c.section.home.accent, fontWeight: '600' }]}>Back to orange</Text></Pressable>
-        ) : null}
+        <Text style={[type.subhead, { color: c.text, flex: 1 }]}>Accent colour</Text>
+        <Text style={[type.footnote, { color: c.textMuted }]}>{hue === null ? 'Pockit orange' : 'Your colour'}</Text>
       </View>
-      <View style={{ flexDirection: 'row', height: 40, borderRadius: 20, overflow: 'hidden' }} accessibilityLabel="Colour wheel">
-        {hues.map((h) => (
-          <Pressable key={h} onPress={() => pick(h)} accessibilityRole="button" accessibilityLabel={`Hue ${h}`}
-            style={{ flex: 1, backgroundColor: dark ? hsl(h, 85, 62) : hsl(h, 78, 40), alignItems: 'center', justifyContent: 'center' }}>
-            {hue === h ? <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: '#fff' }} /> : null}
-          </Pressable>
-        ))}
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+        <Pressable onPress={() => pick(null)} accessibilityRole="button" accessibilityLabel="Pockit orange"
+          style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: dark ? '#da5100' : '#c04600', alignItems: 'center', justifyContent: 'center', borderWidth: hue === null ? 2 : 0, borderColor: c.text }}>
+          {hue === null ? dot : null}
+        </Pressable>
+        <View style={{ flex: 1, flexDirection: 'row', height: 40, borderRadius: 20, overflow: 'hidden' }} accessibilityLabel="Colour wheel">
+          {hues.map((h) => (
+            <Pressable key={h} onPress={() => pick(h)} accessibilityRole="button" accessibilityLabel={`Hue ${h}`}
+              style={{ flex: 1, backgroundColor: dark ? hsl(h, 85, 62) : hsl(h, 78, 40), alignItems: 'center', justifyContent: 'center' }}>
+              {hue === h ? dot : null}
+            </Pressable>
+          ))}
+        </View>
       </View>
-      <Text style={[type.footnote, { color: c.textMuted }]}>Tap a colour and every page changes. Just for trying ideas; it goes away in the next update.</Text>
+      <Text style={[type.footnote, { color: c.textMuted }]}>Make Pockit yours. Tap the orange circle to go back to the original.</Text>
     </View>
   );
 }
