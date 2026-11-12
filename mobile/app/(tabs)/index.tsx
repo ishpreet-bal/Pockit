@@ -11,15 +11,12 @@ import { TourTarget, useTour } from '@/lib/tour';
 import { GuestBanner, SampleDataBanner } from '@/components/GuestBanner';
 import { useSession, PREVIEW } from '@/lib/session';
 import { pendingBank, resumeClaimed } from '@/lib/bank';
-import { useSummary, type CardDue, type Summary } from '@/lib/summary';
-import { font, space, type, useColors, useIsDark } from '@/theme/tokens';
+import { useSummary, type Summary } from '@/lib/summary';
+import { font, radius, space, type, useColors, useIsDark } from '@/theme/tokens';
 
 /** Home: how much can I spend, what's coming up, and a glance at goals and investments. */
 // Once per app launch at most, so dismissing it never brings it straight back.
 let tourOffered = false;
-
-/** How many stops the runway shows before folding the rest away. */
-const RUNWAY_FOLD = 5;
 
 export default function Home() {
   const { me, demo } = useSession();
@@ -72,27 +69,6 @@ export const todayLine = (iso: string) => `${DAYS_LONG[at(iso).getUTCDay()]}, ${
 const DAYS_LONG = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 const daysBetween = (a: string, b: string) => Math.round((at(b).getTime() - at(a).getTime()) / 86_400_000);
 
-interface Stop { key: string; date: string; label: string; title: string; after: number; amount: number | null; kind: 'now' | 'bill' | 'pay' }
-
-/**
- * The runway: from today down to payday, one stop per bill, with what you'll
- * have left after each. It ends on what's safe to spend — the big number.
- */
-function runway(d: Summary): Stop[] {
-  const h = d.home;
-  const pay = h.nextIncome;
-  const bills = h.upcoming.filter((b) => !pay || b.date <= pay.date);
-  const owed = bills.reduce((t, b) => t + b.amountMinor, 0);
-  let bal = h.safeToSpendMinor + owed;
-  const stops: Stop[] = [{ key: 'now', date: d.today, label: 'Today', title: 'You are here', after: bal, amount: null, kind: 'now' }];
-  for (const b of bills) {
-    bal -= b.amountMinor;
-    stops.push({ key: `${b.name}-${b.date}`, date: b.date, label: b.date === d.today ? 'Today' : stamp(b.date), title: b.name, after: bal, amount: -b.amountMinor, kind: 'bill' });
-  }
-  if (pay) stops.push({ key: 'pay', date: pay.date, label: stamp(pay.date), title: pay.name || 'Payday', after: bal + pay.amountMinor, amount: pay.amountMinor, kind: 'pay' });
-  return stops;
-}
-
 function Body({ d }: { d: Summary }) {
   const c = useColors();
   const me = useSession().me;
@@ -102,11 +78,6 @@ function Body({ d }: { d: Summary }) {
   const h = d.home;
   const days = h.nextIncome ? Math.max(1, daysBetween(d.today, h.nextIncome.date)) : null;
   const goal = d.goals.find((g) => !g.achieved) ?? null;
-  const stops = runway(d);
-  const [openRunway, setOpenRunway] = useState(false);
-  // Folded: the first few stops, then payday. Open: every stop.
-  const shown = openRunway || stops.length <= RUNWAY_FOLD ? stops : [...stops.slice(0, RUNWAY_FOLD - 1), stops[stops.length - 1]!];
-  const hidden = stops.length - shown.length;
   const tool = useToolTint();
 
   return (
@@ -116,7 +87,7 @@ function Body({ d }: { d: Summary }) {
         {h.short ? '−' : ''}{formatMoney(Math.abs(h.safeToSpendMinor), { cents: false })}
       </Text>
       <Text style={[type.subhead, { color: c.textMuted, marginTop: 4 }]}>
-        {h.short ? 'short of your bills before payday' : days ? `safe to spend · ${days} day${days === 1 ? '' : 's'} to payday · ${formatMoney(Math.max(0, h.safeToSpendMinor) / days, { cents: false })}/day` : 'safe to spend after your bills'}
+        {h.short ? 'short of your bills before payday' : days ? 'safe to spend until payday' : 'safe to spend after your bills'}
       </Text>
       </TourTarget>
 
@@ -131,32 +102,9 @@ function Body({ d }: { d: Summary }) {
 
       {d.bank?.available && !d.bank.connected && !PREVIEW && !guest ? <ConnectBankCard /> : !d.hasBalance && !PREVIEW ? <BalanceCard /> : null}
 
-      <SectionHeader title="To payday" action="All bills" onAction={() => router.push('/bills')} />
       <TourTarget id="runway">
-        {shown.map((st, i) => (
-          <StopRow key={st.key} stop={st} first={i === 0} last={i === shown.length - 1} onPress={st.kind === 'bill' ? () => router.push('/bills') : undefined} />
-        ))}
+        <PaydayCard d={d} />
       </TourTarget>
-      {hidden > 0 ? (
-        // A long run of bills folds away; the next few and payday are what matter at a glance.
-        <Pressable onPress={() => setOpenRunway(true)} accessibilityRole="button" hitSlop={8} style={{ alignSelf: 'flex-start', marginTop: space.sm, marginLeft: 74 }}>
-          <Text style={[type.footnote, { color: a.accent, fontWeight: '600' }]}>{hidden} more before payday</Text>
-        </Pressable>
-      ) : openRunway && stops.length > RUNWAY_FOLD ? (
-        <Pressable onPress={() => setOpenRunway(false)} accessibilityRole="button" hitSlop={8} style={{ alignSelf: 'flex-start', marginTop: space.sm, marginLeft: 74 }}>
-          <Text style={[type.footnote, { color: c.textMuted, fontWeight: '600' }]}>Show less</Text>
-        </Pressable>
-      ) : null}
-      {!h.nextIncome ? (
-        <Text style={[type.footnote, { color: c.textMuted, marginTop: space.md, lineHeight: 20 }]}>
-          Add your pay under Bills & income and this becomes a countdown to payday.
-        </Text>
-      ) : null}
-      {stops.length === 2 && h.nextIncome ? (
-        <Text style={[type.footnote, { color: c.textMuted, marginTop: space.sm }]}>Nothing due before payday.</Text>
-      ) : null}
-
-      {h.cards?.length ? <CardPayments cards={h.cards} /> : null}
 
       <TourTarget id="pockNote" style={{ marginTop: 28 }}>
         <Pressable onPress={() => router.navigate('/ask')} accessibilityRole="button" accessibilityLabel="Ask Pock"
@@ -184,39 +132,6 @@ function Body({ d }: { d: Summary }) {
   );
 }
 
-function StopRow({ stop, first, last, onPress }: { stop: Stop; first: boolean; last: boolean; onPress?: () => void }) {
-  const c = useColors();
-  const a = useAccent();
-  const dot = stop.kind === 'now'
-    ? { backgroundColor: a.accent, borderColor: a.accent }
-    : stop.kind === 'pay' ? { backgroundColor: c.text, borderColor: c.text } : { backgroundColor: c.bg, borderColor: a.accent };
-  return (
-    <Pressable onPress={onPress} disabled={!onPress} style={({ pressed }) => ({ flexDirection: 'row', minHeight: stop.kind === 'now' ? 62 : 54, opacity: pressed ? 0.6 : 1 })}>
-      <Text style={[type.caption, { fontSize: 11, width: 54, color: stop.kind === 'now' ? c.text : c.textMuted, textAlign: 'right', paddingTop: 2 }]}>{stop.label}</Text>
-      <View style={{ width: 40, alignItems: 'center' }}>
-        <View style={{ position: 'absolute', top: first ? 9 : 0, bottom: last ? undefined : 0, height: last ? 9 : undefined, width: 2, backgroundColor: a.accent, opacity: stop.kind === 'pay' ? 0.35 : 0.8 }} />
-        {stop.kind === 'now' ? <View style={{ position: 'absolute', top: -2, width: 22, height: 22, borderRadius: 11, backgroundColor: a.soft }} /> : null}
-        <View style={[{ width: 14, height: 14, borderRadius: 7, borderWidth: 2, marginTop: 2 }, dot]} />
-      </View>
-      <View style={{ flex: 1, flexDirection: 'row', justifyContent: 'space-between' }}>
-        <View style={{ flex: 1, paddingRight: 8 }}>
-          <Text style={[type.subhead, { color: c.text }]} numberOfLines={1}>{stop.title}</Text>
-          <Text style={[type.caption, { fontSize: 11, color: c.textMuted, marginTop: 2 }]}>{stop.kind === 'now' ? 'Balance ' : '→ '}{formatMoney(stop.after, { cents: false })}</Text>
-        </View>
-        {stop.amount !== null ? (
-          <Text style={[type.footnote, { color: stop.amount > 0 ? a.accent : c.negative, fontVariant: ['tabular-nums'] }]}>
-            {stop.amount > 0 ? '+' : '−'}{formatMoney(Math.abs(stop.amount)).replace('$', '')}
-          </Text>
-        ) : null}
-      </View>
-    </Pressable>
-  );
-}
-
-/**
- * Shown until there's a balance to work from. Without one, "safe to spend" can
- * only ever say $0 — so ask, right where the $0 is.
- */
 function BalanceCard() {
   const c = useColors();
   const a = useAccent();
@@ -270,49 +185,94 @@ function ConnectBankCard() {
 }
 
 /**
- * Credit card payments coming up. Paying on time is the one thing that saves real
- * money (no interest, no late fee, no credit score hit), so each card says plainly
- * when it's due, what clears it, and the least that avoids a late fee.
+ * The countdown to payday, in one card: how many days, what's safe per day, how
+ * much of your money is free versus already spoken for, and only the bills and
+ * card payments that fall before the next pay. After payday is another story.
  */
-function CardPayments({ cards }: { cards: CardDue[] }) {
+function PaydayCard({ d }: { d: Summary }) {
   const c = useColors();
   const a = useAccent();
   const dark = useIsDark();
+  const h = d.home;
+  const pay = h.nextIncome;
+  const days = pay ? Math.max(0, daysBetween(d.today, pay.date)) : null;
+  // The same window the safe-to-spend figure uses: up to (not including) payday,
+  // or the rest of the month when no pay is known yet.
+  const horizon: string = pay?.date ?? d.spending.periodEnd ?? d.today;
+  const inWindow = (date: string) => (pay ? date < horizon : date <= horizon);
+  const bills = h.upcoming.filter((b) => inWindow(b.date)).map((b) => ({ key: `${b.name}-${b.date}`, name: b.name, date: b.date, minor: b.amountMinor, card: false }));
+  const cards = (h.cards ?? []).filter((x) => !x.paid);
+  const cardsBefore = cards.filter((x) => inWindow(x.dueDate)).map((x) => ({ key: `card-${x.id}`, name: `${x.name} due`, date: x.dueDate, minor: x.statementMinor ?? x.minimumMinor ?? 0, card: true }));
+  const cardsAfter = cards.filter((x) => !inWindow(x.dueDate));
+  const items = [...bills, ...cardsBefore].sort((p, q) => p.date.localeCompare(q.date));
+  const shown = items.slice(0, 4);
+  const billsMinor = bills.reduce((t, b) => t + b.minor, 0);
+  const free = Math.max(0, h.safeToSpendMinor);
+  const whole = free + billsMinor;
+  const perDay = days ? free / days : null;
+
   return (
-    <>
-      <SectionHeader title="Card payments" action="Accounts" onAction={() => router.push('/accounts')} />
-      <Card>
-        {cards.map((card, i) => {
-          const soon = !card.paid && card.daysLeft <= 3;
-          const when = card.daysLeft === 0 ? 'Due today' : card.daysLeft === 1 ? 'Due tomorrow' : `Due ${stamp(card.dueDate)} · in ${card.daysLeft} days`;
-          const tone = card.paid ? c.positive : soon ? c.negative : c.text;
-          return (
-            <Pressable key={card.id} onPress={() => router.push('/accounts')} accessibilityRole="button"
-              accessibilityLabel={`${card.name}, ${card.paid ? 'paid' : when}${card.statementMinor ? `, statement ${formatMoney(card.statementMinor)}` : ''}`}
-              style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 14, borderBottomWidth: i === cards.length - 1 ? 0 : 0.5, borderBottomColor: c.border }}>
-              <View style={{ width: 40, height: 40, borderRadius: 12, alignItems: 'center', justifyContent: 'center', backgroundColor: card.paid ? soft(c.positive, dark) : soon ? soft(c.negative, dark) : a.soft }}>
-                <Icon name={card.paid ? 'checkmark' : 'creditcard'} size={18} color={card.paid ? c.positive : soon ? c.negative : a.accent} />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={[type.body, { color: c.text }]} numberOfLines={1}>{card.name}{card.mask ? ` ••${card.mask}` : ''}</Text>
-                <Text style={[type.footnote, { color: soon ? c.negative : c.textMuted, fontWeight: soon ? '600' : '400' }]} numberOfLines={1}>
-                  {card.paid ? `Paid · next due ${stamp(card.dueDate)}` : when}
-                </Text>
-              </View>
-              <View style={{ alignItems: 'flex-end' }}>
-                {card.statementMinor !== null ? <Text style={[type.bodyStrong, { color: tone, fontVariant: ['tabular-nums'] }]}>{formatMoney(card.statementMinor)}</Text> : null}
-                {!card.paid && card.minimumMinor ? <Text style={[type.caption, { color: c.textMuted }]}>min {formatMoney(card.minimumMinor)}</Text> : null}
-              </View>
-            </Pressable>
-          );
-        })}
-      </Card>
-      {cards.some((x) => !x.paid) ? (
-        <Text style={[type.footnote, { color: c.textMuted, marginTop: space.sm, lineHeight: 20 }]}>
-          Paying the full statement means no interest. These are already counted in what’s safe to spend.
+    <View style={{ marginTop: space.xl, padding: space.lg, borderRadius: radius.tile, backgroundColor: c.surface, borderWidth: 0.5, borderColor: c.border, gap: space.md }}>
+      <View>
+        <Text style={[type.headline, { color: c.text }]}>
+          {!pay ? 'Until the end of the month' : days === 0 ? 'Payday is today' : `${days} day${days === 1 ? '' : 's'} to payday · ${stamp(pay.date)}`}
         </Text>
+        <Text style={[type.subhead, { color: h.short ? c.negative : c.textMuted, marginTop: 2 }]}>
+          {h.short ? `Bills before payday are ${formatMoney(Math.abs(h.safeToSpendMinor), { cents: false })} more than you have` : perDay !== null ? `${formatMoney(perDay, { cents: false })} a day is safe` : `${formatMoney(free, { cents: false })} is safe to spend`}
+        </Text>
+      </View>
+
+      {whole > 0 ? (
+        <View accessibilityLabel={`${formatMoney(free, { cents: false })} free, ${formatMoney(billsMinor, { cents: false })} set aside for bills`}>
+          <View style={{ flexDirection: 'row', height: 10, borderRadius: 5, overflow: 'hidden', backgroundColor: c.surface2 }}>
+            <View style={{ flex: free, backgroundColor: a.accent }} />
+            {billsMinor ? <View style={{ flex: billsMinor, backgroundColor: soft(a.accent, dark), marginLeft: free ? 2 : 0 }} /> : null}
+          </View>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 6 }}>
+            <Text style={[type.footnote, { color: c.text, fontWeight: '600' }]}>{formatMoney(free, { cents: false })} free</Text>
+            {billsMinor ? <Text style={[type.footnote, { color: c.textMuted }]}>{formatMoney(billsMinor, { cents: false })} for bills</Text> : null}
+          </View>
+        </View>
       ) : null}
-    </>
+
+      <View>
+        <Text style={[type.caption, { color: c.textSubtle, fontWeight: '600', letterSpacing: 0.4, textTransform: 'uppercase', marginBottom: 4 }]}>{pay ? 'Before payday' : 'Still to pay this month'}</Text>
+        {shown.length ? shown.map((it, i) => (
+          <Pressable key={it.key} onPress={() => router.push(it.card ? '/accounts' : '/bills')} accessibilityRole="button"
+            style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 9, borderTopWidth: i ? 0.5 : 0, borderTopColor: c.border, opacity: pressed ? 0.6 : 1 })}>
+            <Text style={[type.footnote, { color: c.textMuted, width: 52 }]}>{it.date === d.today ? 'Today' : stamp(it.date)}</Text>
+            <Text style={[type.body, { color: c.text, flex: 1 }]} numberOfLines={1}>{it.name}</Text>
+            <Text style={[type.body, { color: it.card ? c.textMuted : c.text, fontVariant: ['tabular-nums'] }]}>{formatMoney(it.minor)}</Text>
+          </Pressable>
+        )) : <Text style={[type.footnote, { color: c.textMuted, paddingVertical: 6 }]}>{pay ? 'Nothing due before payday.' : 'Nothing else due this month.'}</Text>}
+        {items.length > shown.length ? (
+          <Pressable onPress={() => router.push('/bills')} hitSlop={8} accessibilityRole="button" style={{ marginTop: 4 }}>
+            <Text style={[type.footnote, { color: a.accent, fontWeight: '600' }]}>{items.length - shown.length} more before payday</Text>
+          </Pressable>
+        ) : null}
+        {cardsBefore.length ? <Text style={[type.caption, { color: c.textSubtle, marginTop: 4 }]}>Card payments are already set aside in what's safe to spend.</Text> : null}
+      </View>
+
+      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderTopWidth: 0.5, borderTopColor: c.border, paddingTop: space.md }}>
+        {pay ? (
+          <Text style={[type.footnote, { color: c.text, flex: 1 }]}>Then <Text style={{ color: c.positive, fontWeight: '700' }}>+{formatMoney(pay.amountMinor, { cents: false })}</Text> {pay.name ? `from ${pay.name}` : 'pay'}</Text>
+        ) : (
+          <Pressable onPress={() => router.push('/bills')} accessibilityRole="button" style={{ flex: 1 }}>
+            <Text style={[type.footnote, { color: a.accent, fontWeight: '600' }]}>Add your pay to count down to payday</Text>
+          </Pressable>
+        )}
+        <Pressable onPress={() => router.push('/bills')} hitSlop={8} accessibilityRole="button">
+          <Text style={[type.footnote, { color: a.accent, fontWeight: '600' }]}>See all ›</Text>
+        </Pressable>
+      </View>
+
+      {cardsAfter.length ? (
+        <Pressable onPress={() => router.push('/accounts')} accessibilityRole="button">
+          <Text style={[type.caption, { color: c.textMuted, lineHeight: 18 }]}>
+            After payday: {cardsAfter.map((x) => `${x.name} due ${stamp(x.dueDate)}${x.statementMinor ? ` (${formatMoney(x.statementMinor)})` : ''}`).join(' · ')}
+          </Text>
+        </Pressable>
+      ) : null}
+    </View>
   );
 }
-

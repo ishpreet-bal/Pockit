@@ -19,7 +19,7 @@ interface Step { route: '/' | '/spending' | '/ask' | '/goals' | '/together'; tar
 const STEPS: Step[] = [
   { route: '/', target: 'hero', title: 'What you can spend', body: 'Your money, minus every bill still due before payday. If this number is fine, you’re fine.' },
   { route: '/', target: 'shortcuts', title: 'One tap to the tools', body: 'Add a purchase, check your bills, set a budget, or work out what a drive will cost in gas.' },
-  { route: '/', target: 'runway', title: 'Your runway to payday', body: 'Each bill on the day it comes out, and what you’ll have left after it. Payday is at the bottom.' },
+  { route: '/', target: 'runway', title: 'Your countdown to payday', body: 'How much a day is safe, what’s free versus set aside, and only the bills and card payments due before your next pay.' },
   { route: '/', target: 'pockNote', title: 'Pock keeps an eye out', body: 'A note about your month. Tap it to ask Pock anything about your money.' },
   { route: '/spending', target: 'spendTools', title: 'Spending, and what goes with it', body: 'Your budget, bills, trends and every purchase start from here.' },
   { route: '/spending', target: 'calendar', title: 'Your month at a glance', body: 'Each square is a day. The brighter it is, the more went out.' },
