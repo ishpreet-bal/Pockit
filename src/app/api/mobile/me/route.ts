@@ -5,6 +5,7 @@ import { withoutUser } from '@/lib/db/client';
 import { userProfiles } from '@/lib/db/schema';
 import { getPlan } from '@/lib/billing/plan';
 import { aiCompany, hasAiConsent } from '@/lib/ai/consent';
+import { hasSampleData } from '@/lib/data/clear-sample';
 
 export const dynamic = 'force-dynamic';
 
@@ -32,5 +33,7 @@ export async function GET() {
     plus: plan.plus,
     plusUntil: plan.plusUntil,
     pockLeftThisMonth: plan.pockLeftThisMonth,
+    /** A real account with sample money in it: the app offers to take it out. */
+    sampleData: !ctx.user.isGuest && (await hasSampleData(ctx.user.id, ctx.workspace.id)),
   });
 }

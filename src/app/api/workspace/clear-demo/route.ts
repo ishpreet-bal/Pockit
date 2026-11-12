@@ -3,6 +3,7 @@ import { eq } from 'drizzle-orm';
 import { requireAuth } from '@/lib/auth/guard';
 import { withUser } from '@/lib/db/client';
 import { audit } from '@/lib/auth/session';
+import { clearSampleData, hasSampleData, onlySampleData } from '@/lib/data/clear-sample';
 import {
   transactions, transactionSplits, imports, importCandidates,
   budgets, budgetAllocations, goals, goalContributions,
@@ -26,11 +27,19 @@ import {
 export async function POST() {
   const { user, workspace } = await requireAuth();
 
-  if (!workspace.isDemo) {
+  if (!workspace.isDemo && !(await hasSampleData(user.id, workspace.id))) {
     return NextResponse.json(
       { error: 'This workspace does not contain demo data. Use "Start over" in Settings instead.' },
       { status: 400 },
     );
+  }
+
+  // A bank connected, or anything typed in, on top of the sample: take out only the
+  // sample, so real accounts and purchases stay exactly as they are.
+  if (!(await onlySampleData(user.id, workspace.id))) {
+    const removed = await clearSampleData(user.id, workspace.id);
+    await audit({ actorUserId: user.id, workspaceId: workspace.id, action: 'workspace.demo_cleared', entity: 'workspace', entityId: workspace.id, metadata: { removed, kept: 'real data' } });
+    return NextResponse.json({ ok: true, removed });
   }
 
   await withUser(user.id, async (tx) => {

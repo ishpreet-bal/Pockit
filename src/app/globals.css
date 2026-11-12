@@ -332,21 +332,50 @@ a, button, [role='button'] {
 /* Open answers ease in. */
 details[open] > p { animation: pk-arrive 360ms cubic-bezier(0.16, 1, 0.3, 1) both; }
 
-/* "Try it" on the welcome page: a slider whose track fills in the accent colour, big enough for a thumb. */
-.pk-range { -webkit-appearance: none; appearance: none; height: 28px; background: transparent; cursor: pointer; }
-.pk-range::-webkit-slider-runnable-track { height: 8px; border-radius: 999px; background: linear-gradient(to right, var(--accent) var(--pk-fill, 50%), var(--surface-2) var(--pk-fill, 50%)); }
-.pk-range::-moz-range-track { height: 8px; border-radius: 999px; background: var(--surface-2); }
-.pk-range::-moz-range-progress { height: 8px; border-radius: 999px; background: var(--accent); }
-.pk-range::-webkit-slider-thumb { -webkit-appearance: none; margin-top: -8px; width: 24px; height: 24px; border-radius: 999px; background: var(--surface); border: 3px solid var(--accent); box-shadow: var(--shadow-sm); transition: transform 160ms cubic-bezier(0.16, 1, 0.3, 1); }
-.pk-range::-moz-range-thumb { width: 18px; height: 18px; border-radius: 999px; background: var(--surface); border: 3px solid var(--accent); }
-.pk-range:active::-webkit-slider-thumb { transform: scale(1.15); }
-.pk-range:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; border-radius: 999px; }
+/* Welcome page colour: one hue per part of the app, so the page isn't all orange.
+   --hue is for text, dots and outlines; --hue-fill is the deeper shade white text sits on. */
+:root {
+  --hue-coral: #c4502b; --hue-sky: #1c74b8; --hue-leaf: #1b7f50; --hue-violet: #7445d4; --hue-gold: #a8701a;
+  --hue-coral-soft: #fbe5dc; --hue-sky-soft: #ddecf8; --hue-leaf-soft: #dcf1e5; --hue-violet-soft: #ece4fb; --hue-gold-soft: #f7ecd5;
+}
+:root[data-theme='dark'] {
+  --hue-coral: #f08a65; --hue-sky: #5cb2f0; --hue-leaf: #4fd197; --hue-violet: #b39afa; --hue-gold: #e6b04f;
+  --hue-coral-soft: #3a2018; --hue-sky-soft: #14283a; --hue-leaf-soft: #12301f; --hue-violet-soft: #251c3d; --hue-gold-soft: #33260f;
+}
+.pk-hue-coral { --hue: var(--hue-coral); --hue-soft: var(--hue-coral-soft); --hue-fill: #c4502b; }
+.pk-hue-sky { --hue: var(--hue-sky); --hue-soft: var(--hue-sky-soft); --hue-fill: #1c74b8; }
+.pk-hue-leaf { --hue: var(--hue-leaf); --hue-soft: var(--hue-leaf-soft); --hue-fill: #1b7f50; }
+.pk-hue-violet { --hue: var(--hue-violet); --hue-soft: var(--hue-violet-soft); --hue-fill: #7445d4; }
+.pk-hue-gold { --hue: var(--hue-gold); --hue-soft: var(--hue-gold-soft); --hue-fill: #9a6612; }
+
+/* Meet Pock: messages arrive, a caret types, dots think, rows slide in, bars grow. */
 .pk-fade-in { animation: pk-arrive 320ms cubic-bezier(0.16, 1, 0.3, 1) both; }
 @keyframes pk-pop { from { transform: scale(0.6); opacity: 0; } to { transform: none; opacity: 1; } }
 .pk-pop { animation: pk-pop 260ms cubic-bezier(0.34, 1.56, 0.64, 1) both; }
+@keyframes pk-bubble { from { opacity: 0; transform: translateY(10px) scale(0.97); } to { opacity: 1; transform: none; } }
+.pk-bubble { animation: pk-bubble 340ms cubic-bezier(0.16, 1, 0.3, 1) both; transform-origin: bottom; }
+.pk-caret { display: inline-block; width: 2px; height: 1em; margin-left: 2px; vertical-align: -2px; background: currentColor; animation: pk-blink 900ms steps(2) infinite; }
+@keyframes pk-blink { to { opacity: 0; } }
+.pk-dot-typing { width: 7px; height: 7px; border-radius: 99px; background: var(--text-subtle); animation: pk-think 900ms ease-in-out infinite; }
+@keyframes pk-think { 0%, 100% { transform: translateY(0); opacity: 0.45; } 40% { transform: translateY(-4px); opacity: 1; } }
+@keyframes pk-slide { from { opacity: 0; transform: translateX(-14px); background: var(--hue-coral-soft); } to { opacity: 1; transform: none; } }
+.pk-slide-in { animation: pk-slide 600ms cubic-bezier(0.16, 1, 0.3, 1) both; border-radius: 8px; }
+@keyframes pk-grow-w { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+.pk-grow { transform-origin: left; animation: pk-grow-w 900ms cubic-bezier(0.16, 1, 0.3, 1) both; }
+
+/* Tab tour: the next screen flows in from the right while the last one eases back. */
+.pk-screen { transition: transform 700ms cubic-bezier(0.65, 0, 0.35, 1), opacity 700ms ease, filter 700ms ease; will-change: transform, opacity; }
+.pk-screen-in { transform: none; opacity: 1; z-index: 2; }
+.pk-screen-out { transform: translateX(-28%) scale(0.94); opacity: 0; filter: blur(2px); z-index: 1; }
+.pk-screen-hidden { transform: translateX(100%); opacity: 0; z-index: 0; transition: none; }
+@keyframes pk-progress { from { width: 0; } to { width: 100%; } }
+.pk-progress { animation: pk-progress linear both; }
 
 @media (prefers-reduced-motion: reduce) {
-  .pk-fade-in, .pk-pop { animation: none; }
+  .pk-fade-in, .pk-pop, .pk-bubble, .pk-slide-in, .pk-grow, .pk-caret, .pk-dot-typing { animation: none; }
+  .pk-screen { transition: opacity 200ms ease; }
+  .pk-screen-out { transform: none; filter: none; }
+  .pk-progress { display: none; }
   .pk-reveal, .pk-reveal [data-stagger], .pk-seq > li, .pk-seq > li .pk-dot { opacity: 1 !important; transform: none !important; transition: none !important; }
   .pk-float { animation: none; }
   .pk-tilt > * { transform: none !important; }

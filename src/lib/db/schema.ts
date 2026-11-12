@@ -200,6 +200,12 @@ export const accounts = pockit.table('accounts', {
   interestRateBps: integer('interest_rate_bps'),
   statementDay: smallint('statement_day'),
   paymentDueDay: smallint('payment_due_day'),
+  // From the bank's statement (Plaid Liabilities) or typed in: what's due and when.
+  paymentDueDate: date('payment_due_date'),
+  statementBalanceMinor: bigint('statement_balance_minor', { mode: 'bigint' }),
+  minimumPaymentMinor: bigint('minimum_payment_minor', { mode: 'bigint' }),
+  lastPaymentDate: date('last_payment_date'),
+  lastStatementDate: date('last_statement_date'),
   isActive: boolean('is_active').notNull().default(true),
   excludeFromNetWorth: boolean('exclude_from_net_worth').notNull().default(false),
   // Seam for a future bank-data provider (spec §42) — nothing else needs to change.

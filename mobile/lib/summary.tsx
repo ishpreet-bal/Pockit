@@ -22,6 +22,8 @@ export interface Summary {
     daysLeft: number;
     nextIncome: { name: string; date: string; amountMinor: number } | null;
     upcoming: { name: string; date: string; amountMinor: number }[];
+    /** Credit card payments coming up (reminders: card balances already count against safe to spend). */
+    cards?: CardDue[];
     trend: { month: string; netMinor: number }[];
   };
   spending: {
@@ -103,4 +105,9 @@ export function useSummary() {
   const v = useContext(Ctx);
   if (!v) throw new Error('useSummary outside SummaryProvider');
   return v;
+}
+
+export interface CardDue {
+  id: string; name: string; mask: string | null; dueDate: string; daysLeft: number;
+  statementMinor: number | null; minimumMinor: number | null; paid: boolean; source: 'statement' | 'day';
 }

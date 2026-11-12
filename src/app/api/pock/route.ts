@@ -16,6 +16,9 @@ import { todayIn } from '@/lib/finance/period';
 import { getPlan, FREE_POCK_QUESTIONS_PER_MONTH } from '@/lib/billing/plan';
 import { GUEST_AI_LIMIT_MESSAGE, guestAiAllowed } from '@/lib/auth/guest';
 import { aiConsentMissing, consentNeeded } from '@/lib/ai/consent';
+import { WorkspaceRepo } from '@/lib/data/repository';
+import { buildActionTools, ACTIONS_BRIEF, type Proposal } from '@/lib/ai/actions';
+import type { AssistantToolDefinition } from '@/lib/ai/types';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
@@ -189,10 +192,25 @@ export async function POST(request: Request) {
     { role: 'user', content: prepared.context.factSheet },
   ];
 
+  // Pock can offer to do things (add a purchase, a bill, a goal, a budget; open a
+  // screen). Offers only: each comes back as a card the person taps to confirm.
+  let proposals: Proposal[] = [];
+  let tools: AssistantToolDefinition[] | undefined;
+  if (mode !== 'learn' && provider.capabilities.tools) {
+    const repo = new WorkspaceRepo(ctx.user.id, ctx.workspace.id, ctx.workspace.baseCurrency);
+    const [cats, accts] = await Promise.all([repo.listCategories(), repo.listAccounts()]);
+    const built = buildActionTools({
+      today: todayIn(ctx.user.timezone), currency: ctx.workspace.baseCurrency,
+      categories: cats.filter((c) => !(c as { isArchived?: boolean }).isArchived).map((c) => ({ id: c.id, name: c.name, kind: c.kind })),
+      accounts: accts.filter((a) => a.isActive).map((a) => ({ id: a.id, name: a.name, type: a.type })),
+    });
+    proposals = built.proposals; tools = built.tools;
+  }
+
   let answer: string;
   let model: string | null = null;
   try {
-    const response = await provider.converse({ brief: mode === 'learn' ? LEARN_BRIEF : POCK_BRIEF, messages, maxTokens: 900 });
+    const response = await provider.converse({ brief: mode === 'learn' ? LEARN_BRIEF : `${POCK_BRIEF}\n${ACTIONS_BRIEF}`, messages, maxTokens: 900, tools });
     answer = response.data.trim();
     model = response.usage?.model ?? null;
   } catch (error) {
@@ -209,6 +227,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: problem.message, threadId: prepared.threadId }, { status: problem.status });
   }
 
+  if (answer === '' && proposals.length) answer = 'Here you go. Tap the button to do it.';
   if (answer === '') {
     return NextResponse.json({ error: 'Pock had nothing to say. Try asking it differently.' }, { status: 502 });
   }
@@ -229,6 +248,8 @@ export async function POST(request: Request) {
     threadId: prepared.threadId,
     answer,
     symbols: prepared.context.symbols,
+    /** Things Pock offers to do: each shown as a card; nothing has happened until it's tapped. */
+    actions: proposals,
   });
 }
 

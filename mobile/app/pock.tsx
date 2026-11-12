@@ -9,16 +9,19 @@ import { PockMark } from '@/components/Pock';
 import { Icon } from '@/components/Icon';
 import { api, ApiError } from '@/lib/api';
 import { PREVIEW, useSession } from '@/lib/session';
+import { useSummary } from '@/lib/summary';
 import { AiConsentCard, needsAiConsent } from '@/components/AiConsent';
 import { font, radius, space, type, useColors, useIsDark } from '@/theme/tokens';
 
-interface Msg { role: 'user' | 'pock' | 'problem'; text: string; upgrade?: boolean; question?: string; reported?: boolean }
+/** Something Pock offers to do. Nothing happens until it's tapped (server: /api/pock/act). */
+interface Action { id: string; kind: string; title: string; detail: string | null; confirm: string; params: Record<string, unknown>; state?: 'busy' | 'done' | 'skipped' | 'error'; note?: string }
+interface Msg { role: 'user' | 'pock' | 'problem'; text: string; upgrade?: boolean; question?: string; reported?: boolean; actions?: Action[] }
 
 const STARTERS = [
   'How much can I spend this week?',
   'Where did most of my money go this month?',
-  'Am I on track with my goals?',
-  'How does “safe to spend” work?',
+  'I just spent $14 at Tim Hortons',
+  'Keep my eating out under $200 a month',
 ];
 
 /**
@@ -41,6 +44,7 @@ export default function Pock({ embedded = false }: { embedded?: boolean }) {
   const [thinking, setThinking] = useState(false);
   const scroll = useRef<ScrollView>(null);
   const { me, refresh: refreshMe } = useSession();
+  const { refresh: refreshSummary } = useSummary();
   // A question asked before the person allowed the AI waits here until they do.
   const [waiting, setWaiting] = useState<string | null>(null);
   const mustAsk = !PREVIEW && needsAiConsent(me);
@@ -71,9 +75,9 @@ export default function Pock({ embedded = false }: { embedded?: boolean }) {
           ? 'An ETF is a basket of many investments bought in one go — so instead of betting on one company, you own a little of hundreds. A stock is a single company. ETFs are a common way to start because the risk is spread out and fees are usually low.'
           : 'You have about $1,240 you can spend before payday on Oct 1, after rent and your phone bill. That’s roughly $177 a day for the rest of the week.' }]);
       } else {
-        const res = await api<{ answer: string; threadId: string }>('/api/pock', { body: { question: q, threadId, ...(anchor ? { anchor } : {}), ...(learn ? { mode: 'learn' } : {}) } });
+        const res = await api<{ answer: string; threadId: string; actions?: Action[] }>('/api/pock', { body: { question: q, threadId, ...(anchor ? { anchor } : {}), ...(learn ? { mode: 'learn' } : {}) } });
         setThreadId(res.threadId);
-        setMessages((m) => [...m, { role: 'pock', text: res.answer, question: q }]);
+        setMessages((m) => [...m, { role: 'pock', text: res.answer, question: q, actions: res.actions?.length ? res.actions : undefined }]);
         if (left !== null) void refreshMe();
       }
     } catch (e) {
@@ -86,6 +90,23 @@ export default function Pock({ embedded = false }: { embedded?: boolean }) {
       setThinking(false);
       setTimeout(() => scroll.current?.scrollToEnd({ animated: true }), 50);
     }
+  }
+
+  /** The person said yes to something Pock offered: do it, then show where it landed. */
+  async function act(msgIndex: number, action: Action) {
+    const set = (patch: Partial<Action>) => setMessages((all) => all.map((m, j) => (j !== msgIndex ? m : { ...m, actions: m.actions?.map((x) => (x.id === action.id ? { ...x, ...patch } : x)) })));
+    if (action.kind === 'open_screen') {
+      const r = await api<{ open: string | null }>('/api/pock/act', { body: { kind: action.kind, params: action.params } }).catch(() => null);
+      if (r?.open) router.push(r.open as never);
+      return;
+    }
+    set({ state: 'busy' }); void Haptics.selectionAsync();
+    try {
+      const r = await api<{ open: string | null }>('/api/pock/act', { body: { kind: action.kind, params: action.params } });
+      void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      set({ state: 'done', note: r.open ?? undefined });
+      void refreshSummary();
+    } catch (e) { set({ state: 'error', note: e instanceof Error ? e.message : 'That couldn’t be done.' }); }
   }
 
   /** A person reviews reported answers: AI can be wrong, and money answers matter. */
@@ -123,7 +144,7 @@ export default function Pock({ embedded = false }: { embedded?: boolean }) {
             <View style={{ alignItems: 'center', gap: space.md }}>
               <View style={{ width: 72, height: 72, borderRadius: 22, backgroundColor: a.soft, alignItems: 'center', justifyContent: 'center' }}><PockMark size={40} color={a.accent} glasses={learn} /></View>
               <Text style={[type.title3, { color: c.text, textAlign: 'center' }]}>{learn ? 'Ask me anything about investing' : anchor ? `Ask about ${anchor.label ?? 'this goal'}` : 'Ask me about your money'}</Text>
-              <Text style={[type.subhead, { color: c.textMuted, textAlign: 'center', lineHeight: 21 }]}>{learn ? 'Stocks, ETFs, TFSAs, budgeting — any money question, explained simply. For learning, not advice.' : 'I can see your bills, spending and goals, and I explain things plainly. I never move money.'}</Text>
+              <Text style={[type.subhead, { color: c.textMuted, textAlign: 'center', lineHeight: 21 }]}>{learn ? 'Stocks, ETFs, TFSAs, budgeting — any money question, explained simply. For learning, not advice.' : 'I can see your bills, spending and goals. Tell me what you spent or what to set up and I’ll get it ready; you tap to confirm. I never move money.'}</Text>
             </View>
             <TourTarget id="askBox" style={{ gap: 8 }}>
               {starters.map((s) => (
@@ -147,6 +168,7 @@ export default function Pock({ embedded = false }: { embedded?: boolean }) {
                   <Text style={[type.caption, { color: c.textSubtle }]}>{m.reported ? 'Reported. Thank you.' : 'Wrong or unhelpful? Report'}</Text>
                 </Pressable>
               ) : null}
+              {m.actions?.map((x) => <ActionCard key={x.id} action={x} onDo={() => void act(i, x)} onSkip={() => setMessages((all) => all.map((mm, j) => (j !== i ? mm : { ...mm, actions: mm.actions?.map((y) => (y.id === x.id ? { ...y, state: 'skipped' } : y)) })))} />)}
               {m.upgrade ? (
                 <Pressable onPress={() => router.push('/plus')} style={{ marginTop: 10, alignSelf: 'flex-start', paddingHorizontal: 14, paddingVertical: 8, borderRadius: 99, backgroundColor: a.accent }}>
                   <Text style={{ fontFamily: font.semibold, color: onAccent }}>Try Pockit Plus free</Text>
@@ -180,3 +202,46 @@ export default function Pock({ embedded = false }: { embedded?: boolean }) {
     </KeyboardAvoidingView>
   );
 }
+
+/** One thing Pock offers to do, with a clear yes and a clear no. */
+function ActionCard({ action, onDo, onSkip }: { action: Action; onDo: () => void; onSkip: () => void }) {
+  const c = useColors();
+  const a = c.section.home;
+  const done = action.state === 'done';
+  if (action.state === 'skipped') return <Text style={[type.caption, { color: c.textSubtle, marginTop: 8 }]}>Skipped: {action.title}</Text>;
+  return (
+    <Animated.View entering={FadeInUp.duration(260)} style={{ marginTop: 10, padding: 12, borderRadius: 12, backgroundColor: done ? c.surface2 : a.soft, gap: 8 }}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+        <Icon name={done ? 'checkmark' : action.kind === 'open_screen' ? 'chevron.right' : 'sparkles'} size={16} color={done ? c.positive : a.accent} />
+        <View style={{ flex: 1 }}>
+          <Text style={[type.bodyStrong, { color: c.text }]}>{action.title}</Text>
+          {action.detail ? <Text style={[type.caption, { color: c.textMuted }]}>{action.detail}</Text> : null}
+        </View>
+      </View>
+      {done ? (
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+          <Text style={[type.footnote, { color: c.positive, fontWeight: '600' }]}>Done</Text>
+          {action.note ? (
+            <Pressable onPress={() => router.push(action.note as never)} hitSlop={8} accessibilityRole="link">
+              <Text style={[type.footnote, { color: a.accent, fontWeight: '600' }]}>See it →</Text>
+            </Pressable>
+          ) : null}
+        </View>
+      ) : (
+        <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center' }}>
+          <Pressable onPress={onDo} disabled={action.state === 'busy'} accessibilityRole="button"
+            style={({ pressed }) => ({ paddingHorizontal: 16, paddingVertical: 8, borderRadius: 99, backgroundColor: a.accent, opacity: pressed || action.state === 'busy' ? 0.75 : 1 })}>
+            <Text style={{ fontFamily: font.semibold, color: '#ffffff' }}>{action.state === 'busy' ? 'One moment…' : action.confirm}</Text>
+          </Pressable>
+          {action.kind !== 'open_screen' ? (
+            <Pressable onPress={onSkip} hitSlop={8} accessibilityRole="button" style={{ paddingHorizontal: 8, paddingVertical: 8 }}>
+              <Text style={[type.footnote, { color: c.textMuted, fontWeight: '600' }]}>Not now</Text>
+            </Pressable>
+          ) : null}
+          {action.state === 'error' ? <Text style={[type.caption, { color: c.negative, flex: 1 }]}>{action.note}</Text> : null}
+        </View>
+      )}
+    </Animated.View>
+  );
+}
+

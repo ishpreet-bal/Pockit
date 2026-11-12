@@ -96,6 +96,12 @@ jobs:
       - run: node e2e/friends.mjs
       - name: Reset sign-up limits (every suite signs up from the same address)
         run: psql "$DATABASE_URL" -c 'delete from pockit.rate_limits'
+      - run: node e2e/guest-handoff.mjs
+      - name: Reset sign-up limits (every suite signs up from the same address)
+        run: psql "$DATABASE_URL" -c 'delete from pockit.rate_limits'
+      - run: node e2e/pock-actions.mjs
+      - name: Reset sign-up limits (every suite signs up from the same address)
+        run: psql "$DATABASE_URL" -c 'delete from pockit.rate_limits'
       - run: npm run e2e
       - name: Reset sign-up limits (every suite signs up from the same address)
         run: psql "$DATABASE_URL" -c 'delete from pockit.rate_limits'

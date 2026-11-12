@@ -39,7 +39,7 @@ const VARIABLE_SPEND: Spec[] = [
   { slug: 'coffee', merchant: 'Tim Hortons', minMinor: 280, maxMinor: 1450, perMonth: 9, account: 'visa' },
   { slug: 'restaurants', merchant: 'SkipTheDishes', minMinor: 2400, maxMinor: 6800, perMonth: 3, account: 'visa' },
   { slug: 'fast-food', merchant: "McDonald's", minMinor: 900, maxMinor: 2400, perMonth: 3, account: 'visa' },
-  { slug: 'general-shopping', merchant: 'Amazon', minMinor: 1500, maxMinor: 18900, perMonth: 4, account: 'visa' },
+  { slug: 'shopping', merchant: 'Amazon', minMinor: 1500, maxMinor: 18900, perMonth: 4, account: 'visa' },
   { slug: 'pharmacy', merchant: 'Shoppers Drug Mart', minMinor: 1200, maxMinor: 6400, perMonth: 2, account: 'visa' },
   { slug: 'public-transit', merchant: 'PRESTO', minMinor: 2000, maxMinor: 4000, perMonth: 1, account: 'chq' },
   { slug: 'clothing', merchant: 'Uniqlo', minMinor: 4500, maxMinor: 14000, perMonth: 1, account: 'visa' },
@@ -77,6 +77,8 @@ export async function seedDemoData(userId: string, workspaceId: string, today: I
         normalBalance: ACCOUNT_NORMAL_BALANCE[type] ?? 'debit',
         currency, openingBalanceMinor: opening, openingBalanceDate: startDate,
         creditLimitMinor: limit ?? null,
+        // The sample card has a due day, so "Card payments" on Home shows what it does.
+        paymentDueDay: type === 'credit_card' ? 20 : null,
         institution: type === 'credit_card' ? 'RBC' : 'TD',
       }).returning({ id: accounts.id });
       return rows[0]!.id;
@@ -154,7 +156,7 @@ export async function seedDemoData(userId: string, workspaceId: string, today: I
       /* A refund, so spending nets down correctly. */
       if (m === 2 || m === 4) {
         const date = dayIn(19);
-        if (date) push(visa, date, 'Amazon refund', 'Amazon', 8_127n, 'refund', 'general-shopping');
+        if (date) push(visa, date, 'Amazon refund', 'Amazon', 8_127n, 'refund', 'shopping');
       }
 
       /* Transfers: savings and the credit-card payment. Neither counts as spending. */
@@ -223,7 +225,7 @@ export async function seedDemoData(userId: string, workspaceId: string, today: I
 
     const allocationSpecs: [string, bigint][] = [
       ['rent', 182_500n], ['groceries', 65_000n], ['restaurants', 18_000n], ['fast-food', 8_000n],
-      ['coffee', 9_000n], ['gas', 32_000n], ['general-shopping', 35_000n], ['subscriptions', 5_000n],
+      ['coffee', 9_000n], ['gas', 32_000n], ['shopping', 35_000n], ['subscriptions', 5_000n],
       ['utilities', 12_000n], ['phone', 8_500n], ['internet', 9_500n], ['fitness', 5_500n],
       ['pharmacy', 8_000n], ['clothing', 10_000n],
     ];

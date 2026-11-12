@@ -7,7 +7,7 @@ import { createUserWithWorkspace } from '@/lib/data/bootstrap';
 import { seedDemoData } from '@/lib/data/demo';
 import { todayIn } from '@/lib/finance/period';
 import { checkRateLimit } from './rate-limit';
-import { audit } from './session';
+import { audit, clearSessionCookie, getSessionUser } from './session';
 
 /**
  * Guest accounts: "Look around first" without signing up (App Store guideline
@@ -55,6 +55,20 @@ export async function endGuest(userId: string): Promise<boolean> {
   const rows = await withoutUser((tx) => tx.delete(users)
     .where(and(eq(users.id, userId), eq(users.isGuest, true))).returning({ id: users.id }));
   return rows.length > 0;
+}
+
+/**
+ * Signing in or up while looking around: the guest and its sample money go, from the
+ * app's header or the website's cookie, whichever carried it. Without this the
+ * website's guest cookie outlived the sign-in and sample money kept showing.
+ */
+export async function dropPresentedGuest(): Promise<void> {
+  try {
+    const current = await getSessionUser();
+    if (!current?.isGuest) return;
+    await endGuest(current.id);
+    await clearSessionCookie();
+  } catch { /* the new session matters more than tidying the old one */ }
 }
 
 /** Remove guests older than GUEST_DAYS. Cascades take their sample data with them. */

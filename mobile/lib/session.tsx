@@ -18,6 +18,8 @@ export interface Me {
   tourDone?: boolean;
   /** Runs Pockit: always has Plus, sees the Developer screen. Decided by the server (ADMIN_EMAILS). */
   admin?: boolean;
+  /** A real account with sample money in it (see /api/workspace/clear-demo). */
+  sampleData?: boolean;
   /** Whether Pockit Plus has launched. While false, the app shows no trace of it. */
   plusEnabled?: boolean;
   plus?: boolean;

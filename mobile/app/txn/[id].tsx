@@ -57,6 +57,7 @@ export default function Transaction() {
   const [busy, setBusy] = useState(false);
   const [saved, setSaved] = useState<string | null>(null);
   const [picking, setPicking] = useState(false);
+  const [catNote, setCatNote] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     if (PREVIEW) return;
@@ -100,7 +101,9 @@ export default function Transaction() {
     void Haptics.selectionAsync();
     if (PREVIEW) return;
     try {
-      await api(`/api/transactions/${d!.id}`, { method: 'PATCH', body: { categoryId, rememberCategory: true } });
+      const r = await api<{ alsoChanged?: number }>(`/api/transactions/${d!.id}`, { method: 'PATCH', body: { categoryId, rememberCategory: true } });
+      const n = r.alsoChanged ?? 0;
+      setCatNote(`Got it. ${d!.name} will go in ${next?.name ?? 'this category'} from now on${n ? `, and ${n} earlier purchase${n === 1 ? '' : 's'} moved too` : ''}.`);
       await refresh();
     } catch (e) { setD({ ...d!, category: prev }); setError(e instanceof Error ? e.message : 'That category couldn’t be saved.'); }
   }
@@ -139,6 +142,7 @@ export default function Transaction() {
           <Card>
             <Row icon="" title={d.category?.name ?? 'Uncategorised'} value={picking ? 'Done' : 'Change'} valueColor={accent.accent} last onPress={() => setPicking(!picking)} />
           </Card>
+          {catNote && !picking ? <Text style={[type.footnote, { color: c.positive, marginTop: space.sm, lineHeight: 20 }]}>{catNote}</Text> : null}
           {picking ? (
             <View style={{ marginTop: space.md }}>
               <ChipRow>

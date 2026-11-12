@@ -56,14 +56,25 @@ export async function issueSessionToken(userId: string, ip: string | null, userA
   return sign(token, env.AUTH_SECRET);
 }
 
-/** The signed token from the cookie, or from a Bearer header sent by the app. */
+/**
+ * The signed token the request presents. A Bearer header from the app wins over the
+ * cookie: the app inside the website (/app) shares the site's cookies, so a "Look
+ * around" guest cookie would otherwise outrank the account someone just signed in
+ * to, and they'd keep seeing sample money.
+ */
 async function presentedToken(): Promise<string | null> {
-  const jar = await cookies();
-  const fromCookie = jar.get(COOKIE)?.value;
-  if (fromCookie) return fromCookie;
   const auth = (await headers()).get('authorization');
-  const match = auth?.match(/^Bearer\s+(.+)$/i);
-  return match?.[1]?.trim() || null;
+  const fromHeader = auth?.match(/^Bearer\s+(.+)$/i)?.[1]?.trim();
+  if (fromHeader) return fromHeader;
+  const jar = await cookies();
+  return jar.get(COOKIE)?.value || null;
+}
+
+/** Forget the website's session cookie (used when a guest gives way to a real account). */
+export async function clearSessionCookie(): Promise<void> {
+  const jar = await cookies();
+  jar.delete(COOKIE);
+  jar.delete(WORKSPACE_COOKIE);
 }
 
 export async function createSession(userId: string, ip: string | null, userAgent: string | null): Promise<void> {

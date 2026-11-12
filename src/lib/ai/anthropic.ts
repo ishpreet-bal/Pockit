@@ -1,7 +1,7 @@
 import Anthropic from '@anthropic-ai/sdk';
 import type {
   AiProvider, ExtractionInput, ExtractionResult, ProviderResponse,
-  AssistantInput, AssistantResult, AssistantToolCall,
+  AssistantInput, AssistantResult, AssistantToolCall, AssistantToolDefinition,
 } from './types';
 import { extractionResultSchema, AiUnavailableError } from './types';
 import { EXTRACTION_SYSTEM, EXTRACTION_TOOL_SCHEMA, buildAssistantSystem, buildExtractionInstruction, NARRATE_SYSTEM } from './prompts';
@@ -202,28 +202,57 @@ export class AnthropicProvider implements AiProvider {
     brief: string;
     messages: { role: 'user' | 'assistant'; content: string }[];
     maxTokens?: number;
+    tools?: AssistantToolDefinition[];
   }): Promise<ProviderResponse<string>> {
     const started = Date.now();
-    const response = await this.client.messages.create({
-      model: this.model,
-      max_tokens: input.maxTokens ?? 1200,
-      system: input.brief,
-      messages: input.messages.map((m) => ({ role: m.role, content: m.content })),
-    });
+    const messages: Anthropic.MessageParam[] = input.messages.map((m) => ({ role: m.role, content: m.content }));
+    const tools: Anthropic.Tool[] | undefined = input.tools?.length
+      ? input.tools.map((t) => ({ name: t.name, description: t.description, input_schema: t.inputSchema as Anthropic.Tool.InputSchema }))
+      : undefined;
+    const byName = new Map((input.tools ?? []).map((t) => [t.name, t]));
+    let inputTokens = 0;
+    let outputTokens = 0;
+    let text = '';
 
-    const text = response.content
-      .filter((b): b is Anthropic.TextBlock => b.type === 'text')
-      .map((b) => b.text).join('').trim();
+    // Tools here only PROPOSE (see lib/ai/actions.ts), so a few rounds is plenty:
+    // the model calls one or two, reads "shown as a card", and writes its reply.
+    for (let round = 0; round < 4; round++) {
+      const response = await this.client.messages.create({
+        model: this.model,
+        max_tokens: input.maxTokens ?? 1200,
+        system: input.brief,
+        messages,
+        ...(tools ? { tools } : {}),
+      });
+      inputTokens += response.usage.input_tokens;
+      outputTokens += response.usage.output_tokens;
+      text = response.content
+        .filter((b): b is Anthropic.TextBlock => b.type === 'text')
+        .map((b) => b.text).join('').trim();
+
+      const uses = response.content.filter((b): b is Anthropic.ToolUseBlock => b.type === 'tool_use');
+      if (response.stop_reason !== 'tool_use' || uses.length === 0) break;
+
+      messages.push({ role: 'assistant', content: response.content });
+      const results: Anthropic.ToolResultBlockParam[] = [];
+      for (const use of uses) {
+        const tool = byName.get(use.name);
+        let result: unknown;
+        try {
+          result = tool ? await tool.run((use.input ?? {}) as Record<string, unknown>) : { error: `Unknown tool ${use.name}` };
+        } catch (error) {
+          result = { error: error instanceof Error ? error.message : 'Tool failed' };
+        }
+        const failed = Boolean(result && typeof result === 'object' && 'error' in result);
+        results.push({ type: 'tool_result', tool_use_id: use.id, content: JSON.stringify(result).slice(0, 8_000), ...(failed ? { is_error: true } : {}) });
+      }
+      // Every result for one turn goes back in a single message.
+      messages.push({ role: 'user', content: results });
+    }
 
     return {
       data: text,
-      usage: {
-        inputTokens: response.usage.input_tokens,
-        outputTokens: response.usage.output_tokens,
-        latencyMs: Date.now() - started,
-        model: this.model,
-        provider: 'anthropic',
-      },
+      usage: { inputTokens, outputTokens, latencyMs: Date.now() - started, model: this.model, provider: 'anthropic' },
     };
   }
 

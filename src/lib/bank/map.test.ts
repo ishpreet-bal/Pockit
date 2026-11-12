@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { accountType, categorySlug, signedMinor, txType } from './map';
+import { accountType, categorySlug, signedMinor, textType, txType } from './map';
 
 describe('Plaid → Pockit', () => {
   it('maps account types', () => {
@@ -66,3 +66,31 @@ describe('bank token sealing', () => {
     delete process.env.BANK_TOKEN_KEY;
   });
 });
+
+describe('what the bank\'s own wording says', () => {
+  const misc = { primary: 'GENERAL_SERVICES', detailed: 'GENERAL_SERVICES_OTHER_GENERAL_SERVICES' };
+  it('a card payment is never spending, on either side', () => {
+    expect(txType({ amount: -642, name: 'PAYMENT - THANK YOU', personal_finance_category: misc }, 'credit_card')).toBe('transfer');
+    expect(txType({ amount: -642, name: 'PAIEMENT - MERCI', personal_finance_category: misc }, 'credit_card')).toBe('transfer');
+    expect(txType({ amount: 642, name: 'AMEX BILL PYMT', personal_finance_category: misc }, 'chequing')).toBe('debt_payment');
+    expect(txType({ amount: 300, name: 'CIBC VISA PAYMENT', personal_finance_category: misc }, 'chequing')).toBe('debt_payment');
+    expect(txType({ amount: 300, name: 'TD VISA PREAUTH PYMT', personal_finance_category: misc }, 'chequing')).toBe('debt_payment');
+  });
+  it('a refund on a card is still a refund', () => {
+    expect(txType({ amount: -40, name: 'AMAZON.CA REFUND', personal_finance_category: misc }, 'credit_card')).toBe('refund');
+  });
+  it('moving money between your own accounts is a transfer', () => {
+    expect(txType({ amount: 200, name: 'TFR-TO 6123456', personal_finance_category: misc }, 'chequing')).toBe('transfer');
+    expect(txType({ amount: 200, name: 'Online Banking transfer to savings', personal_finance_category: misc }, 'chequing')).toBe('transfer');
+  });
+  it('an e-Transfer you send is money gone, even if the bank calls it a transfer', () => {
+    expect(txType({ amount: 1450, name: 'SEND E-TFR ***Jx2 E-TRANSFER', personal_finance_category: { primary: 'TRANSFER_OUT', detailed: 'TRANSFER_OUT_ACCOUNT_TRANSFER' } }, 'chequing')).toBe('expense');
+    // Money sent TO you could be a friend paying back: not income, Plaid's call stands.
+    expect(textType('E-TRANSFER RECEIVED Sam', 'chequing', false)).toBeNull();
+  });
+  it('an ordinary purchase is left to Plaid', () => {
+    expect(textType('TIM HORTONS #1234', 'chequing', true)).toBeNull();
+    expect(textType('VISA DEBIT PURCHASE LOBLAWS', 'chequing', true)).toBeNull();
+  });
+});
+

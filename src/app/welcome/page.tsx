@@ -5,7 +5,8 @@ import { getSessionUser } from '@/lib/auth/session';
 import { PockMark } from '@/components/brand/pock-mark';
 import { LivePhone } from './live-phone';
 import { CountUp, Reveal, Sequence, Tilt } from './motion';
-import { TryIt } from './try-it';
+import { MeetPock } from './meet-pock';
+import { TabTour } from './tab-tour';
 
 export const metadata: Metadata = {
   title: 'Pockit: know what you can spend',
@@ -36,7 +37,8 @@ export default async function WelcomePage() {
       <Nav guest={guest} />
       <Hero guest={guest} />
       <OneNumber />
-      <TryYours />
+      <MeetPockSection />
+      <Tour />
       <Features />
       <HowItWorks />
       <Safety />
@@ -62,7 +64,8 @@ function Nav({ guest }: { guest: boolean }) {
           <span className="font-[family-name:var(--font-display)] text-xl">Pockit</span>
         </Link>
         <nav className="ml-auto hidden items-center gap-6 text-sm text-[var(--text-muted)] md:flex">
-          <a href="#try" className="hover:text-[var(--text)]">Try it</a>
+          <a href="#pock" className="hover:text-[var(--text)]">Meet Pock</a>
+          <a href="#tour" className="hover:text-[var(--text)]">The app</a>
           <a href="#features" className="hover:text-[var(--text)]">Features</a>
           <a href="#how" className="hover:text-[var(--text)]">How it works</a>
           <a href="#safety" className="hover:text-[var(--text)]">Your data</a>
@@ -147,29 +150,43 @@ function OneNumber() {
   );
 }
 
-function TryYours() {
+function MeetPockSection() {
   return (
-    <section id="try" className={`${wrap} scroll-mt-20 pt-20`}>
+    <section id="pock" className={`${wrap} scroll-mt-20 pt-20`}>
       <Reveal className="text-center">
-        <p className={eyebrow}>Try it</p>
-        <h2 className={`mx-auto mt-3 max-w-2xl ${h2}`}>Put in your own numbers.</h2>
-        <p className="mx-auto mt-4 max-w-xl text-lg leading-relaxed text-[var(--text-muted)]">Slide things around and see what Pockit would tell you. No account, nothing saved.</p>
+        <p className={eyebrow}>Meet Pock</p>
+        <h2 className={`mx-auto mt-3 max-w-2xl ${h2}`}>Tell it what happened. It takes care of the rest.</h2>
+        <p className="mx-auto mt-4 max-w-xl text-lg leading-relaxed text-[var(--text-muted)]">
+          Pock knows your bills, your budget and your goals. Say what you spent or what you want, and it gets it ready for one tap. It never changes anything without you.
+        </p>
       </Reveal>
-      <Reveal delay={120} className="mx-auto mt-10 max-w-4xl"><TryIt /></Reveal>
+      <Reveal delay={120} className="mx-auto mt-10 max-w-5xl"><MeetPock /></Reveal>
+    </section>
+  );
+}
+
+function Tour() {
+  return (
+    <section id="tour" className={`${wrap} scroll-mt-20 py-20`}>
+      <Reveal>
+        <p className={eyebrow}>The app</p>
+        <h2 className={`mt-3 max-w-2xl ${h2}`}>Five tabs. Everything a household needs.</h2>
+      </Reveal>
+      <Reveal delay={120} className="mt-10"><TabTour /></Reveal>
     </section>
   );
 }
 
 // Four columns: two wide, four narrow, two wide, so every row is full.
-const FEATURES: { title: string; body: string; big?: boolean }[] = [
-  { title: 'Your bank, read-only', body: 'Connect through Plaid and your accounts, balances and transactions arrive on their own, sorted into categories. Pockit can see, never move, your money.', big: true },
-  { title: 'Split with friends', body: 'Dinner for four on your card? Only your part counts. Pockit keeps who owes who, both ways, and knows an e-Transfer back isn’t income.', big: true },
-  { title: 'Bills and payday', body: 'A countdown to payday with every bill on the way, so nothing sneaks up on you.' },
-  { title: 'A budget that writes itself', body: 'Answer a few questions when you sign up and your first budget is ready.' },
-  { title: 'Goals', body: 'Emergency fund, a trip, a car. See how far along you are and what it takes per payday.' },
-  { title: 'Ask Pock', body: 'Questions about your own numbers, answered plainly. Pock asks before sharing anything with an AI company.' },
-  { title: 'Budget together', body: 'A shared space for a partner or roommates for the money you share, while your own money stays your own.', big: true },
-  { title: 'Plan a trip', body: 'Pick your real car, from every model sold since 1984, and see what the gas will cost before you leave the driveway.', big: true },
+const FEATURES: { title: string; body: string; big?: boolean; hue: 'coral' | 'sky' | 'leaf' | 'violet' | 'gold' }[] = [
+  { title: 'Your bank, read-only', body: 'Connect through Plaid and your accounts, balances and transactions arrive on their own, sorted into categories. Pockit can see, never move, your money.', big: true, hue: 'sky' },
+  { title: 'Split with friends', body: 'Dinner for four on your card? Only your part counts. Pockit keeps who owes who, both ways, and knows an e-Transfer back isn’t income.', big: true, hue: 'violet' },
+  { title: 'Bills, cards and payday', body: 'A countdown to payday with every bill on the way, and a reminder before each credit card is due.', hue: 'coral' },
+  { title: 'A budget that writes itself', body: 'Answer a few questions when you sign up and your first budget is ready.', hue: 'leaf' },
+  { title: 'Goals', body: 'Emergency fund, a trip, a car. See how far along you are and what it takes per payday.', hue: 'gold' },
+  { title: 'Ask Pock', body: 'Questions about your own numbers, answered plainly. Tell it what you spent and it gets it ready for one tap.', hue: 'violet' },
+  { title: 'Budget together', body: 'A shared space for a partner or roommates for the money you share, while your own money stays your own.', big: true, hue: 'coral' },
+  { title: 'Plan a trip', body: 'Pick your real car, from every model sold since 1984, and see what the gas will cost before you leave the driveway.', big: true, hue: 'sky' },
 ];
 
 function Features() {
@@ -181,8 +198,8 @@ function Features() {
       </Reveal>
       <Reveal className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {FEATURES.map((f) => (
-          <article key={f.title} data-stagger className={`pk-lift rounded-[20px] border border-[var(--border)] bg-[var(--surface)] p-6 ${f.big ? 'lg:col-span-2' : ''}`}>
-            <span className="pk-nod grid h-9 w-9 place-items-center rounded-[10px] bg-[var(--accent-soft)] text-[var(--accent)]"><PockMark className="h-5 w-5" /></span>
+          <article key={f.title} data-stagger className={`pk-lift pk-hue-${f.hue} rounded-[20px] border border-[var(--border)] bg-[var(--surface)] p-6 ${f.big ? 'lg:col-span-2' : ''}`}>
+            <span className="pk-nod grid h-9 w-9 place-items-center rounded-[10px]" style={{ background: 'var(--hue-soft)', color: 'var(--hue)' }}><PockMark className="h-5 w-5" /></span>
             <h3 className="mt-4 text-lg font-semibold">{f.title}</h3>
             <p className="mt-2 leading-relaxed text-[var(--text-muted)]">{f.body}</p>
           </article>

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { checkCredentials } from '@/lib/auth/credentials';
+import { dropPresentedGuest } from '@/lib/auth/guest';
 import { issueSessionToken, audit, requestContext } from '@/lib/auth/session';
 import { checkRateLimit } from '@/lib/auth/rate-limit';
 import { twoFactorEnabled, verifySecondFactor, consumeRecoveryCode } from '@/lib/auth/two-factor';
@@ -53,6 +54,7 @@ export async function POST(request: Request) {
     }
   }
 
+  await dropPresentedGuest();
   const token = await issueSessionToken(userId, ip, userAgent);
   await audit({ actorUserId: userId, action: 'auth.sign_in_app', entity: 'user', entityId: userId });
   return NextResponse.json({ token });

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { createUserWithWorkspace, findUserByEmail } from '@/lib/data/bootstrap';
+import { dropPresentedGuest } from '@/lib/auth/guest';
 import { issueSessionToken, audit, requestContext } from '@/lib/auth/session';
 import { checkRateLimit } from '@/lib/auth/rate-limit';
 
@@ -40,6 +41,7 @@ export async function POST(request: Request) {
     kinds: ['personal'],
   });
 
+  await dropPresentedGuest();
   const token = await issueSessionToken(result.userId, ip, userAgent);
   await audit({ actorUserId: result.userId, action: 'auth.sign_up_app', entity: 'user', entityId: result.userId });
   return NextResponse.json({ token }, { status: 201 });

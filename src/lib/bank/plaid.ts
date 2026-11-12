@@ -62,7 +62,9 @@ export async function createLinkToken(userId: string, opts: { hosted: boolean; a
     language: 'en',
     country_codes: ['CA', 'US'],
     // Update mode (reconnecting a broken login) passes the existing token instead of products.
-    ...(opts.accessToken ? { access_token: opts.accessToken } : { products: ['transactions'], transactions: { days_requested: 180 } }),
+    // Liabilities is optional: banks that share card statements give due dates and
+    // minimums, and a bank that doesn't can still be connected.
+    ...(opts.accessToken ? { access_token: opts.accessToken } : { products: ['transactions'], optional_products: ['liabilities'], transactions: { days_requested: 180 } }),
     ...(opts.hosted ? { hosted_link: {} } : {}),
   });
 }
@@ -89,6 +91,28 @@ export async function linkFinished(linkToken: string): Promise<boolean> {
 
 export const exchangePublicToken = (publicToken: string) =>
   call<{ access_token: string; item_id: string }>('/item/public_token/exchange', { public_token: publicToken });
+
+export interface PlaidCardStatement {
+  account_id: string | null;
+  last_statement_balance?: number | null; minimum_payment_amount?: number | null;
+  next_payment_due_date?: string | null; last_payment_date?: string | null; last_statement_issue_date?: string | null;
+  aprs?: { apr_percentage: number; apr_type: string }[];
+}
+
+/**
+ * Credit card statements: due date, statement balance, minimum. Only banks that
+ * share it (Plaid Liabilities), so anything else answers null rather than failing
+ * the sync; the cards then simply have no due date until one is typed in.
+ */
+export async function getCardStatements(accessToken: string): Promise<PlaidCardStatement[] | null> {
+  try {
+    const r = await call<{ liabilities?: { credit?: PlaidCardStatement[] | null } }>('/liabilities/get', { access_token: accessToken });
+    return r.liabilities?.credit ?? [];
+  } catch (e) {
+    if (e instanceof PlaidError) return null;
+    throw e;
+  }
+}
 
 export const getAccounts = (accessToken: string) =>
   call<{ accounts: PlaidAccount[]; item: { institution_id?: string | null } }>('/accounts/get', { access_token: accessToken });

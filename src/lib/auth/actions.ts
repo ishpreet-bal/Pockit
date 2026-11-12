@@ -3,8 +3,8 @@
 import { redirect } from 'next/navigation';
 import { z } from 'zod';
 import { createUserWithWorkspace, findUserByEmail } from '@/lib/data/bootstrap';
-import { createSession, destroySession, audit, requestContext, getSessionUser } from './session';
-import { endGuest } from './guest';
+import { createSession, destroySession, audit, requestContext } from './session';
+import { dropPresentedGuest } from './guest';
 import { checkRateLimit } from './rate-limit';
 import { checkCredentials } from './credentials';
 import {
@@ -52,12 +52,7 @@ async function guarded(run: () => Promise<AuthFormState>): Promise<AuthFormState
 }
 
 /** Signing up or in from a guest session: the guest and its sample money go. */
-async function dropGuest(): Promise<void> {
-  try {
-    const current = await getSessionUser();
-    if (current?.isGuest) await endGuest(current.id);
-  } catch { /* the new session matters more than tidying the old one */ }
-}
+const dropGuest = dropPresentedGuest;
 
 export async function signUpAction(prev: AuthFormState, formData: FormData): Promise<AuthFormState> {
   return guarded(() => signUp(prev, formData));

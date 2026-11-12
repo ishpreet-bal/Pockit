@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
-import { eq, and, isNull } from 'drizzle-orm';
+import { eq, and, isNull, ne, sql } from 'drizzle-orm';
 import { requireAuthApi } from '@/lib/auth/api';
 import { withUser } from '@/lib/db/client';
 import { transactions, merchantRules } from '@/lib/db/schema';
@@ -53,7 +53,11 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   const values: Record<string, unknown> = {};
   if (input.postedDate) values.postedDate = input.postedDate;
   if (input.description) { values.description = input.description; values.merchantName = input.description; }
-  if (input.categoryId !== undefined) values.categoryId = input.categoryId;
+  if (input.categoryId !== undefined) {
+    values.categoryId = input.categoryId;
+    // Chosen by the person: a later "remember this" for the same shop never overrides it.
+    values.provenance = { ...((current.provenance as Record<string, unknown> | null) ?? {}), categorizedBy: 'person' };
+  }
   if (input.accountId) values.accountId = input.accountId;
   if (input.businessClassification) values.businessClassification = input.businessClassification;
   if (input.notes !== undefined) values.notes = input.notes;
@@ -102,6 +106,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
 
   // Correcting a category is the clearest possible signal of intent, so it becomes a
   // visible rule rather than hidden model state.
+  let alsoChanged = 0;
   if (input.rememberCategory && input.categoryId) {
     const pattern = normalizeMerchant(input.description ?? current.merchantName ?? current.description);
     if (pattern.length >= 3) {
@@ -124,6 +129,21 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
             priority: 150,
           });
         }
+        // Past purchases from the same shop follow, as long as nobody chose theirs by
+        // hand: fixing Tim Hortons once fixes every Tim Hortons, not just the next one.
+        const like = `%${pattern.replace(/[\\%_]/g, (c) => `\\${c}`)}%`;
+        const moved = await tx.update(transactions)
+          .set({ categoryId: input.categoryId!, updatedAt: new Date(), provenance: sql`coalesce(${transactions.provenance}, '{}'::jsonb) || '{"categorizedBy":"rule"}'::jsonb` })
+          .where(and(
+            eq(transactions.workspaceId, ctx.workspace.id),
+            ne(transactions.id, id),
+            isNull(transactions.deletedAt),
+            eq(transactions.type, nextType),
+            sql`coalesce(${transactions.provenance}->>'categorizedBy', '') <> 'person'`,
+            sql`lower(coalesce(${transactions.merchantName}, '') || ' ' || coalesce(${transactions.originalDescription}, '') || ' ' || ${transactions.description}) like ${like}`,
+          ))
+          .returning({ id: transactions.id });
+        alsoChanged = moved.length;
       });
     }
   }
@@ -134,7 +154,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     metadata: { fields: Object.keys(values) },
   });
 
-  return NextResponse.json({ ok: true, id });
+  return NextResponse.json({ ok: true, id, alsoChanged });
 }
 
 export async function DELETE(_request: Request, { params }: { params: Promise<{ id: string }> }) {

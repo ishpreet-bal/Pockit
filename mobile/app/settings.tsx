@@ -11,7 +11,7 @@ import { askForNotifications, checkBudgetAlerts, syncBillReminders, syncWeeklySu
 import { useSummary } from '@/lib/summary';
 import { useSession } from '@/lib/session';
 import { hsl, setAccentHue, setAppearance, space, type, useAccentHue, useAppearance, useColors, useIsDark, type Appearance } from '@/theme/tokens';
-import { GuestBanner } from '@/components/GuestBanner';
+import { GuestBanner, SampleDataBanner } from '@/components/GuestBanner';
 
 function Toggle({ title, detail, value, onChange, disabled, last }: { title: string; detail: string; value: boolean; onChange: (v: boolean) => void; disabled?: boolean; last?: boolean }) {
   const c = useColors();
@@ -83,6 +83,7 @@ export default function Settings() {
   return (
     <Screen section="more" title="Settings" back>
       <GuestBanner />
+      <SampleDataBanner />
       <SectionHeader title="Appearance" />
       <AppearancePicker />
       <ColourTryout />

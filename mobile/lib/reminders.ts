@@ -42,6 +42,22 @@ export async function syncBillReminders(summary: Summary | null): Promise<number
     });
     scheduled++;
   }
+  // Credit cards: three days ahead, and the morning it's due, until it's paid.
+  for (const card of summary.home.cards ?? []) {
+    if (card.paid) continue;
+    const [y, m, d] = card.dueDate.split('-').map(Number) as [number, number, number];
+    const amount = card.statementMinor ? ` Statement ${money(card.statementMinor)}${card.minimumMinor ? `, minimum ${money(card.minimumMinor)}` : ''}.` : '';
+    for (const [before, title] of [[3, `${card.name} is due in 3 days`], [0, `${card.name} is due today`]] as const) {
+      const when = new Date(y, m - 1, d - before, 9, 0, 0);
+      if (when.getTime() <= Date.now()) continue;
+      await Notifications.scheduleNotificationAsync({
+        identifier: `bill-card-${card.id}-${card.dueDate}-${before}`,
+        content: { title, body: `Pay it on time to skip interest and a late fee.${amount}` },
+        trigger: { type: Notifications.SchedulableTriggerInputTypes.DATE, date: when },
+      });
+      scheduled++;
+    }
+  }
   return scheduled;
 }
 

@@ -4,7 +4,7 @@ import { withUser } from '@/lib/db/client';
 import { accounts, bankConnections, categories, merchantRules, transactions } from '@/lib/db/schema';
 import { matchesRule, resolveMerchant } from '@/lib/import/normalize';
 import { accountType, categorySlug, isLiability, signedMinor, txType, type PlaidAccount, type PlaidTxn, type TxType } from './map';
-import { getAccounts, openToken, syncTransactions, PlaidError, TokenUnreadable } from './plaid';
+import { getAccounts, getCardStatements, openToken, syncTransactions, PlaidError, TokenUnreadable, type PlaidCardStatement } from './plaid';
 
 /**
  * Bring one bank connection up to date: its accounts (and balances), then every
@@ -27,8 +27,9 @@ export async function syncConnection(ctx: Ctx, connectionId: string): Promise<Sy
     // Inside the try: a token that can't be opened (AUTH_SECRET changed) must mark
     // the bank as needing a reconnect, not fail silently every day.
     const access = openToken(conn.accessTokenEnc, conn.workspaceId);
-    const [acc, delta] = await Promise.all([getAccounts(access), syncTransactions(access, conn.cursor)]);
+    const [acc, delta, cards] = await Promise.all([getAccounts(access), syncTransactions(access, conn.cursor), getCardStatements(access)]);
     const result = await applySync(ctx, conn.id, conn.institutionName, acc.accounts, delta);
+    if (cards?.length) await applyCardStatements(ctx, conn.id, cards);
     await withUser(ctx.userId, (tx) => tx.update(bankConnections).set({ cursor: delta.cursor, lastSyncedAt: new Date(), status: 'active', error: null }).where(eq(bankConnections.id, conn.id)));
     return result;
   } catch (e) {
@@ -85,7 +86,7 @@ export async function applySync(
       if (seen.has(t.transaction_id)) continue;
       const acct = byPlaid.get(t.account_id)!;
       const amount = signedMinor(t, acct.type);
-      const type = txType(t, acct.type);
+      const type = txType({ ...t, name: `${t.name} ${t.merchant_name ?? ''}` }, acct.type);
       const merchant = resolveMerchant(t.name, t.merchant_name);
       const pick = categorize(t, type, merchant.categorySlug);
       await tx.insert(transactions).values({
@@ -118,6 +119,31 @@ export async function applySync(
       removed = r.length;
     }
     return { accounts: plaidAccounts.length, added, updated, removed };
+  });
+}
+
+/** Each card's statement onto its account: when it's due, how much, and the minimum. */
+export async function applyCardStatements(ctx: Ctx, connectionId: string, cards: PlaidCardStatement[]): Promise<number> {
+  const minor = (v: number | null | undefined) => (v === null || v === undefined ? null : BigInt(Math.round(v * 100)));
+  return withUser(ctx.userId, async (tx) => {
+    let n = 0;
+    for (const c of cards) {
+      if (!c.account_id) continue;
+      const purchase = c.aprs?.find((a) => a.apr_type === 'purchase_apr');
+      const r = await tx.update(accounts).set({
+        paymentDueDate: c.next_payment_due_date ?? null,
+        paymentDueDay: c.next_payment_due_date ? Number(c.next_payment_due_date.slice(8, 10)) : undefined,
+        statementBalanceMinor: minor(c.last_statement_balance),
+        minimumPaymentMinor: minor(c.minimum_payment_amount),
+        lastPaymentDate: c.last_payment_date ?? null,
+        lastStatementDate: c.last_statement_issue_date ?? null,
+        ...(purchase ? { interestRateBps: Math.round(purchase.apr_percentage * 100) } : {}),
+        updatedAt: new Date(),
+      }).where(and(eq(accounts.workspaceId, ctx.workspaceId), eq(accounts.externalProvider, `plaid:${connectionId}`), eq(accounts.externalId, c.account_id)))
+        .returning({ id: accounts.id });
+      n += r.length;
+    }
+    return n;
   });
 }
 

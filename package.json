@@ -33,7 +33,9 @@
     "db:start": "bash scripts/dev-db.sh",
     "e2e:security": "node e2e/security.mjs",
     "e2e:bank": "node e2e/bank.mjs",
-    "e2e:friends": "node e2e/friends.mjs"
+    "e2e:friends": "node e2e/friends.mjs",
+    "e2e:guest-handoff": "node e2e/guest-handoff.mjs",
+    "e2e:pock-actions": "node e2e/pock-actions.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "0.125.0",

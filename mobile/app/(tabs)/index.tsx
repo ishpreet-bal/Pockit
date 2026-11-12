@@ -2,16 +2,16 @@ import { useEffect, useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
 import { Button, Field, FormError, toMinor } from '@/components/form';
 import { api } from '@/lib/api';
-import { useToolTint } from '@/theme/palette';
+import { soft, useToolTint } from '@/theme/palette';
 import { router } from 'expo-router';
 import { Card, Loading, formatMoney, PreviewBadge, Row, Screen, SectionHeader, Shortcuts, StaleNote, useAccent } from '@/components/ui';
 import { PockMark } from '@/components/Pock';
 import { Icon } from '@/components/Icon';
 import { TourTarget, useTour } from '@/lib/tour';
-import { GuestBanner } from '@/components/GuestBanner';
+import { GuestBanner, SampleDataBanner } from '@/components/GuestBanner';
 import { useSession, PREVIEW } from '@/lib/session';
-import { useSummary, type Summary } from '@/lib/summary';
-import { font, space, type, useColors } from '@/theme/tokens';
+import { useSummary, type CardDue, type Summary } from '@/lib/summary';
+import { font, space, type, useColors, useIsDark } from '@/theme/tokens';
 
 /** Home: how much can I spend, what's coming up, and a glance at goals and investments. */
 // Once per app launch at most, so dismissing it never brings it straight back.
@@ -40,6 +40,7 @@ export default function Home() {
     <Screen section="home" title={data ? todayLine(data.today) : 'Pockit'} eyebrow={data?.space?.shared ? `${data.space.name} · shared` : first ? `Hi ${first}` : undefined} right={<ProfileButton />} onRefresh={refresh} refreshing={refreshing}>
       {PREVIEW ? <PreviewBadge /> : null}
       <GuestBanner />
+      <SampleDataBanner onCleared={refresh} />
       <StaleNote message={data ? error : null} />
       {data ? <Body d={data} /> : <Loading error={error} />}
     </Screen>
@@ -145,6 +146,8 @@ function Body({ d }: { d: Summary }) {
       {stops.length === 2 && h.nextIncome ? (
         <Text style={[type.footnote, { color: c.textMuted, marginTop: space.sm }]}>Nothing due before payday.</Text>
       ) : null}
+
+      {h.cards?.length ? <CardPayments cards={h.cards} /> : null}
 
       <TourTarget id="pockNote" style={{ marginTop: 28 }}>
         <Pressable onPress={() => router.navigate('/ask')} accessibilityRole="button" accessibilityLabel="Ask Pock"
@@ -256,3 +259,51 @@ function ConnectBankCard() {
     </Pressable>
   );
 }
+
+/**
+ * Credit card payments coming up. Paying on time is the one thing that saves real
+ * money (no interest, no late fee, no credit score hit), so each card says plainly
+ * when it's due, what clears it, and the least that avoids a late fee.
+ */
+function CardPayments({ cards }: { cards: CardDue[] }) {
+  const c = useColors();
+  const a = useAccent();
+  const dark = useIsDark();
+  return (
+    <>
+      <SectionHeader title="Card payments" action="Accounts" onAction={() => router.push('/accounts')} />
+      <Card>
+        {cards.map((card, i) => {
+          const soon = !card.paid && card.daysLeft <= 3;
+          const when = card.daysLeft === 0 ? 'Due today' : card.daysLeft === 1 ? 'Due tomorrow' : `Due ${stamp(card.dueDate)} · in ${card.daysLeft} days`;
+          const tone = card.paid ? c.positive : soon ? c.negative : c.text;
+          return (
+            <Pressable key={card.id} onPress={() => router.push('/accounts')} accessibilityRole="button"
+              accessibilityLabel={`${card.name}, ${card.paid ? 'paid' : when}${card.statementMinor ? `, statement ${formatMoney(card.statementMinor)}` : ''}`}
+              style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 14, borderBottomWidth: i === cards.length - 1 ? 0 : 0.5, borderBottomColor: c.border }}>
+              <View style={{ width: 40, height: 40, borderRadius: 12, alignItems: 'center', justifyContent: 'center', backgroundColor: card.paid ? soft(c.positive, dark) : soon ? soft(c.negative, dark) : a.soft }}>
+                <Icon name={card.paid ? 'checkmark' : 'creditcard'} size={18} color={card.paid ? c.positive : soon ? c.negative : a.accent} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={[type.body, { color: c.text }]} numberOfLines={1}>{card.name}{card.mask ? ` ••${card.mask}` : ''}</Text>
+                <Text style={[type.footnote, { color: soon ? c.negative : c.textMuted, fontWeight: soon ? '600' : '400' }]} numberOfLines={1}>
+                  {card.paid ? `Paid · next due ${stamp(card.dueDate)}` : when}
+                </Text>
+              </View>
+              <View style={{ alignItems: 'flex-end' }}>
+                {card.statementMinor !== null ? <Text style={[type.bodyStrong, { color: tone, fontVariant: ['tabular-nums'] }]}>{formatMoney(card.statementMinor)}</Text> : null}
+                {!card.paid && card.minimumMinor ? <Text style={[type.caption, { color: c.textMuted }]}>min {formatMoney(card.minimumMinor)}</Text> : null}
+              </View>
+            </Pressable>
+          );
+        })}
+      </Card>
+      {cards.some((x) => !x.paid) ? (
+        <Text style={[type.footnote, { color: c.textMuted, marginTop: space.sm, lineHeight: 20 }]}>
+          Paying the full statement means no interest. These are already counted in what’s safe to spend.
+        </Text>
+      ) : null}
+    </>
+  );
+}
+

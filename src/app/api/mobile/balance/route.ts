@@ -17,9 +17,10 @@ export async function GET() {
   const ctx = await requireAuthApi();
   if ('response' in ctx) return ctx.response;
   const repo = new WorkspaceRepo(ctx.user.id, ctx.workspace.id, ctx.workspace.baseCurrency);
-  const [accounts, txns] = await Promise.all([
-    repo.listAccounts(), repo.listTransactions({ includeSplits: false, includeShares: false }),
+  const [accounts, txns, raw] = await Promise.all([
+    repo.listAccounts(), repo.listTransactions({ includeSplits: false, includeShares: false }), repo.listAccountsRaw(),
   ]);
+  const extra = new Map(raw.map((r) => [r.id, { paymentDueDay: r.paymentDueDay, fromBank: Boolean(r.externalProvider) }]));
   const balances = new Map(allAccountBalances(accounts, txns, todayIn(ctx.user.timezone)).map((b) => [b.accountId, b]));
   return NextResponse.json({
     accounts: accounts.filter((a) => a.isActive).map((a) => {
@@ -29,6 +30,9 @@ export async function GET() {
         balanceMinor: Number(balance),
         balanceFormatted: formatMoney(balance, a.currency, { cents: 'always', locale: ctx.user.locale }),
         normalBalance: a.normalBalance,
+        /** Cards: the day of the month the payment is due, from the bank or typed in. */
+        paymentDueDay: extra.get(a.id)?.paymentDueDay ?? null,
+        fromBank: extra.get(a.id)?.fromBank ?? false,
       };
     }),
   });

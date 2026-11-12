@@ -113,7 +113,7 @@ describe('resolveMerchant', () => {
   it('prefers the more specific lexicon match', () => {
     // "uber eats" must beat "uber", or takeaway lands in Transportation.
     expect(resolveMerchant('UBER EATS TORONTO').categorySlug).toBe('restaurants');
-    expect(resolveMerchant('UBER TRIP').categorySlug).toBe('rideshare');
+    expect(resolveMerchant('UBER TRIP').categorySlug).toBe('public-transit');
   });
 
   it('falls back to a cleaned description with low confidence', () => {
@@ -172,5 +172,25 @@ Closing balance                             $1,240.00
   it('marks credit-flagged lines as money in', () => {
     const rows = parseStatementText('2026-09-10  REFUND ISSUED   45.20 CR');
     expect(rows[0]!.direction).toBe('credit');
+  });
+});
+
+describe('shop names match where a word starts', () => {
+  it('a name inside another word is not a match', () => {
+    expect(resolveMerchant('STARBUCKS ESPRESSO BAR').categorySlug).toBe('coffee');
+    expect(resolveMerchant('BLUE ESPRESSO CAFE').categorySlug).not.toBe('gas');
+    expect(resolveMerchant('MICHELLE NAILS').categorySlug).not.toBe('gas');
+    expect(resolveMerchant('SHAWARMA PALACE').categorySlug).not.toBe('internet');
+  });
+  it('the longer name wins, so GO Transit is not the Metro grocery chain', () => {
+    expect(resolveMerchant('METROLINX PRESTO').categorySlug).toBe('public-transit');
+    expect(resolveMerchant('METRO #123 TORONTO').categorySlug).toBe('groceries');
+  });
+  it('store numbers and plurals still match', () => {
+    expect(resolveMerchant('ESSO 7712 MISSISSAUGA').categorySlug).toBe('gas');
+    expect(resolveMerchant('TIM HORTONS #2241').categorySlug).toBe('coffee');
+  });
+  it('travel lands in a category that exists', () => {
+    expect(resolveMerchant('AIR CANADA 0142').categorySlug).toBe('travel');
   });
 });

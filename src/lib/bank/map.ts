@@ -35,9 +35,30 @@ export function balanceMinor(a: PlaidAccount): bigint {
   return BigInt(Math.round((a.balances.current ?? 0) * 100));
 }
 
-export function txType(t: Pick<PlaidTxn, 'amount' | 'personal_finance_category'>, acct: PockitAccountType): TxType {
+/**
+ * What the bank's own wording says, before Plaid's guess. Canadian banks often send
+ * card payments and transfers with a generic or wrong category, and getting these
+ * wrong is the worst kind of mistake: a card payment counted as spending doubles it.
+ */
+const CARD_PAYMENT_ON_CARD = /payment\s*-?\s*thank\s*you|payment\s+received|paiement\s*-?\s*merci|pymt\s+rec|^\s*payment\s*$|^\s*online\s+payment\b/i;
+const CARD_PAYMENT_FROM_BANK = /\b(amex|american express|visa|mastercard|master card|mbna|capital one|triangle|pc financial|rogers bank|cibc\s*(visa|mc)|td\s*(visa|mc)|bmo\s*(mc|mastercard)|rbc\s*(visa|mc)|scotia\s*(visa|mc))\b.*\b(pymt|payment|pmt|bill pay)|\b(bill\s*pay(ment)?|pymt|pmt)\b.*\b(amex|american express|visa|mastercard|mbna)\b/i;
+const OWN_TRANSFER = /^(tfr|xfer|transfer)\b|\b(online|internet|mobile)\s+(banking\s+)?transfer\b|\btransfer\s+(to|from)\s+(chq|chequing|sav|savings|account|acct)\b|\bto\s+savings\b|\bfrom\s+savings\b/i;
+/** Interac e-Transfer you send is real money gone (rent, a friend, a sitter), not a move between your own accounts. */
+const ETRANSFER = /e-?\s*transfer|interac\s+e?\s*tfr|virement\s+interac/i;
+
+export function textType(name: string, acct: PockitAccountType, out: boolean): TxType | null {
+  if (isLiability(acct)) return !out && CARD_PAYMENT_ON_CARD.test(name) ? 'transfer' : null;
+  if (out && CARD_PAYMENT_FROM_BANK.test(name)) return 'debt_payment';
+  if (ETRANSFER.test(name)) return out ? 'expense' : null;
+  if (OWN_TRANSFER.test(name)) return 'transfer';
+  return null;
+}
+
+export function txType(t: Pick<PlaidTxn, 'amount' | 'personal_finance_category'> & { name?: string }, acct: PockitAccountType): TxType {
   const p = t.personal_finance_category?.primary ?? '';
   const out = t.amount > 0;
+  const fromText = t.name ? textType(t.name, acct, out) : null;
+  if (fromText) return fromText;
   if (p === 'TRANSFER_IN' || p === 'TRANSFER_OUT') return 'transfer';
   if (p === 'LOAN_PAYMENTS') return isLiability(acct) ? 'transfer' : 'debt_payment';
   if (p === 'INCOME' && !out) return 'income';
@@ -75,6 +96,13 @@ const DETAILED: Record<string, string> = {
   GENERAL_SERVICES_INSURANCE: 'insurance', GENERAL_SERVICES_EDUCATION: 'education', GENERAL_SERVICES_AUTOMOTIVE: 'car-maintenance',
   GENERAL_SERVICES_CHILDCARE: 'household', GENERAL_SERVICES_POSTAGE_AND_SHIPPING: 'miscellaneous',
   GOVERNMENT_AND_NON_PROFIT_DONATIONS: 'gifts-giving',
+  LOAN_PAYMENTS_CREDIT_CARD_PAYMENT: 'debt-payments', BANK_FEES_INTEREST_CHARGE: 'debt-payments',
+  GENERAL_MERCHANDISE_CONVENIENCE_STORES: 'groceries', GENERAL_MERCHANDISE_SPORTING_GOODS: 'hobbies',
+  GENERAL_MERCHANDISE_BOOKSTORES_AND_NEWSSTANDS: 'shopping', GENERAL_MERCHANDISE_OFFICE_SUPPLIES: 'shopping',
+  RENT_AND_UTILITIES_OTHER_UTILITIES: 'utilities', PERSONAL_CARE_HAIR_AND_BEAUTY: 'personal-care',
+  PERSONAL_CARE_LAUNDRY_AND_DRY_CLEANING: 'personal-care', HOME_IMPROVEMENT_SECURITY: 'home-maintenance',
+  TRANSPORTATION_OTHER_TRANSPORTATION: 'transportation', TRAVEL_FLIGHTS: 'travel', TRAVEL_LODGING: 'travel', TRAVEL_RENTAL_CARS: 'travel',
+  ENTERTAINMENT_CASINOS_AND_GAMBLING: 'entertainment', MEDICAL_DENTAL_CARE: 'medical', MEDICAL_EYE_CARE: 'medical',
 };
 const PRIMARY: Record<string, string> = {
   INCOME: 'other-income', TRANSFER_IN: 'transfer', TRANSFER_OUT: 'transfer',

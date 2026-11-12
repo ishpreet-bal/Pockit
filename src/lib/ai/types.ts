@@ -146,6 +146,8 @@ export interface AiProvider {
     brief: string;
     messages: { role: 'user' | 'assistant'; content: string }[];
     maxTokens?: number;
+    /** Tools the model may call mid-answer (Pock's action proposals). Providers without tool use ignore them. */
+    tools?: AssistantToolDefinition[];
   }): Promise<ProviderResponse<string>>;
 }
 

@@ -154,6 +154,15 @@ const server = createServer(async (req, res) => {
       }
       return json(res, 200, { added: [], modified: [], removed: [], next_cursor: cursor, has_more: false, transactions_update_status: 'HISTORICAL_UPDATE_COMPLETE', accounts: ACCOUNTS, request_id: 'fake' });
     }
+    case '/liabilities/get': {
+      if (!items.has(body.access_token)) return plaidError(res, 400, 'INVALID_ACCESS_TOKEN', 'could not find matching access token');
+      // The Visa's statement: due in 9 days, so it shows as coming up.
+      return json(res, 200, { accounts: ACCOUNTS, liabilities: { credit: [{
+        account_id: 'acc_visa', last_statement_balance: 588.12, minimum_payment_amount: 25, next_payment_due_date: day(-9),
+        last_payment_date: day(24), last_statement_issue_date: day(12), is_overdue: false,
+        aprs: [{ apr_percentage: 20.99, apr_type: 'purchase_apr', balance_subject_to_apr: null, interest_charge_amount: null }],
+      }], mortgage: null, student: null }, request_id: 'fake' });
+    }
     case '/item/remove': {
       items.delete(body.access_token);
       return json(res, 200, { request_id: 'fake' });

@@ -74,6 +74,16 @@ assert.equal(byName['First Platypus Bank Visa'].balanceMinor, 64255);
 assert.equal(byName['First Platypus Bank Visa'].normalBalance, 'credit');
 for (const a of bal.accounts) ok(`${a.name}: ${a.balanceFormatted}${a.normalBalance === 'credit' ? ' owed' : ''}`);
 
+step('The card statement: when it is due and how much');
+const sum = await api('/api/mobile/summary');
+const visa = (sum.home.cards ?? []).find((c) => c.name === 'First Platypus Bank Visa');
+assert.ok(visa, `card payment missing: ${JSON.stringify(sum.home.cards)}`);
+assert.equal(visa.statementMinor, 58812);
+assert.equal(visa.minimumMinor, 2500);
+assert.equal(visa.daysLeft, 9);
+assert.equal(visa.paid, false);
+ok(`Visa due in ${visa.daysLeft} days: $588.12 statement, $25 minimum`);
+
 step('Every transaction, categorised');
 let txns = await allTransactions();
 console.table(txns.map((x) => ({ date: x.date, name: x.name, amount: (x.amountMinor / 100).toFixed(2), category: x.category ?? '—' })));

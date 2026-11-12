@@ -1,8 +1,9 @@
 import { NextResponse } from 'next/server';
-import { eq } from 'drizzle-orm';
+import { and, eq, isNull } from 'drizzle-orm';
 import { requireAuthApi } from '@/lib/auth/api';
 import { withUser } from '@/lib/db/client';
-import { bankConnections, holdings, watchlistItems } from '@/lib/db/schema';
+import { accounts, bankConnections, holdings, watchlistItems } from '@/lib/db/schema';
+import { cardsDue } from '@/lib/finance/cards';
 import { plaidConfigured } from '@/lib/bank/plaid';
 import { WorkspaceRepo } from '@/lib/data/repository';
 import { buildOverview } from '@/lib/finance/view/overview';
@@ -33,12 +34,23 @@ export async function GET() {
   const repo = new WorkspaceRepo(user.id, workspace.id, workspace.baseCurrency);
   const d = await buildOverview(repo, user.timezone, user.locale);
 
-  const [held, watched, banks, shares] = await Promise.all([
+  const [held, watched, banks, shares, cardRows] = await Promise.all([
     withUser(user.id, (tx) => tx.select().from(holdings).where(eq(holdings.workspaceId, workspace.id))),
     withUser(user.id, (tx) => tx.select({ symbol: watchlistItems.symbol, name: watchlistItems.name }).from(watchlistItems).where(eq(watchlistItems.workspaceId, workspace.id))),
     withUser(user.id, (tx) => tx.select({ id: bankConnections.id }).from(bankConnections).where(eq(bankConnections.workspaceId, workspace.id)).limit(1)),
     listShares({ userId: user.id, workspaceId: workspace.id }),
+    withUser(user.id, (tx) => tx.select({
+      id: accounts.id, name: accounts.name, mask: accounts.mask, institution: accounts.institution,
+      paymentDueDate: accounts.paymentDueDate, paymentDueDay: accounts.paymentDueDay,
+      statementBalanceMinor: accounts.statementBalanceMinor, minimumPaymentMinor: accounts.minimumPaymentMinor,
+      lastPaymentDate: accounts.lastPaymentDate, lastStatementDate: accounts.lastStatementDate,
+    }).from(accounts).where(and(eq(accounts.workspaceId, workspace.id), eq(accounts.type, 'credit_card'), eq(accounts.isActive, true), isNull(accounts.deletedAt)))),
   ]);
+  // The amount comes from the bank's statement; a due day typed in by hand has a date but no amount.
+  const cards = cardsDue(cardRows.map((r) => ({
+    ...r, balanceMinor: null,
+    statementBalanceMinor: n(r.statementBalanceMinor), minimumPaymentMinor: n(r.minimumPaymentMinor),
+  })), d.today);
   const owing = shares.filter((s) => s.owedMinor > 0);
 
   const following = [...new Map(watched.map((w) => [w.symbol.toUpperCase(), w])).values()];
@@ -80,6 +92,8 @@ export async function GET() {
       daysLeft: d.position.daysLeftInPeriod,
       nextIncome: d.nextIncome ? { name: d.nextIncome.name, date: d.nextIncome.date, amountMinor: n(d.nextIncome.amountMinor) } : null,
       upcoming: d.position.soonCommitments.filter((u) => u.kind !== 'income').slice(0, 8).map((u) => ({ name: u.name, date: u.date, amountMinor: n(u.amountMinor) })),
+      /** Credit card payments coming up. Reminders only: card balances already count against safe to spend. */
+      cards,
       /** Monthly net cash flow for the small chart: positive months saved, negative spent more than came in. */
       trend: d.series6.map((m) => ({ month: m.month, netMinor: n(m.net) })),
     },

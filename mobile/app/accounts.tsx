@@ -12,7 +12,10 @@ import { space, type, useColors } from '@/theme/tokens';
 interface Account {
   id: string; name: string; type: string; currency: string;
   balanceMinor: number; balanceFormatted: string; normalBalance: 'debit' | 'credit';
+  paymentDueDay?: number | null; fromBank?: boolean;
 }
+
+const ordinal = (n: number) => `${n}${n % 10 === 1 && n !== 11 ? 'st' : n % 10 === 2 && n !== 12 ? 'nd' : n % 10 === 3 && n !== 13 ? 'rd' : 'th'}`;
 
 /** Your accounts, and the one number that matters most: what's in the everyday one now. */
 const KIND: Record<string, string> = { chequing: 'Everyday', checking: 'Everyday', savings: 'Savings', credit: 'Credit card', credit_card: 'Credit card', investment: 'Investment', cash: 'Cash' };
@@ -25,6 +28,8 @@ export default function Accounts() {
   const [busy, setBusy] = useState(false);
   const [note, setNote] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [dueFor, setDueFor] = useState<string | null>(null);
+  const [dueDay, setDueDay] = useState('');
 
   const [banks, setBanks] = useState<{ available: boolean; connections: Connection[] } | null>(PREVIEW ? { available: true, connections: [] } : null);
   const [bankBusy, setBankBusy] = useState<string | null>(null);
@@ -93,6 +98,15 @@ export default function Accounts() {
     finally { setBankBusy(null); }
   }
 
+  async function saveDue() {
+    setBusy(true); setError(null);
+    try {
+      if (!PREVIEW) { await api(`/api/mobile/accounts/${dueFor}`, { method: 'PATCH', body: { paymentDueDay: Number(dueDay) } }); await refresh(); load(); }
+      setNote(`Saved. You’ll get a reminder before the ${ordinal(Number(dueDay))}.`); setDueFor(null);
+    } catch (e) { setError(e instanceof Error ? e.message : 'That couldn’t be saved.'); }
+    finally { setBusy(false); }
+  }
+
   async function save() {
     setBusy(true); setError(null); setNote(null);
     try {
@@ -110,11 +124,20 @@ export default function Accounts() {
           {accounts.length === 0 ? <EmptyCard title="No accounts yet" body="Add your everyday balance below, or connect a bank, to start tracking your money." /> : <Card>
             {accounts.map((acc, i) => (
               <Row key={acc.id} icon="building.columns" title={acc.name}
-                detail={`${KIND[acc.type] ?? acc.type} · ${acc.currency}${acc.normalBalance === 'credit' ? ' · owed' : ''}`}
+                detail={`${KIND[acc.type] ?? acc.type}${acc.type === 'credit_card' ? (acc.paymentDueDay ? ` · due the ${ordinal(acc.paymentDueDay)}` : ' · tap to add the due day') : ` · ${acc.currency}`}${acc.normalBalance === 'credit' ? ' · owed' : ''}`}
                 value={acc.balanceFormatted} valueColor={acc.normalBalance === 'credit' || acc.balanceMinor < 0 ? c.negative : c.text}
-                last={i === accounts.length - 1} />
+                last={i === accounts.length - 1}
+                onPress={acc.type === 'credit_card' ? () => { setDueFor(dueFor === acc.id ? null : acc.id); setDueDay(acc.paymentDueDay ? String(acc.paymentDueDay) : ''); } : undefined} />
             ))}
           </Card>}
+          {dueFor ? (
+            <Card style={{ marginTop: space.md, paddingVertical: space.lg, gap: space.sm }}>
+              <Text style={[type.headline, { color: c.text }]}>When is this card’s payment due?</Text>
+              <Text style={[type.footnote, { color: c.textMuted, lineHeight: 20 }]}>The day of the month on your statement. Pockit reminds you 3 days before and on the day. If your bank shares statements, its date is used instead.</Text>
+              <Field label="Day of the month" value={dueDay} onChangeText={(v) => setDueDay(v.replace(/[^0-9]/g, '').slice(0, 2))} keyboardType="number-pad" placeholder="e.g. 21" />
+              <Button label="Save due day" loading={busy} disabled={!(Number(dueDay) >= 1 && Number(dueDay) <= 31)} onPress={() => void saveDue()} />
+            </Card>
+          ) : null}
           <SectionHeader title="Connected banks" action={banks?.connections.length ? 'Sync now' : undefined} onAction={() => void syncNow()} />
           {banks?.connections.length ? (
             <Card>
