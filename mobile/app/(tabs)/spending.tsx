@@ -1,4 +1,5 @@
 import { Text, View } from 'react-native';
+import { Habits } from '@/components/Outlook';
 import { Card, ProgressBar, Shortcuts, EmptyCard, Loading, formatMoney, friendlyDate, PreviewBadge, Row, Screen, SectionHeader, StaleNote, useAccent } from '@/components/ui';
 import { PREVIEW } from '@/lib/session';
 import { useSummary, type Summary } from '@/lib/summary';
@@ -79,6 +80,8 @@ function Body({ d }: { d: Summary }) {
       ) : (
         <EmptyCard title="Nothing spent yet this month" body="Tap + to add a purchase, or import a bank statement, and it’ll be sorted into categories here." />
       )}
+
+      <Habits />
 
       {/* Always reachable — at the start of a month there's nothing recent yet, but last month's list matters. */}
       <SectionHeader title="Lately" action="See all" onAction={() => router.push('/transactions')} />

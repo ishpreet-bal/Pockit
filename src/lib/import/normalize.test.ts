@@ -194,3 +194,29 @@ describe('shop names match where a word starts', () => {
     expect(resolveMerchant('AIR CANADA 0142').categorySlug).toBe('travel');
   });
 });
+
+describe('readable shop names', () => {
+  it('a garbled feed name is ignored for the bank text', () => {
+    expect(resolveMerchant("OSMOW'S #4471 MISSISSAUGA ON", 'Os Mo Ws').displayName).toBe("Osmow's");
+  });
+  it('the shop is found in the bank text when the feed name is garbled', () => {
+    expect(resolveMerchant('TIM HORTONS #2241 TORONTO ON', 'Ti Mh Or').categorySlug).toBe('coffee');
+  });
+  it('a good feed name is still used', () => {
+    expect(resolveMerchant('SQ *BLACKBIRD BAKING TORONTO', 'Blackbird Baking Co').displayName).toBe('Blackbird Baking Co');
+  });
+  it('raw text is tidied when there is nothing better', () => {
+    expect(resolveMerchant("MAGNA ELECTRONICS CAFE 0042 BRAMPTON ON").displayName).toBe('Magna Electronics Cafe');
+  });
+});
+
+describe('tidy names from raw bank text', () => {
+  it.each([
+    ['VISA PAYMENT 3333', 'Visa Payment'],
+    ['MONTHLY ACCOUNT FEE', 'Bank fee'],
+    ['INTRST PYMNT', 'Interest'],
+    ['E-TRANSFER RENT PAYMENT', 'E-Transfer Rent Payment'],
+    ['TD BANK DEPOSIT 001122', 'TD Bank Deposit'],
+    ['VISA DEBIT PURCHASE GREEN GROCER   TORONTO ON', 'Green Grocer'],
+  ])('%s → %s', (raw, want) => { expect(resolveMerchant(raw, null).displayName).toBe(want); });
+});

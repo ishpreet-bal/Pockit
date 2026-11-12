@@ -152,3 +152,36 @@ describe('subscription summary', () => {
     expect(summary.annualMinor).toBe(39_576n);
   });
 });
+
+describe('bills, not habits (a real month of spending)', () => {
+  const SLUG = new Map([['c-fast', 'fast-food'], ['c-coffee', 'coffee'], ['c-gas', 'gas'], ['c-shop', 'shopping'], ['c-subs', 'subscriptions'], ['c-phone', 'phone'], ['c-util', 'utilities'], ['c-salary', 'salary'], ['c-rest', 'restaurants']]);
+  const today = '2026-11-12';
+  const days = (from: string, every: number, n: number) => Array.from({ length: n }, (_, i) => { const d = new Date(`${from}T12:00:00Z`); d.setUTCDate(d.getUTCDate() + i * every); return d.toISOString().slice(0, 10); });
+  const wobble = (base: number, i: number, pct: number) => BigInt(Math.round(base * (1 + (((i * 7919) % 100) / 100 - 0.5) * 2 * pct)));
+  const txns: LedgerTxn[] = [
+    // Habits: frequent, irregular or variable.
+    ...days('2026-08-01', 6, 17).map((d, i) => txn({ postedDate: d, amountMinor: wobble(1250, i, 0.35), description: "McDonald's", accountId: 'visa', categoryId: 'c-fast' })),
+    ...days('2026-08-03', 7, 15).map((d, i) => txn({ postedDate: d, amountMinor: wobble(5400, i, 0.2), description: 'Circle K', accountId: 'visa', categoryId: 'c-gas' })),
+    ...days('2026-08-02', 2, 50).map((d, i) => txn({ postedDate: d, amountMinor: wobble(520, i, 0.15), description: 'Tim Hortons', accountId: 'visa', categoryId: 'c-coffee' })),
+    ...days('2026-08-04', 1, 90).filter((d) => ![0, 6].includes(new Date(`${d}T12:00:00Z`).getUTCDay())).map((d, i) => txn({ postedDate: d, amountMinor: wobble(650, i, 0.1), description: 'Magna Electronics Cafeteria', accountId: 'visa' })),
+    ...['2026-08-09', '2026-08-30', '2026-09-03', '2026-10-01', '2026-10-15', '2026-11-02'].map((d, i) => txn({ postedDate: d, amountMinor: wobble(4300, i, 0.6), description: 'Amazon', accountId: 'visa', categoryId: 'c-shop' })),
+    ...days('2026-08-05', 7, 14).map((d, i) => txn({ postedDate: d, amountMinor: wobble(1650, i, 0.25), description: "Osmow's", accountId: 'visa', categoryId: 'c-rest' })),
+    // Real bills and pay.
+    ...['2026-08-14', '2026-09-14', '2026-10-14'].map((d) => txn({ postedDate: d, amountMinor: 1649n, description: 'Netflix', accountId: 'visa', categoryId: 'c-subs' })),
+    ...['2026-08-20', '2026-09-20', '2026-10-20'].map((d, i) => txn({ postedDate: d, description: 'Rogers', accountId: 'chq', amountMinor: -wobble(8500, i, 0.05), categoryId: 'c-phone' })),
+    ...['2026-08-25', '2026-09-25', '2026-10-25'].map((d, i) => txn({ postedDate: d, amountMinor: -wobble(11000, i, 0.3), description: 'Toronto Hydro', accountId: 'chq', categoryId: 'c-util' })),
+    ...days('2026-08-07', 14, 7).map((d, i) => txn({ postedDate: d, amountMinor: wobble(215000, i, 0.08), description: 'Magna Payroll', accountId: 'chq', type: 'income', categoryId: 'c-salary' })),
+  ];
+  const found = detectRecurring(txns, today, undefined, NORMAL, SLUG).map((s) => s.name);
+
+  it('finds the real bills and the paycheque', () => {
+    expect(found).toEqual(expect.arrayContaining(['Netflix', 'Rogers', 'Toronto Hydro', 'Magna Payroll']));
+  });
+  it('does not turn everyday spending into bills', () => {
+    for (const habit of ["McDonald's", 'Circle K', 'Tim Hortons', 'Magna Electronics Cafeteria', 'Amazon', "Osmow's"]) expect(found).not.toContain(habit);
+  });
+  it('a subscription that stopped is not coming up', () => {
+    const old = ['2026-03-01', '2026-04-01', '2026-05-01', '2026-06-01'].map((d) => txn({ postedDate: d, amountMinor: 999n, description: 'Old app', accountId: 'visa', categoryId: 'c-subs' }));
+    expect(detectRecurring(old, today, undefined, NORMAL, SLUG)).toHaveLength(0);
+  });
+});

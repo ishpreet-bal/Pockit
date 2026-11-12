@@ -44,7 +44,7 @@ export function TabTour() {
 
   const tab = TABS[active]!;
   return (
-    <div ref={ref} className="grid items-center gap-10 md:grid-cols-[1fr_auto]" onMouseEnter={() => setPaused(true)} onMouseLeave={() => setPaused(false)}>
+    <div ref={ref} className="grid items-center gap-10 md:grid-cols-[1fr_auto]" onPointerEnter={(e) => { if (e.pointerType === 'mouse') setPaused(true); }} onPointerLeave={(e) => { if (e.pointerType === 'mouse') setPaused(false); }}>
       <ol className="order-2 space-y-2 md:order-1">
         {TABS.map((t, i) => {
           const on = i === active;

@@ -1,10 +1,10 @@
 import 'server-only';
-import { and, eq, inArray } from 'drizzle-orm';
+import { and, eq, inArray, isNull, notExists, sql } from 'drizzle-orm';
 import { withUser } from '@/lib/db/client';
-import { accounts, bankConnections, categories, merchantRules, transactions } from '@/lib/db/schema';
+import { accounts, bankConnections, categories, debts, goals, holdings, merchantRules, transactions } from '@/lib/db/schema';
 import { matchesRule, resolveMerchant } from '@/lib/import/normalize';
 import { accountType, categorySlug, isLiability, signedMinor, txType, type PlaidAccount, type PlaidTxn, type TxType } from './map';
-import { getAccounts, getCardStatements, openToken, syncTransactions, PlaidError, TokenUnreadable, type PlaidCardStatement } from './plaid';
+import { getAccounts, getCardStatements, openToken, setItemWebhook, syncTransactions, PlaidError, TokenUnreadable, type PlaidCardStatement } from './plaid';
 
 /**
  * Bring one bank connection up to date: its accounts (and balances), then every
@@ -19,6 +19,8 @@ import { getAccounts, getCardStatements, openToken, syncTransactions, PlaidError
 interface Ctx { userId: string; workspaceId: string; currency: string }
 export interface SyncResult { accounts: number; added: number; updated: number; removed: number }
 
+const webhookSet = new Set<string>();
+
 export async function syncConnection(ctx: Ctx, connectionId: string): Promise<SyncResult> {
   const conn = (await withUser(ctx.userId, (tx) => tx.select().from(bankConnections)
     .where(and(eq(bankConnections.id, connectionId), eq(bankConnections.workspaceId, ctx.workspaceId))).limit(1)))[0];
@@ -30,6 +32,8 @@ export async function syncConnection(ctx: Ctx, connectionId: string): Promise<Sy
     const [acc, delta, cards] = await Promise.all([getAccounts(access), syncTransactions(access, conn.cursor), getCardStatements(access)]);
     const result = await applySync(ctx, conn.id, conn.institutionName, acc.accounts, delta);
     if (cards?.length) await applyCardStatements(ctx, conn.id, cards);
+    // Bank logins made before webhooks were added get pointed at it once per server.
+    if (!webhookSet.has(conn.id)) { webhookSet.add(conn.id); void setItemWebhook(access).catch(() => webhookSet.delete(conn.id)); }
     await withUser(ctx.userId, (tx) => tx.update(bankConnections).set({ cursor: delta.cursor, lastSyncedAt: new Date(), status: 'active', error: null }).where(eq(bankConnections.id, conn.id)));
     return result;
   } catch (e) {
@@ -67,6 +71,25 @@ export async function applySync(
       byPlaid.set(a.account_id, { id: made[0]!.id, type });
     }
 
+    // 1b. The same account typed in by hand before the bank was connected (the
+    //     balance from setup) would count the money twice. A typed-in account of a
+    //     type the bank now brings, with nothing recorded against it, retires.
+    const bankTypes = [...new Set([...byPlaid.values()].map((a) => a.type))];
+    if (bankTypes.length) {
+      const replacedBy = (type: string) => { const a = plaidAccounts.find((p) => accountType(p) === type); return a ? `${institution ?? 'your bank'} ${a.name}` : 'your bank'; };
+      const retiring = await tx.select({ id: accounts.id, type: accounts.type }).from(accounts).where(and(
+        eq(accounts.workspaceId, ctx.workspaceId), isNull(accounts.externalProvider), eq(accounts.isActive, true), isNull(accounts.deletedAt),
+        inArray(accounts.type, bankTypes as never[]),
+        notExists(tx.select({ one: sql`1` }).from(transactions).where(and(eq(transactions.accountId, accounts.id), isNull(transactions.deletedAt)))),
+        notExists(tx.select({ one: sql`1` }).from(goals).where(eq(goals.accountId, accounts.id))),
+        notExists(tx.select({ one: sql`1` }).from(holdings).where(eq(holdings.accountId, accounts.id))),
+        notExists(tx.select({ one: sql`1` }).from(debts).where(eq(debts.accountId, accounts.id))),
+      ));
+      for (const r of retiring) {
+        await tx.update(accounts).set({ isActive: false, notes: `Replaced by ${replacedBy(r.type)} when the bank was connected.`, updatedAt: new Date() }).where(eq(accounts.id, r.id));
+      }
+    }
+
     // 2. What decides a category: the person's own rules (what "remember this" saved),
     //    then Pockit's list of known merchants, then Plaid's guess.
     const cats = await tx.select({ id: categories.id, slug: categories.slug, kind: categories.kind }).from(categories)
@@ -91,7 +114,7 @@ export async function applySync(
       const pick = categorize(t, type, merchant.categorySlug);
       await tx.insert(transactions).values({
         workspaceId: ctx.workspaceId, accountId: acct.id, postedDate: t.date,
-        description: t.merchant_name || merchant.displayName || t.name, originalDescription: t.name, merchantName: t.merchant_name ?? merchant.displayName ?? null,
+        description: merchant.displayName || t.name, originalDescription: t.name, merchantName: merchant.displayName || t.merchant_name || null,
         amountMinor: amount, currency: t.iso_currency_code ?? ctx.currency, baseAmountMinor: amount, baseCurrency: ctx.currency,
         type, categoryId: pick.categoryId,
         source: 'api', externalId: t.transaction_id, createdBy: ctx.userId,
@@ -106,7 +129,7 @@ export async function applySync(
       const acct = byPlaid.get(t.account_id);
       if (!acct || t.pending) continue;
       const amount = signedMinor(t, acct.type);
-      const r = await tx.update(transactions).set({ postedDate: t.date, description: t.merchant_name || t.name, amountMinor: amount, baseAmountMinor: amount, updatedAt: new Date() })
+      const r = await tx.update(transactions).set({ postedDate: t.date, amountMinor: amount, baseAmountMinor: amount, updatedAt: new Date() })
         .where(and(eq(transactions.workspaceId, ctx.workspaceId), eq(transactions.externalId, t.transaction_id))).returning({ id: transactions.id });
       updated += r.length;
     }
@@ -118,6 +141,27 @@ export async function applySync(
         .where(and(eq(transactions.workspaceId, ctx.workspaceId), inArray(transactions.externalId, delta.removed.map((x) => x.transaction_id)))).returning({ id: transactions.id });
       removed = r.length;
     }
+    // 6. Tidy what's already here, so a better name list or a new rule reaches
+    //    purchases synced before it existed. Anything the person named or
+    //    categorised by hand is left exactly as it is.
+    const existingRows = await tx.select({
+      id: transactions.id, description: transactions.description, original: transactions.originalDescription, merchantName: transactions.merchantName,
+      type: transactions.type, categoryId: transactions.categoryId, provenance: transactions.provenance,
+    }).from(transactions).where(and(eq(transactions.workspaceId, ctx.workspaceId), eq(transactions.source, 'api'), isNull(transactions.deletedAt)))
+      .orderBy(sql`${transactions.postedDate} desc`).limit(3000);
+    for (const row of existingRows) {
+      const prov = (row.provenance ?? {}) as { categorizedBy?: string; namedBy?: string; category?: PlaidTxn['personal_finance_category'] };
+      const raw = row.original ?? row.description;
+      const merchant = resolveMerchant(raw, prov.namedBy === 'person' ? row.description : row.merchantName);
+      const set: Partial<typeof transactions.$inferInsert> = {};
+      if (prov.namedBy !== 'person' && merchant.displayName && merchant.displayName !== row.description) { set.description = merchant.displayName; set.merchantName = merchant.displayName; }
+      if (prov.categorizedBy !== 'person') {
+        const pick = categorize({ name: raw, merchant_name: merchant.displayName, personal_finance_category: prov.category ?? null }, row.type as TxType, merchant.categorySlug);
+        if (pick.categoryId && pick.categoryId !== row.categoryId) { set.categoryId = pick.categoryId; set.provenance = { ...prov, categorizedBy: pick.by }; }
+      }
+      if (Object.keys(set).length) await tx.update(transactions).set({ ...set, updatedAt: new Date() }).where(eq(transactions.id, row.id));
+    }
+
     return { accounts: plaidAccounts.length, added, updated, removed };
   });
 }

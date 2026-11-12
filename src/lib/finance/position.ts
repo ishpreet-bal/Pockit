@@ -69,6 +69,13 @@ export interface MoneyPosition {
   /** Income minus everything spent and committed, across the whole period. */
   leftThisPeriodMinor: bigint;
 
+  /** What's owed on credit cards right now; already taken out of cashNowMinor. */
+  cardsOwedMinor: bigint;
+  /** The next pay that's expected, if one is known. */
+  nextPayday: IsoDate | null;
+  /** Bills due from today up to the next payday (or the end of the month when no payday is known). */
+  dueBeforePaydayMinor: bigint;
+
   /** Commitments falling inside the period, used for the period maths. */
   commitments: CommittedItem[];
   /**
@@ -191,6 +198,15 @@ export function computePosition(input: PositionInput): MoneyPosition {
     inPeriod.filter((c) => c.kind !== 'income').map((c) => c.amountMinor),
   );
 
+  // Safe to spend runs to the next payday, not the end of the calendar month: money
+  // arriving on the 28th pays the bills after the 28th. With no payday known, the
+  // month is the honest fallback.
+  const nextPay = commitments.find((c) => c.kind === 'income' && c.date >= today) ?? null;
+  const horizon = nextPay ? nextPay.date : period.end;
+  const dueBeforePayday = sumMinor(
+    commitments.filter((c) => c.kind !== 'income' && c.date >= today && (nextPay ? c.date < horizon : c.date <= horizon)).map((c) => c.amountMinor),
+  );
+
   // Balances count only transactions that have actually posted.
   const postedTxns = txns.filter((t) => !isScheduled(t, today));
   const balances = allAccountBalances(accounts, postedTxns, today);
@@ -207,7 +223,10 @@ export function computePosition(input: PositionInput): MoneyPosition {
     spentMinor: spent,
     committedMinor: committed,
     cashNowMinor: cash.spendableMinor,
-    availableNowMinor: cash.spendableMinor - committed,
+    cardsOwedMinor: cash.cardsMinor,
+    nextPayday: nextPay?.date ?? null,
+    dueBeforePaydayMinor: dueBeforePayday,
+    availableNowMinor: cash.spendableMinor - (nextPay ? dueBeforePayday : committed),
     leftThisPeriodMinor: incomeReceived + incomeExpected - spent - committed,
     commitments: inPeriod,
     soonCommitments: soon,
@@ -237,15 +256,19 @@ export interface ExplainedFigure {
 }
 
 export function explainAvailable(position: MoneyPosition): ExplainedFigure {
-  const { availableNowMinor, committedMinor, cashNowMinor } = position;
+  const { availableNowMinor, cashNowMinor, cardsOwedMinor, nextPayday } = position;
+  const due = nextPayday ? position.dueBeforePaydayMinor : position.committedMinor;
+  const when = nextPayday ? `before payday on ${shortDate(nextPayday)}` : 'this month';
+  // Every part of the sum, in words, so a surprising number can be checked.
+  const cash = cardsOwedMinor > 0n
+    ? `${fmt(cashNowMinor + cardsOwedMinor)} in your everyday account, minus ${fmt(cardsOwedMinor)} owed on cards`
+    : `${fmt(cashNowMinor)} in your everyday account`;
 
   if (availableNowMinor < 0n) {
     return {
       label: 'Short of your upcoming bills',
       amountMinor: availableNowMinor,
-      explanation:
-        `You have ${fmt(cashNowMinor)} in cash but ${fmt(committedMinor)} of bills already due this month. ` +
-        `That leaves you ${fmt(-availableNowMinor)} short unless more income arrives first.`,
+      explanation: `${cash}, minus ${fmt(due)} of bills ${when}. That leaves you ${fmt(-availableNowMinor)} short until more money comes in.`,
       tone: 'attention',
       action: { label: 'See what is coming', href: '/calendar' },
     };
@@ -255,8 +278,7 @@ export function explainAvailable(position: MoneyPosition): ExplainedFigure {
     return {
       label: 'Available to spend',
       amountMinor: availableNowMinor,
-      explanation:
-        'This is the cash in your everyday accounts. Once you add your regular bills, this figure will account for them too.',
+      explanation: `${cash}. Once your regular bills are known, this figure accounts for them too.`,
       tone: 'neutral',
       action: { label: 'Add a recurring bill', href: '/recurring' },
     };
@@ -265,11 +287,13 @@ export function explainAvailable(position: MoneyPosition): ExplainedFigure {
   return {
     label: 'Available after upcoming bills',
     amountMinor: availableNowMinor,
-    explanation:
-      `${fmt(cashNowMinor)} in cash, minus ${fmt(committedMinor)} of bills still to pay this month.`,
+    explanation: `${cash}, minus ${fmt(due)} of bills ${when}.`,
     tone: 'positive',
   };
 }
+
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+const shortDate = (iso: IsoDate) => `${MONTHS[Number(iso.slice(5, 7)) - 1]} ${Number(iso.slice(8, 10))}`;
 
 export function explainLeftThisPeriod(position: MoneyPosition): ExplainedFigure {
   const { leftThisPeriodMinor, incomeReceivedMinor, incomeExpectedMinor, spentMinor, committedMinor } = position;

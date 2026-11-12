@@ -57,6 +57,24 @@ export interface DetectedSeries {
 const MIN_OCCURRENCES = 3;
 
 /**
+ * Everyday spending: often frequent, never a bill. McDonald's three times a week is a
+ * habit, not something "due" on Thursday; treating it as a bill both invents upcoming
+ * charges and takes them out of what's safe to spend. These categories are only a
+ * bill when the amount is essentially fixed and it comes monthly or slower (a gym, a
+ * meal kit), never on a weekly rhythm.
+ */
+const HABIT_SLUGS = new Set([
+  'food', 'groceries', 'restaurants', 'fast-food', 'coffee',
+  'transportation', 'gas', 'public-transit', 'parking',
+  'shopping', 'clothing', 'electronics', 'household', 'personal-care', 'pharmacy',
+  'entertainment', 'events', 'hobbies', 'gifts-giving', 'travel', 'miscellaneous',
+]);
+/** Bills whose amount genuinely moves month to month (hydro in January vs June). */
+const VARIABLE_BILL_SLUGS = new Set([
+  'bills', 'utilities', 'phone', 'internet', 'insurance', 'car-insurance', 'housing', 'rent', 'debt-payments', 'education',
+]);
+
+/**
  * Find recurring series in a transaction history.
  * `minOccurrences` of 3 is the point where a pattern stops being a coincidence; two
  * transactions a month apart is not yet a subscription.
@@ -67,6 +85,8 @@ export function detectRecurring(
   minOccurrences: number = MIN_OCCURRENCES,
   /** Account normal balances, so the stored sign can be read as in or out. */
   accountNormalBalance: ReadonlyMap<string, 'debit' | 'credit'> = new Map(),
+  /** Category slugs by id, so everyday spending is never taken for a bill. */
+  categorySlug: ReadonlyMap<string, string> = new Map(),
 ): DetectedSeries[] {
   const groups = new Map<string, LedgerTxn[]>();
 
@@ -127,6 +147,28 @@ export function detectRecurring(
     if (confidence < 40) continue;
 
     const last = sorted[sorted.length - 1]!;
+
+    // Stopped: no charge for over two intervals means it ended (a cancelled
+    // subscription, a summer of weekly lessons). It isn't coming up any more.
+    if (diffDays(last.postedDate, today) > intervalDays * 2 + tolerance) continue;
+
+    if (direction === 'outflow' && last.type !== 'transfer' && last.type !== 'debt_payment') {
+      const slug = last.categoryId ? categorySlug.get(last.categoryId) ?? null : null;
+      const slowEnough = intervalDays >= 25;
+      if (slug && HABIT_SLUGS.has(slug)) {
+        // Only a truly fixed charge, monthly or slower, counts.
+        if (!(slowEnough && meanDeviationBps <= 300 && cadenceStability >= 0.75)) continue;
+      } else {
+        const allowed = slug && VARIABLE_BILL_SLUGS.has(slug) ? 3500 : 1000;
+        if (meanDeviationBps > allowed || cadenceStability < 0.7) continue;
+        // Weekly "bills" are almost always habits with no category yet.
+        if (!slowEnough && meanDeviationBps > 300) continue;
+      }
+    } else if (direction === 'inflow' && last.type === 'income') {
+      // Paycheques vary with hours and overtime, but they arrive on a schedule.
+      if (cadenceStability < 0.6 || meanDeviationBps > 3000) continue;
+    }
+
     const next = nextExpected(last.postedDate, cadence, intervalDays, today);
 
     out.push({

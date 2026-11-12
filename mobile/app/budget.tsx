@@ -8,6 +8,7 @@ import { router } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { Button, FormError, toMinor } from '@/components/form';
 import { Card, Loading, ProgressBar, Screen, SectionHeader, Segmented, formatMoney, useAccent } from '@/components/ui';
+import { Projection } from '@/components/Outlook';
 import { api } from '@/lib/api';
 import { PREVIEW } from '@/lib/session';
 import { useSummary } from '@/lib/summary';
@@ -148,6 +149,7 @@ export default function Budget() {
           <Text style={[type.hero, { color: total - spent >= 0 ? c.text : c.negative }]}>{formatMoney(Math.abs(total - spent), { cents: false })}{total - spent < 0 ? ' over' : ''}</Text>
           <Text style={[type.footnote, { color: c.textMuted, marginTop: 4 }]}>{formatMoney(spent, { cents: false })} of {formatMoney(total, { cents: false })} spent</Text>
           <View style={{ marginTop: space.lg }}><ProgressBar value={total ? spent / total : 0} height={10} /></View>
+          <Projection />
           <Card style={{ marginTop: space.xl }}>
             {planned.map((l, i) => {
               const cap = l.planMinor! + (l.carriedMinor ?? 0);

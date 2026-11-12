@@ -52,7 +52,7 @@ export const MERCHANT_LEXICON: { pattern: string; slug: string; display?: string
   // Transport
   { pattern: 'uber', slug: 'public-transit', display: 'Uber' },
   { pattern: 'lyft', slug: 'public-transit', display: 'Lyft' },
-  { pattern: 'presto', slug: 'public-transit', display: 'PRESTO' },
+  { pattern: 'presto', slug: 'public-transit', display: 'Presto' },
   { pattern: 'ttc', slug: 'public-transit', display: 'TTC' },
   { pattern: 'go transit', slug: 'public-transit', display: 'GO Transit' },
   { pattern: 'green p', slug: 'parking', display: 'Green P Parking' },
@@ -267,6 +267,11 @@ export const MERCHANT_LEXICON: { pattern: string; slug: string; display?: string
   { pattern: 'duolingo', slug: 'subscriptions', display: 'Duolingo' },
   // Bank charges: not spending on anything, but they are money gone.
   { pattern: 'monthly fee', slug: 'miscellaneous', display: 'Bank fee' },
+  { pattern: 'account fee', slug: 'miscellaneous', display: 'Bank fee' },
+  { pattern: 'plan fee', slug: 'miscellaneous', display: 'Bank fee' },
+  { pattern: 'intrst', slug: 'other-income', display: 'Interest' },
+  { pattern: 'interest earned', slug: 'other-income', display: 'Interest' },
+  { pattern: 'interest paid', slug: 'other-income', display: 'Interest' },
   { pattern: 'service charge', slug: 'miscellaneous', display: 'Bank fee' },
   { pattern: 'annual fee', slug: 'miscellaneous', display: 'Card annual fee' },
   { pattern: 'nsf fee', slug: 'miscellaneous', display: 'NSF fee' },

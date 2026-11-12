@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
-import { and, eq, isNull } from 'drizzle-orm';
+import { and, eq, isNull, isNotNull } from 'drizzle-orm';
 import { requireAuthApi } from '@/lib/auth/api';
 import { withUser } from '@/lib/db/client';
 import { accounts } from '@/lib/db/schema';
@@ -60,9 +60,13 @@ export async function POST(request: Request) {
   const minor = BigInt(Math.round(parsed.data.amount * 100));
   const tomorrow = addDays(todayIn(ctx.user.timezone), 1);
 
-  await withUser(ctx.user.id, async (tx) => {
+  const outcome = await withUser(ctx.user.id, async (tx) => {
+    // Only an account typed in by hand: a bank's own balance is kept up to date by the bank.
     const found = await tx.select({ id: accounts.id }).from(accounts)
-      .where(and(eq(accounts.workspaceId, ctx.workspace.id), eq(accounts.type, 'chequing'), isNull(accounts.deletedAt))).limit(1);
+      .where(and(eq(accounts.workspaceId, ctx.workspace.id), eq(accounts.type, 'chequing'), eq(accounts.isActive, true), isNull(accounts.externalProvider), isNull(accounts.deletedAt))).limit(1);
+    const banked = found[0] ? [] : await tx.select({ id: accounts.id }).from(accounts)
+      .where(and(eq(accounts.workspaceId, ctx.workspace.id), eq(accounts.type, 'chequing'), eq(accounts.isActive, true), isNotNull(accounts.externalProvider), isNull(accounts.deletedAt))).limit(1);
+    if (banked[0]) return 'bank';
     if (found[0]) {
       await tx.update(accounts).set({ openingBalanceMinor: minor, openingBalanceDate: tomorrow, updatedAt: new Date() }).where(eq(accounts.id, found[0].id));
     } else {
@@ -71,7 +75,9 @@ export async function POST(request: Request) {
         currency: ctx.workspace.baseCurrency, openingBalanceMinor: minor, openingBalanceDate: tomorrow,
       });
     }
+    return 'saved';
   });
+  if (outcome === 'bank') return NextResponse.json({ error: 'Your bank keeps this balance up to date. Tap Sync now on Accounts to refresh it.' }, { status: 409 });
   await audit({ actorUserId: ctx.user.id, workspaceId: ctx.workspace.id, action: 'account.set_balance', entity: 'account' });
   return NextResponse.json({ ok: true });
 }

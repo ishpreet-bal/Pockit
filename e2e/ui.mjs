@@ -44,7 +44,7 @@ console.log('\nHome is simple');
 const body = await p.textContent('body');
 // Home was cut to four things after people said the old one had too much going on.
 // These checks hold it there: if a fifth section creeps back, they fail.
-ok('one headline figure, explained', /Safe to spend/.test(body) && /in cash, minus/i.test(body));
+ok('one headline figure, explained', /Safe to spend/.test(body) && /in your everyday account(, minus| ?.)/i.test(body));
 ok('coming up shows at most three bills', await p.locator('section[aria-label="Coming up"] li').count() <= 3);
 // Investing is admin-only while it's being finished, so an ordinary account sees no card or tab for it.
 ok('a goal card, and no investing card', await p.locator('a[aria-label="Goals"]').count() === 1 && await p.locator('a[aria-label="Investing"]').count() === 0);

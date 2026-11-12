@@ -391,6 +391,8 @@ export interface CashPosition {
    * have their own payments, which arrive as bills.
    */
   spendableMinor: bigint;
+  /** What's owed on credit cards (part of what spendable takes off). */
+  cardsMinor: bigint;
 }
 
 const LIQUID_TYPES = new Set(['chequing', 'savings', 'cash', 'business_chequing']);
@@ -411,7 +413,7 @@ export function cashPosition(
     if (a.normalBalance === 'credit') { debt += b.rawMinor; if (a.type === 'credit_card') cards += b.rawMinor; }
     else if (LIQUID_TYPES.has(a.type)) { cash += b.rawMinor; if (a.type !== 'savings') everyday += b.rawMinor; }
   }
-  return { cashMinor: cash, debtMinor: debt, netMinor: cash - debt, spendableMinor: everyday - cards };
+  return { cashMinor: cash, debtMinor: debt, netMinor: cash - debt, spendableMinor: everyday - cards, cardsMinor: cards };
 }
 
 /* ------------------------------------------------------------------ */

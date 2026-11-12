@@ -1,5 +1,5 @@
 import 'server-only';
-import { createCipheriv, createDecipheriv, createHash, createHmac, randomBytes, timingSafeEqual } from 'node:crypto';
+import { createCipheriv, createDecipheriv, createHash, createHmac, createPublicKey, randomBytes, timingSafeEqual, verify as verifySignature, type JsonWebKey } from 'node:crypto';
 import type { PlaidAccount, PlaidTxn } from './map';
 
 /**
@@ -66,6 +66,7 @@ export async function createLinkToken(userId: string, opts: { hosted: boolean; a
     // minimums, and a bank that doesn't can still be connected.
     ...(opts.accessToken ? { access_token: opts.accessToken } : { products: ['transactions'], optional_products: ['liabilities'], transactions: { days_requested: 180 } }),
     ...(opts.hosted ? { hosted_link: {} } : {}),
+    ...(webhookUrl() ? { webhook: webhookUrl() } : {}),
   });
 }
 
@@ -112,6 +113,62 @@ export async function getCardStatements(accessToken: string): Promise<PlaidCardS
     if (e instanceof PlaidError) return null;
     throw e;
   }
+}
+
+/**
+ * Where Plaid tells Pockit new transactions are ready. Production uses the project's
+ * own address on Vercel; elsewhere APP_URL (localhost while testing). Plaid needs an
+ * https address in production, so a missing one simply means no webhook: the
+ * daily sync and syncing when the app opens still keep things fresh.
+ */
+export function webhookUrl(): string | null {
+  const prod = process.env.VERCEL_PROJECT_PRODUCTION_URL?.trim();
+  if (process.env.VERCEL_ENV === 'production' && prod) return `https://${prod}/api/webhooks/plaid`;
+  if (process.env.NODE_ENV !== 'production') {
+    const app = process.env.APP_URL?.trim() || 'http://localhost:3000';
+    return `${app.replace(/\/$/, '')}/api/webhooks/plaid`;
+  }
+  return null;
+}
+
+/** Point an existing bank login at the webhook (logins made before webhooks existed). */
+export async function setItemWebhook(accessToken: string): Promise<void> {
+  const url = webhookUrl();
+  if (!url) return;
+  await call('/item/webhook/update', { access_token: accessToken, webhook: url });
+}
+
+const keyCache = new Map<string, { key: JsonWebKey; at: number }>();
+/**
+ * Is this webhook really from Plaid? Plaid signs each one (ES256 JWT in the
+ * Plaid-Verification header) over a hash of the body; the public key is fetched
+ * from Plaid with our own credentials, so it can't be supplied by the caller.
+ * Old messages (over 5 minutes) are refused so a captured one can't be replayed.
+ */
+export async function verifyPlaidWebhook(rawBody: string, jwt: string | null): Promise<boolean> {
+  if (!jwt) return false;
+  const [h, p, sig] = jwt.split('.');
+  if (!h || !p || !sig) return false;
+  let header: { alg?: string; kid?: string }; let claims: { iat?: number; request_body_sha256?: string };
+  try {
+    header = JSON.parse(Buffer.from(h, 'base64url').toString('utf8'));
+    claims = JSON.parse(Buffer.from(p, 'base64url').toString('utf8'));
+  } catch { return false; }
+  if (header.alg !== 'ES256' || !header.kid) return false;
+  let cached = keyCache.get(header.kid);
+  if (!cached || Date.now() - cached.at > 24 * 3600_000) {
+    try {
+      const r = await call<{ key: JsonWebKey }>('/webhook_verification_key/get', { key_id: header.kid });
+      cached = { key: r.key, at: Date.now() };
+      keyCache.set(header.kid, cached);
+    } catch { return false; }
+  }
+  const ok = verifySignature('sha256', Buffer.from(`${h}.${p}`), { key: createPublicKey({ key: cached.key, format: 'jwk' }), dsaEncoding: 'ieee-p1363' }, Buffer.from(sig, 'base64url'));
+  if (!ok) return false;
+  if (!claims.iat || Math.abs(Date.now() / 1000 - claims.iat) > 300) return false;
+  const bodyHash = createHash('sha256').update(rawBody).digest('hex');
+  const want = claims.request_body_sha256 ?? '';
+  return want.length === bodyHash.length && timingSafeEqual(Buffer.from(bodyHash), Buffer.from(want));
 }
 
 export const getAccounts = (accessToken: string) =>

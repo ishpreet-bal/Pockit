@@ -56,6 +56,7 @@ export async function buildOverview(repo: WorkspaceRepo, timezone: string, local
   // calculation can treat "what the user told us" differently from "what we noticed".
   const detected = detectRecurring(
     allTxns, today, undefined, new Map(accounts.map((a) => [a.id, a.normalBalance])),
+    new Map(categories.map((c) => [c.id, c.slug])),
   );
   const series = [
     ...manual.filter((m) => m.isActive).map((m) => manualScheduleToSeries(m, today)),

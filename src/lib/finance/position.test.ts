@@ -209,3 +209,30 @@ describe('coming up looks past the end of the month', () => {
     expect(position.soonCommitments.some((c) => c.kind === 'income')).toBe(true);
   });
 });
+
+describe('safe to spend runs to payday', () => {
+  const CARD: LedgerAccount = { ...CHQ, id: 'card', name: 'Amex', type: 'credit_card', normalBalance: 'credit' };
+  const position = computePosition({
+    ...base,
+    accounts: [CHQ, CARD],
+    txns: [
+      txn({ type: 'income', amountMinor: 100_000n, postedDate: '2026-09-01' }),
+      txn({ accountId: 'card', type: 'expense', amountMinor: 30_000n, postedDate: '2026-09-10' }),
+      txn({ type: 'expense', amountMinor: -20_000n, postedDate: '2026-09-18', description: 'Phone' }),
+      txn({ type: 'income', amountMinor: 200_000n, postedDate: '2026-09-19', description: 'Payday' }),
+      txn({ type: 'expense', amountMinor: -50_000n, postedDate: '2026-09-25', description: 'Rent' }),
+    ],
+  });
+  it('counts only the bills before the next payday', () => {
+    expect(position.nextPayday).toBe('2026-09-19');
+    expect(position.dueBeforePaydayMinor).toBe(20_000n);
+    // $1,000 cash, minus $300 on the card, minus the $200 phone bill. Rent comes after payday.
+    expect(position.availableNowMinor).toBe(50_000n);
+  });
+  it('says every part of the sum', () => {
+    const e = explainAvailable(position).explanation;
+    expect(e).toContain('$1,000');
+    expect(e).toContain('$300 owed on cards');
+    expect(e).toContain('$200 of bills before payday on Sep 19');
+  });
+});

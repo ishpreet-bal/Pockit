@@ -52,11 +52,15 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
 
   const values: Record<string, unknown> = {};
   if (input.postedDate) values.postedDate = input.postedDate;
-  if (input.description) { values.description = input.description; values.merchantName = input.description; }
+  if (input.description) {
+    values.description = input.description; values.merchantName = input.description;
+    // Named by the person: the bank sync's tidying never renames it back.
+    values.provenance = { ...((current.provenance as Record<string, unknown> | null) ?? {}), ...((values.provenance as Record<string, unknown> | undefined) ?? {}), namedBy: 'person' };
+  }
   if (input.categoryId !== undefined) {
     values.categoryId = input.categoryId;
     // Chosen by the person: a later "remember this" for the same shop never overrides it.
-    values.provenance = { ...((current.provenance as Record<string, unknown> | null) ?? {}), categorizedBy: 'person' };
+    values.provenance = { ...((current.provenance as Record<string, unknown> | null) ?? {}), ...((values.provenance as Record<string, unknown> | undefined) ?? {}), categorizedBy: 'person' };
   }
   if (input.accountId) values.accountId = input.accountId;
   if (input.businessClassification) values.businessClassification = input.businessClassification;

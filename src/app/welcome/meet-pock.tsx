@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { memo, useEffect, useRef, useState } from 'react';
 import { PockMark } from '@/components/brand/pock-mark';
 
 /**
@@ -31,8 +31,9 @@ const TIMING = [400, 1500, 700, 1100, 1300, 600, 3200];
 
 export function MeetPock() {
   const [scene, setScene] = useState(0);
-  const [step, setStep] = useState(0);
-  const [typed, setTyped] = useState(0);
+  // Starts on a finished first scene, so the chat is never an empty box before it plays.
+  const [step, setStep] = useState(6);
+  const [typed, setTyped] = useState(SCENES[0]!.ask.length);
   const [paused, setPaused] = useState(false);
   const [visible, setVisible] = useState(false);
   const [still, setStill] = useState(false);
@@ -43,7 +44,7 @@ export function MeetPock() {
     setStill(window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false);
     const el = ref.current;
     if (!el || typeof IntersectionObserver === 'undefined') { setVisible(true); return; }
-    const io = new IntersectionObserver(([e]) => setVisible(Boolean(e?.isIntersecting)), { threshold: 0.35 });
+    const io = new IntersectionObserver(([e]) => setVisible(Boolean(e?.isIntersecting)), { threshold: 0.15 });
     io.observe(el);
     return () => io.disconnect();
   }, []);
@@ -59,7 +60,7 @@ export function MeetPock() {
     }
     const t = setTimeout(() => {
       if (step === 4 && !s.card) { setStep(6); return; }
-      if (step >= 6) { setScene((x) => (x + 1) % SCENES.length); setStep(0); setTyped(0); return; }
+      if (step >= 6) { setScene((x) => (x + 1) % SCENES.length); setStep(1); setTyped(0); return; }
       setStep(step + 1);
     }, TIMING[step]);
     return () => clearTimeout(t);
@@ -68,7 +69,12 @@ export function MeetPock() {
   const jump = (i: number) => { setScene(i); setStep(still ? 6 : 1); setTyped(still ? SCENES[i]!.ask.length : 0); };
 
   return (
-    <div ref={ref} onMouseEnter={() => setPaused(true)} onMouseLeave={() => setPaused(false)} className="grid items-stretch gap-5 md:grid-cols-[1.15fr_0.85fr]">
+    <div ref={ref}
+      // Pause while a mouse rests on it (to read). Only a real mouse: on a phone a tap
+      // fires "enter" with no "leave", which used to freeze it for good.
+      onPointerEnter={(e) => { if (e.pointerType === 'mouse') setPaused(true); }}
+      onPointerLeave={(e) => { if (e.pointerType === 'mouse') setPaused(false); }}
+      className="grid items-stretch gap-5 md:grid-cols-[1.15fr_0.85fr]">
       {/* The conversation */}
       <div className="flex min-h-[420px] flex-col rounded-[24px] border border-[var(--border)] bg-[var(--surface)] shadow-[var(--shadow-md)]">
         <div className="flex items-center gap-3 border-b border-[var(--border)] px-5 py-4">
@@ -129,7 +135,8 @@ export function MeetPock() {
   );
 }
 
-function MiniApp({ scene, done }: { scene: string; done: boolean }) {
+// Re-drawn only when the scene or its ending changes, not on every typed letter.
+const MiniApp = memo(function MiniApp({ scene, done }: { scene: string; done: boolean }) {
   const spentLunch = scene === 'spend' && done;
   const safe = spentLunch ? 1561 : 1579;
   return (
@@ -171,7 +178,7 @@ function MiniApp({ scene, done }: { scene: string; done: boolean }) {
       </Panel>
     </div>
   );
-}
+});
 
 function Panel({ active, hue, title, children }: { active: boolean; hue: Hue; title: string; children: React.ReactNode }) {
   return (

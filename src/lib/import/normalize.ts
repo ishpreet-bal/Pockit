@@ -231,13 +231,18 @@ export interface MerchantDecision {
  * "SHELL #4021 TORONTO ON" becomes "Shell" in Transportation > Gas.
  */
 export function resolveMerchant(rawDescription: string, providedMerchant?: string | null): MerchantDecision {
-  const source = (providedMerchant?.trim() || rawDescription).trim();
+  // A merchant name from the bank feed is usually better than the raw text, but not
+  // always: "Os Mo Ws" for Osmow's. A name that's all two-letter scraps is ignored.
+  const provided = providedMerchant?.trim() && !looksGarbled(providedMerchant) ? providedMerchant.trim() : null;
+  const source = (provided || rawDescription).trim();
   const normalized = normalizeMerchant(source);
-  const lexicon = lookupMerchant(source);
+  // The known-shops list is checked against both, so a garbled feed name still
+  // finds the shop in the bank's own text.
+  const lexicon = lookupMerchant(source) ?? (provided ? lookupMerchant(rawDescription) : null);
 
   if (lexicon) {
     return {
-      displayName: lexicon.display ?? titleCase(normalized) ?? source,
+      displayName: lexicon.display ?? provided ?? tidyName(rawDescription) ?? source,
       normalized: normalizeMerchant(lexicon.display ?? normalized),
       categorySlug: lexicon.slug,
       confidence: lexicon.confidence,
@@ -245,12 +250,37 @@ export function resolveMerchant(rawDescription: string, providedMerchant?: strin
   }
 
   return {
-    displayName: providedMerchant?.trim() || titleCase(normalized) || source,
+    displayName: provided || tidyName(rawDescription) || titleCase(normalized) || source,
     normalized,
     categorySlug: null,
-    confidence: providedMerchant ? 70 : 45,
+    confidence: provided ? 70 : 45,
   };
 }
+
+/** "Os Mo Ws", "Ti Mh Or": three or more pieces, none longer than two letters. */
+export function looksGarbled(name: string): boolean {
+  const words = name.trim().split(/\s+/).filter(Boolean);
+  return words.length >= 3 && words.every((w) => w.replace(/[^a-z]/gi, '').length <= 2);
+}
+
+/**
+ * A readable name from raw bank text: "OSMOW'S #4471 MISSISSAUGA ON" becomes
+ * "Osmow's". Store numbers, card wording and the trailing city/province go;
+ * apostrophes stay.
+ */
+export function tidyName(raw: string): string | null {
+  // Bank text pads the city after a run of spaces: cut there first, before removing
+  // words leaves gaps of its own.
+  let s = raw.replace(/\s{2,}.*$/, '');
+  s = s.replace(/\b(visa|mc|mastercard)\s+debit\b/gi, ' ').replace(/\b(pos|purchase|pre-?auth|recurring|interac)\b/gi, ' ');
+  s = s.replace(/#\s*\d+.*$/, ' ').replace(/\b\d{3,}\b.*$/, ' ');
+  s = s.replace(/[*_]+/g, ' ').replace(/\s+/g, ' ').trim();
+  s = s.replace(/\b(on|qc|bc|ab|mb|sk|ns|nb|nl|pe)$/i, '').trim();
+  if (!s) return null;
+  const word = (w: string) => (ACRONYMS.has(w.toUpperCase()) ? w.toUpperCase() : w.split('-').map((p) => p.charAt(0).toUpperCase() + p.slice(1).toLowerCase()).join('-'));
+  return s.split(' ').map(word).join(' ');
+}
+const ACRONYMS = new Set(['TD', 'RBC', 'BMO', 'CIBC', 'HSBC', 'ATM', 'CRA', 'LCBO', 'SAQ', 'TTC', 'GO', 'UP', 'IGA', 'KFC', 'A&W', 'H&M', 'CN', 'CP', 'PC', 'BP', 'NSF', 'USD', 'CAD', 'TFSA', 'RRSP', 'RESP', 'EFT', 'ICBC', 'MBNA', 'AMEX']);
 
 function titleCase(s: string): string {
   if (!s) return '';

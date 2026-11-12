@@ -14,6 +14,7 @@
 //   POST /fake/reset             forget test state between runs
 
 import { createServer } from 'node:http';
+import { createHash, generateKeyPairSync, sign as signData } from 'node:crypto';
 
 const PORT = Number(process.env.FAKE_PLAID_PORT ?? 4010);
 const BASE = `http://127.0.0.1:${PORT}`;
@@ -83,6 +84,19 @@ let pendingDelta = null;
 let loginExpired = false;
 const calls = [];
 
+// Webhooks are signed like Plaid signs them: an ES256 JWT over the body's SHA-256.
+const { privateKey: hookKey, publicKey: hookPub } = generateKeyPairSync('ec', { namedCurve: 'P-256' });
+const HOOK_KID = 'fake-kid-1';
+const APP = process.env.APP ?? 'http://localhost:3000';
+function signedWebhook(payload, { forge = false, stale = false } = {}) {
+  const body = JSON.stringify(payload);
+  const b64 = (o) => Buffer.from(JSON.stringify(o)).toString('base64url');
+  const head = b64({ alg: 'ES256', kid: HOOK_KID, typ: 'JWT' });
+  const claims = b64({ iat: Math.floor(Date.now() / 1000) - (stale ? 3600 : 0), request_body_sha256: createHash('sha256').update(forge ? `${body} ` : body).digest('hex') });
+  const sig = signData('sha256', Buffer.from(`${head}.${claims}`), { key: hookKey, dsaEncoding: 'ieee-p1363' }).toString('base64url');
+  return { body, jwt: `${head}.${claims}.${sig}` };
+}
+
 const json = (res, status, body) => { res.writeHead(status, { 'content-type': 'application/json' }); res.end(JSON.stringify(body)); };
 const plaidError = (res, status, code, message) => json(res, status, { error_type: 'ITEM_ERROR', error_code: code, error_message: message, request_id: 'fake' });
 
@@ -105,6 +119,13 @@ const server = createServer(async (req, res) => {
   if (url.pathname === '/fake/advance') { pendingDelta = NEXT(); return json(res, 200, { ok: true }); }
   if (url.pathname === '/fake/login-expired') { loginExpired = true; return json(res, 200, { ok: true }); }
   if (url.pathname === '/fake/calls') return json(res, 200, calls);
+  if (url.pathname === '/fake/items') return json(res, 200, [...items.values()].map((i) => i.item_id));
+  if (url.pathname === '/fake/webhook') {
+    // Send a webhook to Pockit: { item_id, forge?, stale? } → Pockit's status code.
+    const { body: payload, jwt } = signedWebhook({ webhook_type: 'TRANSACTIONS', webhook_code: 'SYNC_UPDATES_AVAILABLE', item_id: body.item_id, initial_update_complete: true, historical_update_complete: true, environment: 'sandbox' }, body);
+    const r = await fetch(`${APP}/api/webhooks/plaid`, { method: 'POST', headers: { 'content-type': 'application/json', 'plaid-verification': body.unsigned ? '' : jwt }, body: payload });
+    return json(res, 200, { status: r.status, body: await r.json().catch(() => null) });
+  }
   if (url.pathname === '/fake/reset') { pendingDelta = null; loginExpired = false; calls.length = 0; return json(res, 200, { ok: true }); }
 
   // Every real Plaid call: the keys must be present, in the headers, not the body.
@@ -162,6 +183,16 @@ const server = createServer(async (req, res) => {
         last_payment_date: day(24), last_statement_issue_date: day(12), is_overdue: false,
         aprs: [{ apr_percentage: 20.99, apr_type: 'purchase_apr', balance_subject_to_apr: null, interest_charge_amount: null }],
       }], mortgage: null, student: null }, request_id: 'fake' });
+    }
+    case '/webhook_verification_key/get': {
+      if (body.key_id !== HOOK_KID) return json(res, 400, { error_code: 'INVALID_WEBHOOK_VERIFICATION_KEY_ID', error_message: 'unknown key' });
+      return json(res, 200, { key: { ...hookPub.export({ format: 'jwk' }), alg: 'ES256', kid: HOOK_KID, use: 'sig', created_at: 1, expired_at: null }, request_id: 'fake' });
+    }
+    case '/item/webhook/update': {
+      const item = items.get(body.access_token);
+      if (!item) return plaidError(res, 400, 'INVALID_ACCESS_TOKEN', 'could not find matching access token');
+      item.webhook = body.webhook;
+      return json(res, 200, { item: { item_id: item.item_id, webhook: body.webhook }, request_id: 'fake' });
     }
     case '/item/remove': {
       items.delete(body.access_token);

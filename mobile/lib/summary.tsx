@@ -1,3 +1,4 @@
+import { AppState } from 'react-native';
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from 'react';
 import { api } from './api';
 import { PREVIEW, useSession } from './session';
@@ -64,6 +65,12 @@ const Ctx = createContext<SummaryValue | null>(null);
  * pull-to-refresh. The last good copy stays on screen if a refresh fails, so a
  * dropped connection shows a note rather than blanking someone's balance.
  */
+/** Connected banks catch up in the background (only if stale), then the numbers refresh again. */
+function catchUp(refresh: () => Promise<void>) {
+  void api<{ synced: { ok: boolean; added?: number; updated?: number }[] }>('/api/mobile/bank/sync', { body: { ifStale: true } })
+    .then((r) => { if (r.synced.some((x) => x.ok)) void refresh(); }).catch(() => {});
+}
+
 export function SummaryProvider({ children }: { children: ReactNode }) {
   const { status } = useSession();
   const [data, setData] = useState<Summary | null>(PREVIEW ? previewSummary : null);
@@ -91,12 +98,22 @@ export function SummaryProvider({ children }: { children: ReactNode }) {
     if (PREVIEW) { setData(previewSummary); return; }
     if (status === 'signed-in') {
       void refresh();
-      // Connected banks catch up in the background, then the numbers refresh again.
-      void api<{ synced: { ok: boolean }[] }>('/api/mobile/bank/sync', { method: 'POST' })
-        .then((r) => { if (r.synced.some((x) => x.ok)) void refresh(); }).catch(() => {});
+      catchUp(refresh);
     }
     else setData(null);
   }, [status, demo, refresh]);
+
+  // Coming back to Pockit after a while: banks catch up (if they haven't in the
+  // last half hour) and the numbers refresh, so new purchases are just there.
+  useEffect(() => {
+    if (status !== 'signed-in' || PREVIEW) return;
+    let away = 0;
+    const sub = AppState.addEventListener('change', (state) => {
+      if (state !== 'active') { away = Date.now(); return; }
+      if (away && Date.now() - away > 5 * 60_000) { void refresh(); catchUp(refresh); }
+    });
+    return () => sub.remove();
+  }, [status, refresh]);
 
   return <Ctx.Provider value={{ data, error, refreshing, refresh }}>{children}</Ctx.Provider>;
 }

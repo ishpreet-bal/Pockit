@@ -46,6 +46,10 @@ assert.equal(banks.available, true);
 assert.equal(banks.connections.length, 0);
 ok('available, 0 connections');
 
+step('They typed in their balance before connecting (as setup asks)');
+assert.equal((await api('/api/mobile/balance', { body: { amount: 2840.17 } })).status, 200);
+ok('Everyday account: $2,840.17 typed in');
+
 step('Start Link: a secure page to open');
 const link = await api('/api/mobile/bank/link', { method: 'POST' });
 assert.equal(link.status, 200, JSON.stringify(link));
@@ -73,6 +77,10 @@ assert.equal(byName['First Platypus Bank Savings'].balanceMinor, 620000);
 assert.equal(byName['First Platypus Bank Visa'].balanceMinor, 64255);
 assert.equal(byName['First Platypus Bank Visa'].normalBalance, 'credit');
 for (const a of bal.accounts) ok(`${a.name}: ${a.balanceFormatted}${a.normalBalance === 'credit' ? ' owed' : ''}`);
+assert.ok(!bal.accounts.some((a) => a.name === 'Everyday account'), `typed-in account still counted: ${bal.accounts.map((a) => a.name).join(', ')}`);
+ok('the typed-in account retired, so the same money isn’t counted twice');
+assert.equal((await api('/api/mobile/balance', { body: { amount: 10 } })).status, 409);
+ok('typing a balance over the bank’s is refused, with a reason');
 
 step('The card statement: when it is due and how much');
 const sum = await api('/api/mobile/summary');
@@ -83,6 +91,17 @@ assert.equal(visa.minimumMinor, 2500);
 assert.equal(visa.daysLeft, 9);
 assert.equal(visa.paid, false);
 ok(`Visa due in ${visa.daysLeft} days: $588.12 statement, $25 minimum`);
+
+step('Where the money is headed');
+const outlook = await api('/api/mobile/outlook');
+assert.equal(outlook.status, 200, JSON.stringify(outlook));
+const pj = outlook.projection;
+assert.equal(pj.projectedMinor, pj.startMinor + pj.incomeMinor - pj.billsMinor - pj.everydayMinor);
+assert.ok(outlook.presets.length >= 2 && outlook.presets.every((p) => p.date > outlook.today));
+const later = await api(`/api/mobile/outlook?until=${outlook.presets[outlook.presets.length - 1].date}`);
+assert.ok(later.projection.points.length > pj.points.length, 'a later date projects further');
+const dollars = (m) => (m / 100).toFixed(2);
+ok(`by ${outlook.until}: $${dollars(pj.projectedMinor)} (start $${dollars(pj.startMinor)}, pay +$${dollars(pj.incomeMinor)}, bills -$${dollars(pj.billsMinor)}, everyday -$${dollars(pj.everydayMinor)})`);
 
 step('Every transaction, categorised');
 let txns = await allTransactions();
@@ -116,6 +135,23 @@ const coffee = detail.categories.find((c) => c.name === 'Coffee');
 const patched = await api(`/api/transactions/${bakery.id}`, { method: 'PATCH', body: { categoryId: coffee.id, rememberCategory: true } });
 assert.equal(patched.status, 200, JSON.stringify(patched));
 ok('Blackbird Baking Co → Coffee, remembered');
+
+step('Plaid can tell Pockit there is something new (webhooks)');
+const [itemId] = (await (await fetch(`${PLAID}/fake/items`)).json()).slice(-1);
+const hook = async (opts) => (await (await fetch(`${PLAID}/fake/webhook`, { method: 'POST', body: JSON.stringify({ item_id: itemId, ...opts }) })).json());
+assert.equal((await hook({ unsigned: true })).status, 401);
+assert.equal((await hook({ forge: true })).status, 401);
+assert.equal((await hook({ stale: true })).status, 401);
+ok('unsigned, tampered or old webhooks are refused');
+const good = await hook({});
+assert.equal(good.status, 200, JSON.stringify(good));
+assert.equal(good.body.synced, 1);
+ok('a real one syncs that bank straight away');
+assert.ok((await (await fetch(`${PLAID}/fake/calls`)).json()).some((c) => c.path === '/item/webhook/update'), 'older bank logins are pointed at the webhook');
+ok('older bank logins are pointed at the webhook');
+const fresh = await api('/api/mobile/bank/sync', { body: { ifStale: true } });
+assert.equal(fresh.synced.length, 0);
+ok('opening the app right after a sync costs nothing');
 
 step('The bank posts new activity; Sync now picks it up');
 await fetch(`${PLAID}/fake/advance`, { method: 'POST' });
