@@ -12,7 +12,7 @@ const errors = [];
 const consoleErrors = [];
 await mkdir('out', { recursive: true });
 const reuse = process.env.E2E_REUSE === '1' || process.argv.includes('--reuse');
-const users = reuse ? JSON.parse(await readFile('out/trip-investing-users.json', 'utf8')) : { email: `trip-investing-${Date.now()}@example.com`, otherEmail: `holding-isolation-${Date.now()}@example.com` };
+const users = reuse ? JSON.parse(await readFile('out/trip-investing-users.json', 'utf8')) : { email: `trip-investing-${Date.now()}@${process.env.TEST_ADMIN_EMAIL_DOMAIN ?? 'admins.example.com'}`, otherEmail: `holding-isolation-${Date.now()}@example.com` };
 await writeFile('out/trip-investing-users.json', JSON.stringify(users));
 async function sessionFor(request, email, firstName) {
   const response = await request.post(`${base}/api/mobile/auth/${reuse ? 'sign-in' : 'sign-up'}`, { data: { firstName, email, password: 'correcthorse1' } });
@@ -163,7 +163,7 @@ try {
   await page.screenshot({ path: 'out/trip-improvements.png', fullPage: true });
 
   await context.request.post(`${base}/api/investing/watchlist`, { data: { symbol: 'AAPL' } });
-  await page.goto(`${base}/app/invest`);
+  await page.goto(`${base}/app/investing`);
   await page.getByText('Watching', { exact: true }).waitFor();
   check('beginners can see their watchlist without owning investments', await page.getByText('AAPL', { exact: true }).count() > 0);
   await page.goto(`${base}/app/stock/AAPL`);

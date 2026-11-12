@@ -15,7 +15,7 @@ const TABS: { name: string; title: string; icon: string }[] = [
   { name: 'spending', title: 'Spending', icon: 'creditcard' },
   { name: 'ask', title: 'Ask Pock', icon: '' },
   { name: 'goals', title: 'Goals', icon: 'target' },
-  { name: 'invest', title: 'Invest', icon: 'chart.line.uptrend.xyaxis' },
+  { name: 'together', title: 'Together', icon: 'person.2' },
 ];
 
 export default function TabLayout() {

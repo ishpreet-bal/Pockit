@@ -3,6 +3,8 @@ import Link from 'next/link';
 import { ChevronRight, LineChart } from 'lucide-react';
 import { Card } from '@/components/ui/primitives';
 import { MORE_ITEMS } from '../nav-items';
+import { getSessionUser } from '@/lib/auth/session';
+import { isAdminEmail } from '@/lib/billing/plan';
 
 export const metadata: Metadata = { title: 'More' };
 
@@ -13,7 +15,8 @@ export const metadata: Metadata = { title: 'More' };
  * because it is the one place here people go on purpose rather than when they need
  * it — the rest are tools you reach for once in a while.
  */
-export default function MorePage() {
+export default async function MorePage() {
+  const admin = isAdminEmail((await getSessionUser())?.email);
   return (
     <div className="mx-auto max-w-2xl space-y-5 px-4 py-6 sm:px-6 sm:py-8">
       <h1 className="text-2xl font-semibold tracking-tight">More</h1>
@@ -25,9 +28,9 @@ export default function MorePage() {
           </span>
           <span className="min-w-0 flex-1">
             <span className="block font-semibold">Investing</span>
-            <span className="block text-sm text-[var(--text-muted)]">Explore stocks and funds, and follow what you like</span>
+            <span className="block text-sm text-[var(--text-muted)]">{admin ? 'Explore stocks and funds · only you can see this' : 'Learn investing and follow your stocks'}</span>
           </span>
-          <ChevronRight className="h-4 w-4 shrink-0 text-[var(--text-subtle)]" />
+          {admin ? <ChevronRight className="h-4 w-4 shrink-0 text-[var(--text-subtle)]" /> : <span className="shrink-0 rounded-full bg-[var(--surface-2)] px-2.5 py-1 text-2xs font-semibold text-[var(--text-muted)]">Coming soon</span>}
         </Card>
       </Link>
 

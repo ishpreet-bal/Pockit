@@ -1,6 +1,9 @@
 import { SectionNav } from './section-nav';
 import { SearchCommand } from '@/components/market/search-command';
 import { sourceInfo } from './data';
+import { getSessionUser } from '@/lib/auth/session';
+import { isAdminEmail } from '@/lib/billing/plan';
+import { InvestingComingSoon } from './coming-soon';
 
 /**
  * The Investing shell.
@@ -10,7 +13,10 @@ import { sourceInfo } from './data';
  * is meant to flow from discovering, to researching, to following, without a detour
  * back to a search page.
  */
-export default function InvestingLayout({ children }: { children: React.ReactNode }) {
+export default async function InvestingLayout({ children }: { children: React.ReactNode }) {
+  // Still being finished: only the people who run Pockit (ADMIN_EMAILS) can open it.
+  const user = await getSessionUser();
+  if (!isAdminEmail(user?.email)) return <InvestingComingSoon />;
   const source = sourceInfo();
 
   return (

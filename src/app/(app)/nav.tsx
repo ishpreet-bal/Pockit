@@ -40,6 +40,8 @@ const MOBILE_TABS: { href: string; label: string; icon: Icon }[] = [
   ...PRIMARY,
   { href: '/investing', label: 'Invest', icon: LineChart },
 ];
+// Investing is still being finished: only admins (ADMIN_EMAILS) see it in the nav.
+const tabsFor = (admin: boolean) => (admin ? MOBILE_TABS : PRIMARY);
 
 /** Sibling routes that live as tabs under one nav entry, so the entry stays lit. */
 const TAB_SIBLINGS: Record<string, string[]> = {
@@ -62,7 +64,7 @@ function useIsActive() {
 
 const COLLAPSE_KEY = 'pockit-sidebar-collapsed';
 
-export function Sidebar({ workspaces, activeId }: { workspaces: NavWorkspace[]; activeId: string }) {
+export function Sidebar({ workspaces, activeId, admin = false }: { workspaces: NavWorkspace[]; activeId: string; admin?: boolean }) {
   const isActive = useIsActive();
   const [collapsed, setCollapsed] = useState(false);
 
@@ -141,7 +143,7 @@ export function Sidebar({ workspaces, activeId }: { workspaces: NavWorkspace[]; 
         {PRIMARY.map(link)}
 
         <div className="my-3 border-t border-[var(--border)]" />
-        {link(INVESTING)}
+        {admin ? link(INVESTING) : null}
         {link({ href: '/more', label: 'More', icon: MoreHorizontal })}
       </nav>
 
@@ -260,7 +262,7 @@ export function ThemeToggle() {
 
 /* ---------------- Mobile ---------------- */
 
-export function MobileTabs() {
+export function MobileTabs({ admin = false }: { admin?: boolean }) {
   const isActive = useIsActive();
   const [moreOpen, setMoreOpen] = useState(false);
 
@@ -320,7 +322,7 @@ export function MobileTabs() {
         className="fixed inset-x-0 bottom-0 z-40 flex border-t border-[var(--border)] bg-[var(--surface)]/95 pb-[env(safe-area-inset-bottom)] backdrop-blur-lg md:hidden"
         aria-label="Primary"
       >
-        {MOBILE_TABS.map((tab) => {
+        {tabsFor(admin).map((tab) => {
           const active = isActive(tab.href);
           const Ico = tab.icon;
           return (

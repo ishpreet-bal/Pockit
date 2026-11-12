@@ -14,18 +14,18 @@ import { space, type, useColors } from '@/theme/tokens';
  * Skip ends it anywhere. Pages mark the parts worth showing with <TourTarget>.
  */
 
-interface Step { route: '/' | '/spending' | '/ask' | '/goals' | '/invest'; target: string; title: string; body: string }
+interface Step { route: '/' | '/spending' | '/ask' | '/goals' | '/together'; target: string; title: string; body: string }
 
 const STEPS: Step[] = [
   { route: '/', target: 'hero', title: 'What you can spend', body: 'Your money, minus every bill still due before payday. If this number is fine, you’re fine.' },
   { route: '/', target: 'shortcuts', title: 'One tap to the tools', body: 'Add a purchase, check your bills, set a budget, or work out what a drive will cost in gas.' },
   { route: '/', target: 'runway', title: 'Your runway to payday', body: 'Each bill on the day it comes out, and what you’ll have left after it. Payday is at the bottom.' },
   { route: '/', target: 'pockNote', title: 'Pock keeps an eye out', body: 'A note about your month. Tap it to ask Pock anything about your money.' },
-  { route: '/spending', target: 'spendTools', title: 'Spending, and what goes with it', body: 'Your budget, bills, trends, every purchase, and who owes who with friends all start from here.' },
+  { route: '/spending', target: 'spendTools', title: 'Spending, and what goes with it', body: 'Your budget, bills, trends and every purchase start from here.' },
   { route: '/spending', target: 'calendar', title: 'Your month at a glance', body: 'Each square is a day. The brighter it is, the more went out.' },
   { route: '/ask', target: 'askBox', title: 'Ask Pock', body: 'Ask in plain words — “can I afford a $200 concert this month?” Pock sees your numbers and never moves money.' },
   { route: '/goals', target: 'goals', title: 'Goals', body: 'A trip, a car, a safety net. Pockit works out what to put aside each month and shows if you’re on pace.' },
-  { route: '/invest', target: 'learn', title: 'Learn to invest', body: 'New to it? A gentle guide and a tutor for any question. Pockit never buys or sells anything.' },
+  { route: '/together', target: 'together', title: 'Money you share', body: 'Who owes who with friends, both ways, and shared spaces for budgeting with a partner or roommates.' },
 ];
 
 type Measure = () => Promise<{ x: number; y: number; width: number; height: number } | null>;

@@ -213,7 +213,7 @@ export default function Setup() {
           </>}
         >
           <View style={{ gap: space.sm }}>
-            {INTENTS.map((o) => (
+            {INTENTS.filter((o) => o.value !== 'invest' || me?.admin).map((o) => (
               <Choice key={o.value} icon={o.icon} title={o.title} detail={o.detail} selected={intents.includes(o.value)} multi
                 onPress={() => setIntents(intents.includes(o.value) ? intents.filter((x) => x !== o.value) : [...intents, o.value])} />
             ))}

@@ -25,7 +25,7 @@ export default function Welcome() {
           Know what you{'\n'}can spend.
         </Animated.Text>
         <Animated.Text entering={FadeInDown.delay(300).duration(600)} style={[type.body, { color: c.textMuted, marginTop: space.md, lineHeight: 23 }]}>
-          Pockit keeps track of your bills, goals and investments, so you always know where you stand.
+          Pockit keeps track of your bills, goals and the money you share, so you always know where you stand.
         </Animated.Text>
       </View>
       <Animated.View entering={FadeInDown.delay(450).duration(600)} style={{ gap: space.sm }}>

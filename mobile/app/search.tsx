@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { HomeButton, InvestingGate } from '@/components/InvestingGate';
 import { Platform, Pressable, Text, TextInput, View } from 'react-native';
 import { router } from 'expo-router';
 import { Card, Row, Screen, SectionHeader } from '@/components/ui';
@@ -20,7 +21,11 @@ const POPULAR: Result[] = [
 const KIND: Record<string, string> = { stock: 'Stock', etf: 'Fund (ETF)', crypto: 'Crypto', index: 'Index' };
 
 /** Find any stock, fund or coin by ticker or name. Typos are fine — "nvidea" finds NVIDIA. */
-export default function Search() {
+export default function SearchGated() {
+  return <InvestingGate><Search /></InvestingGate>;
+}
+
+function Search() {
   const c = useColors();
   const [q, setQ] = useState('');
   const [results, setResults] = useState<Result[]>([]);
@@ -45,7 +50,7 @@ export default function Search() {
   const list = q.trim() ? results : POPULAR;
 
   return (
-    <Screen section="invest" title="Search" back>
+    <Screen section="invest" title="Search" back right={<HomeButton />}>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, height: 48, borderRadius: radius.control, backgroundColor: c.surface2, paddingHorizontal: 12, marginBottom: space.md }}>
         <Icon name="magnifyingglass" size={18} color={c.textSubtle} />
         <TextInput value={q} onChangeText={setQ} autoFocus placeholder="Ticker or company — e.g. Apple, XEQT" placeholderTextColor={c.textSubtle}

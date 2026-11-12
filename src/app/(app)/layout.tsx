@@ -8,17 +8,19 @@ import { TourHost } from './tour-host';
 import { DemoModeBar } from './demo-mode-bar';
 import { GuestBar } from './guest-bar';
 import { isDemoTour } from '@/lib/data/demo-workspace';
+import { isAdminEmail } from '@/lib/billing/plan';
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const { user, workspace, workspaces } = await requireAuth();
   // Runs before anything renders, so a new account never sees the shell flash past
   // on its way to the setup flow.
   await requireOnboarded(user.id);
+  const admin = isAdminEmail(user.email);
   const navWorkspaces = workspaces.map((w) => ({ id: w.id, name: w.name, kind: w.kind, isDemo: w.isDemo }));
 
   return (
     <div className="flex min-h-dvh bg-[var(--bg)]">
-      <Sidebar workspaces={navWorkspaces} activeId={workspace.id} />
+      <Sidebar workspaces={navWorkspaces} activeId={workspace.id} admin={admin} />
       <div className="flex min-w-0 flex-1 flex-col">
         {user.isGuest ? <GuestBar /> : isDemoTour(workspace) ? <DemoModeBar /> : null}
         <MobileHeader workspaces={navWorkspaces} activeId={workspace.id} />
@@ -31,7 +33,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           <PageTransition>{children}</PageTransition>
         </main>
       </div>
-      <MobileTabs />
+      <MobileTabs admin={admin} />
       <QuickAdd />
       <CompanionHost />
       <TourHost userId={user.id} />

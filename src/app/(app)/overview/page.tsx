@@ -16,6 +16,7 @@ import { isDemoTour } from '@/lib/data/demo-workspace';
 import { Hero } from './hero';
 import { formatMoney } from '@/lib/money';
 import { cn } from '@/lib/ui/cn';
+import { isAdminEmail } from '@/lib/billing/plan';
 
 export const metadata: Metadata = { title: 'Overview' };
 export const dynamic = 'force-dynamic';
@@ -76,7 +77,9 @@ export default async function OverviewPage() {
   // Investing is surfaced on Home rather than buried in More, but cheaply: counts
   // and symbols from our own tables, no market calls. A live price here would spend
   // the market-data quota on every visit to the most-visited page in the app.
-  const [held, watched] = await Promise.all([
+  // Investing is still being finished: only admins see it, so no one else pays for these reads.
+  const admin = isAdminEmail(user.email);
+  const [held, watched] = !admin ? [[], []] : await Promise.all([
     withUser(user.id, (tx) => tx.select({ symbol: holdings.symbol }).from(holdings).where(eq(holdings.workspaceId, workspace.id))),
     withUser(user.id, (tx) => tx.select({ symbol: watchlistItems.symbol }).from(watchlistItems).where(eq(watchlistItems.workspaceId, workspace.id)).limit(4)),
   ]);
@@ -165,7 +168,7 @@ export default async function OverviewPage() {
         ) : null}
       </section>
 
-      <div className="grid gap-3 sm:grid-cols-2">
+      <div className={cn('grid gap-3', admin && 'sm:grid-cols-2')}>
         <Link href="/goals" className="block" aria-label="Goals">
           <Card interactive className="h-full p-4">
             <p className="text-xs font-medium uppercase tracking-[0.06em] text-[var(--text-subtle)]">Goals</p>
@@ -185,7 +188,7 @@ export default async function OverviewPage() {
           </Card>
         </Link>
 
-        <Link href="/investing" className="block" aria-label="Investing">
+        {admin ? <Link href="/investing" className="block" aria-label="Investing">
           <Card interactive className="h-full p-4">
             <p className="text-xs font-medium uppercase tracking-[0.06em] text-[var(--text-subtle)]">Investing</p>
             {held.length > 0 || watched.length > 0 ? (
@@ -207,7 +210,7 @@ export default async function OverviewPage() {
               <p className="mt-2 text-sm text-[var(--text-muted)]">Explore stocks and funds, and follow the ones you like.</p>
             )}
           </Card>
-        </Link>
+        </Link> : null}
       </div>
     </div>
   );

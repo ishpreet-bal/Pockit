@@ -56,6 +56,8 @@ jobs:
       DATABASE_URL: postgres://appuser:appuser@localhost:5432/hosted
       AUTH_SECRET: ci-only-secret-ci-only-secret-0123456789abcdef
       ADMIN_SECRET: ci-admin
+      # Accounts at this domain are admins, so the investing suites can open Investing. Ignored in production builds.
+      TEST_ADMIN_EMAIL_DOMAIN: admins.example.com
       CRON_SECRET: local-cron
       PLAID_API_BASE: http://127.0.0.1:4010
       PLAID_CLIENT_ID: test

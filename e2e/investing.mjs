@@ -14,7 +14,8 @@ const B = process.env.BASE ?? 'http://localhost:3000';
 const EXECUTABLE = process.env.CHROMIUM_PATH || undefined;
 // A fresh account every run. The consent gate only appears when no profile exists,
 // so a suite that reuses an account tests the second visit and never the first.
-const EMAIL = `investing-${Date.now()}@example.com`;
+// Investing is admin-only while it's being finished; TEST_ADMIN_EMAIL_DOMAIN makes this account one.
+const EMAIL = `investing-${Date.now()}@${process.env.TEST_ADMIN_EMAIL_DOMAIN ?? 'admins.example.com'}`;
 const PASSWORD = 'correcthorse1';
 
 let fails = 0;

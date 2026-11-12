@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { HomeButton, InvestingGate } from '@/components/InvestingGate';
 import { LESSONS as TOPICS, type Level } from '@/data/lessons';
 import { Pressable, Text, View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
@@ -19,7 +20,11 @@ import { space, type, useColors } from '@/theme/tokens';
 export { LESSONS as TOPICS } from '@/data/lessons';
 export type { Level } from '@/data/lessons';
 
-export default function Learn() {
+export default function LearnGated() {
+  return <InvestingGate><Learn /></InvestingGate>;
+}
+
+function Learn() {
   const c = useColors();
   const a = c.section.invest;
   const params = useLocalSearchParams<{ level?: Level; topic?: string }>();
@@ -33,7 +38,7 @@ export default function Learn() {
     router.push({ pathname: '/pock', params: { mode: 'learn', ...(question ? { q: question } : {}) } });
 
   return (
-    <Screen section="invest" title={params.level === 'intermediate' ? 'Going further' : 'Learn to invest'} back>
+    <Screen section="invest" title={params.level === 'intermediate' ? 'Going further' : 'Learn to invest'} back right={<HomeButton />}>
       <Text style={[type.body, { color: c.textMuted, lineHeight: 23, marginBottom: space.xl }]}>
         Tap anything you’re curious about. Each one is a quick, plain explanation — no jargon, and nothing to buy.
       </Text>

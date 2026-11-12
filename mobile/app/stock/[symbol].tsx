@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { HomeButton, InvestingGate } from '@/components/InvestingGate';
 import { Text, useWindowDimensions, View } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
 import * as Haptics from 'expo-haptics';
@@ -28,7 +29,11 @@ const PREVIEW_STOCK: Stock = {
 };
 
 /** One stock or fund: price, a chart you can scrub, what it is, and follow/unfollow. Nothing here buys or sells. */
-export default function StockPage() {
+export default function StockPageGated() {
+  return <InvestingGate><StockPage /></InvestingGate>;
+}
+
+function StockPage() {
   const { symbol } = useLocalSearchParams<{ symbol: string }>();
   const [stock, setStock] = useState<Stock | null>(PREVIEW ? sampleStock(symbol ?? 'NVDA') : null);
   const [error, setError] = useState<string | null>(null);
@@ -42,7 +47,7 @@ export default function StockPage() {
   }, [symbol]);
 
   return (
-    <Screen section="invest" title={symbol ?? ''} back>
+    <Screen section="invest" title={symbol ?? ''} back right={<HomeButton />}>
       {stock ? <Body key={stock.symbol} stock={stock} setStock={setStock} /> : error ? <EmptyCard title="Couldn’t load this one" body={error} /> : <Loading error={null} />}
     </Screen>
   );

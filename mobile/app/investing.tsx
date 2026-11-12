@@ -3,16 +3,27 @@ import { Pressable, Text, View } from 'react-native';
 import { useToolTint } from '@/theme/palette';
 import { router, useFocusEffect } from 'expo-router';
 import { getText, lessonsRead, setText } from '@/lib/prefs';
-import { TOPICS, type Level } from '../learn';
+import { TOPICS, type Level } from './learn';
 import { TourTarget } from '@/lib/tour';
 import { Icon } from '@/components/Icon';
 import { Card, Shortcuts, EmptyCard, Loading, formatMoney, PreviewBadge, Screen, SectionHeader, StaleNote, useAccent } from '@/components/ui';
 import { PREVIEW } from '@/lib/session';
+import { HomeButton, InvestingGate } from '@/components/InvestingGate';
+import { Press } from '@/components/Press';
 import { useSummary, type Summary } from '@/lib/summary';
 import { space, type, useColors } from '@/theme/tokens';
 
+/**
+ * Investing: its own section, opened from Settings. Still being finished, so only
+ * the people who run Pockit (ADMIN_EMAILS) can open it; everyone else sees that it's
+ * coming. A Home button at the top always leads back out.
+ */
+export default function Investing() {
+  return <InvestingGate><Invest /></InvestingGate>;
+}
+
 /** Invest: what your investments are worth, what you own, and a short watchlist. */
-export default function Invest() {
+function Invest() {
   const { data, error, refreshing, refresh } = useSummary();
   const c = useColors();
   // Unknown until they say. The demo shows the full tab straight away.
@@ -25,7 +36,8 @@ export default function Invest() {
   const choose = (l: Level | null) => { setLevel(l); void setText('investLevel', l); };
 
   return (
-    <Screen section="invest" title={PREVIEW ? 'Invest (demo)' : 'Invest'} eyebrow="Learn, follow and track" onRefresh={refresh} refreshing={refreshing} right={level ? <SearchButton /> : undefined}>
+    <Screen section="invest" title={PREVIEW ? 'Investing (demo)' : 'Investing'} eyebrow="Learn, follow and track" back onRefresh={refresh} refreshing={refreshing}
+      right={<View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>{level ? <SearchButton /> : null}<HomeButton /></View>}>
       {PREVIEW ? <PreviewBadge /> : null}
       {level === undefined ? null : level === null ? <LevelPicker onPick={choose} /> : (
         <>

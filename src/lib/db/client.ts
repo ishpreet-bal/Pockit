@@ -121,21 +121,38 @@ function rlsRole(): Promise<RlsRole | null> {
     try {
       const rows = await db.execute(drizzleSql`
         SELECT r.rolname AS role FROM pg_roles r
-        WHERE r.rolname IN ('pockit_app', 'authenticated')
-          AND NOT r.rolbypassrls AND NOT r.rolsuper
-          AND pg_has_role(current_user, r.oid, 'MEMBER')
-          AND has_schema_privilege(r.oid, 'pockit', 'USAGE')
-          AND has_table_privilege(r.oid, 'pockit.transactions', 'SELECT, INSERT, UPDATE, DELETE')
-        ORDER BY r.rolname = 'pockit_app' DESC
-        LIMIT 1`);
-      const name = (rows as unknown as { role: string }[])[0]?.role;
-      return (RLS_ROLES as readonly string[]).includes(name ?? '') ? (name as RlsRole) : null;
+        WHERE r.rolname IN ('pockit_app', 'authenticated') AND NOT r.rolbypassrls AND NOT r.rolsuper
+        ORDER BY r.rolname = 'pockit_app' DESC`);
+      for (const { role } of rows as unknown as { role: string }[]) {
+        if ((RLS_ROLES as readonly string[]).includes(role) && (await canUse(role as RlsRole))) return role as RlsRole;
+      }
+      return null;
     } catch {
       chosenRole = undefined; // try again on the next request
       return null;
     }
   })();
   return chosenRole;
+}
+
+/**
+ * Can this connection actually switch to the role and read a table as it? Tried for
+ * real in a transaction that is always rolled back: being a "member" isn't enough on
+ * newer Postgres (membership can be granted without the right to SET ROLE).
+ */
+const ROLLBACK = Symbol('rollback');
+async function canUse(role: RlsRole): Promise<boolean> {
+  try {
+    await db.transaction(async (tx) => {
+      await tx.execute(drizzleSql.raw(`SET LOCAL ROLE ${role}`));
+      await tx.execute(drizzleSql`SELECT 1 FROM pockit.transactions LIMIT 1`);
+      await tx.execute(drizzleSql`SELECT 1 FROM pockit.users LIMIT 1`);
+      throw ROLLBACK;
+    });
+    return false;
+  } catch (e) {
+    return e === ROLLBACK;
+  }
 }
 
 /** Whether requests run under a role the database holds to row-level security. */
@@ -160,4 +177,26 @@ function assertUuid(v: string): string {
     throw new Error('Invalid user id');
   }
   return v;
+}
+
+/**
+ * Why row-level security is or isn't enforced, for /api/health: each condition the
+ * role needs, checked separately. Names of roles and true/false only.
+ */
+export async function rlsDiagnosis(): Promise<Record<string, unknown>> {
+  try {
+    const rows = await db.execute(drizzleSql`
+      SELECT current_user AS connected_as,
+        r.rolname AS role,
+        r.rolbypassrls AS bypasses_rls,
+        pg_has_role(current_user, r.oid, 'MEMBER') AS can_switch,
+        has_schema_privilege(r.oid, 'pockit', 'USAGE') AS schema_access,
+        has_table_privilege(r.oid, 'pockit.transactions', 'SELECT, INSERT, UPDATE, DELETE') AS table_access
+      FROM pg_roles r WHERE r.rolname IN ('pockit_app', 'authenticated')`);
+    const list = rows as unknown as Record<string, unknown>[];
+    for (const r of list) r.can_set_role_and_read = await canUse(r.role as RlsRole);
+    return { candidates: list, connectedAs: list[0]?.connected_as ?? null };
+  } catch (e) {
+    return { error: e instanceof Error ? e.message.slice(0, 200) : 'unknown' };
+  }
 }

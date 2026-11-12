@@ -45,9 +45,6 @@ function Body() {
           // Only for the people who run Pockit: sign-ups and usage, counts only.
           <Row icon="chart.bar" title="Pockit stats" detail="How many people use Pockit" value="›" valueColor={c.textSubtle} onPress={() => void Linking.openURL(`${API_URL}/admin`)} />
         ) : null}
-        <Row icon="person.2" title="Split with friends" detail="Who owes who, both ways, like Splitwise" value="›" valueColor={c.textSubtle} onPress={() => router.push('/friends')} />
-        <Row icon="arrow.uturn.left" title="Owed to you" detail="Split bills and money you’re getting back" value="›" valueColor={c.textSubtle} onPress={() => router.push('/owed')} />
-        <Row icon="person.crop.circle" title="Shared spaces" detail="Budget with a partner or roommates" value="›" valueColor={c.textSubtle} onPress={() => router.push('/spaces')} />
         <Row icon="star" title="Take the tour" detail="A 30-second look around Pockit" value="›" valueColor={c.textSubtle} last onPress={() => { router.navigate('/'); setTimeout(() => tour.start(), 350); }} />
       </Card>
       <PlusRow />

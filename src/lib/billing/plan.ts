@@ -22,8 +22,14 @@ export function plusEnabled(): boolean {
 /** Is this one of the people who run Pockit? Matched case-insensitively against ADMIN_EMAILS. */
 export function isAdminEmail(email: string | null | undefined): boolean {
   if (!email) return false;
-  const admins = (env.ADMIN_EMAILS ?? '').split(',').map((e) => e.trim().toLowerCase()).filter(Boolean);
-  return admins.includes(email.trim().toLowerCase());
+  const e = email.trim().toLowerCase();
+  const admins = (env.ADMIN_EMAILS ?? '').split(',').map((x) => x.trim().toLowerCase()).filter(Boolean);
+  if (admins.includes(e)) return true;
+  // Automated tests sign up fresh accounts every run, so they need a whole domain of
+  // admins (the investing suites). Never honoured in a production build, so a deployed
+  // Pockit only ever trusts the exact addresses in ADMIN_EMAILS.
+  const testDomain = process.env.NODE_ENV !== 'production' ? process.env.TEST_ADMIN_EMAIL_DOMAIN?.trim().toLowerCase() : '';
+  return Boolean(testDomain && e.endsWith(`@${testDomain}`));
 }
 
 export interface Plan {

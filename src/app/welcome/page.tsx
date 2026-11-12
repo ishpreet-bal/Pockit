@@ -5,6 +5,7 @@ import { getSessionUser } from '@/lib/auth/session';
 import { PockMark } from '@/components/brand/pock-mark';
 import { LivePhone } from './live-phone';
 import { CountUp, Reveal, Sequence, Tilt } from './motion';
+import { TryIt } from './try-it';
 
 export const metadata: Metadata = {
   title: 'Pockit: know what you can spend',
@@ -35,6 +36,7 @@ export default async function WelcomePage() {
       <Nav guest={guest} />
       <Hero guest={guest} />
       <OneNumber />
+      <TryYours />
       <Features />
       <HowItWorks />
       <Safety />
@@ -60,6 +62,7 @@ function Nav({ guest }: { guest: boolean }) {
           <span className="font-[family-name:var(--font-display)] text-xl">Pockit</span>
         </Link>
         <nav className="ml-auto hidden items-center gap-6 text-sm text-[var(--text-muted)] md:flex">
+          <a href="#try" className="hover:text-[var(--text)]">Try it</a>
           <a href="#features" className="hover:text-[var(--text)]">Features</a>
           <a href="#how" className="hover:text-[var(--text)]">How it works</a>
           <a href="#safety" className="hover:text-[var(--text)]">Your data</a>
@@ -140,6 +143,19 @@ function OneNumber() {
           </Sequence>
         </Reveal>
       </div>
+    </section>
+  );
+}
+
+function TryYours() {
+  return (
+    <section id="try" className={`${wrap} scroll-mt-20 pt-20`}>
+      <Reveal className="text-center">
+        <p className={eyebrow}>Try it</p>
+        <h2 className={`mx-auto mt-3 max-w-2xl ${h2}`}>Put in your own numbers.</h2>
+        <p className="mx-auto mt-4 max-w-xl text-lg leading-relaxed text-[var(--text-muted)]">Slide things around and see what Pockit would tell you. No account, nothing saved.</p>
+      </Reveal>
+      <Reveal delay={120} className="mx-auto mt-10 max-w-4xl"><TryIt /></Reveal>
     </section>
   );
 }

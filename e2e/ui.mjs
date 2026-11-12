@@ -46,11 +46,12 @@ const body = await p.textContent('body');
 // These checks hold it there: if a fifth section creeps back, they fail.
 ok('one headline figure, explained', /Safe to spend/.test(body) && /in cash, minus/i.test(body));
 ok('coming up shows at most three bills', await p.locator('section[aria-label="Coming up"] li').count() <= 3);
-ok('a goal card and an investing card', await p.locator('a[aria-label="Goals"]').count() === 1 && await p.locator('a[aria-label="Investing"]').count() === 1);
+// Investing is admin-only while it's being finished, so an ordinary account sees no card or tab for it.
+ok('a goal card, and no investing card', await p.locator('a[aria-label="Goals"]').count() === 1 && await p.locator('a[aria-label="Investing"]').count() === 0);
 ok('no stat tiles, donut or activity feed on Home', await p.locator('.recharts-surface').count() === 0 && await p.locator('section[aria-label="Recent activity"]').count() === 0);
-ok('three core tabs plus Investing and More', await p.evaluate(() => {
+ok('three core tabs plus More', await p.evaluate(() => {
   const labels = [...document.querySelectorAll('aside nav a')].map((a) => a.textContent.trim());
-  return JSON.stringify(labels) === JSON.stringify(['Home', 'Spending', 'Goals', 'Investing', 'More']);
+  return JSON.stringify(labels) === JSON.stringify(['Home', 'Spending', 'Goals', 'More']);
 }));
 
 console.log('\nSpending holds the detail');

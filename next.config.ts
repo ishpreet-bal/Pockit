@@ -17,6 +17,8 @@ const csp = [
 ].join('; ');
 
 const nextConfig: NextConfig = {
+  // The dev-only "N" badge sits over the collapsed sidebar's Expand button and blocks the UI tests. Error overlays still show.
+  devIndicators: false,
   reactStrictMode: true,
   poweredByHeader: false,
   serverExternalPackages: ['postgres', 'exceljs', 'unpdf'],

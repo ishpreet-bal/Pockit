@@ -10,7 +10,16 @@ import type { PlaidAccount, PlaidTxn } from './map';
  * set up yet instead of failing.
  */
 
-const ENV = () => (process.env.PLAID_ENV?.trim() || 'sandbox') as 'sandbox' | 'production';
+/**
+ * 'production' (Plaid's Trial and paid plans both use it) or 'sandbox'. Read
+ * forgivingly — "Production" or stray spaces still count — and anything else,
+ * including Plaid's retired 'development', stays on sandbox rather than calling
+ * an address that doesn't exist. The health check (diagnose.ts) flags such a value.
+ */
+export function plaidEnv(): 'sandbox' | 'production' {
+  return process.env.PLAID_ENV?.trim().toLowerCase() === 'production' ? 'production' : 'sandbox';
+}
+const ENV = plaidEnv;
 export const plaidConfigured = () => Boolean(process.env.PLAID_CLIENT_ID?.trim() && process.env.PLAID_SECRET?.trim());
 
 export class PlaidError extends Error {

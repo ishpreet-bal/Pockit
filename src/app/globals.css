@@ -332,7 +332,21 @@ a, button, [role='button'] {
 /* Open answers ease in. */
 details[open] > p { animation: pk-arrive 360ms cubic-bezier(0.16, 1, 0.3, 1) both; }
 
+/* "Try it" on the welcome page: a slider whose track fills in the accent colour, big enough for a thumb. */
+.pk-range { -webkit-appearance: none; appearance: none; height: 28px; background: transparent; cursor: pointer; }
+.pk-range::-webkit-slider-runnable-track { height: 8px; border-radius: 999px; background: linear-gradient(to right, var(--accent) var(--pk-fill, 50%), var(--surface-2) var(--pk-fill, 50%)); }
+.pk-range::-moz-range-track { height: 8px; border-radius: 999px; background: var(--surface-2); }
+.pk-range::-moz-range-progress { height: 8px; border-radius: 999px; background: var(--accent); }
+.pk-range::-webkit-slider-thumb { -webkit-appearance: none; margin-top: -8px; width: 24px; height: 24px; border-radius: 999px; background: var(--surface); border: 3px solid var(--accent); box-shadow: var(--shadow-sm); transition: transform 160ms cubic-bezier(0.16, 1, 0.3, 1); }
+.pk-range::-moz-range-thumb { width: 18px; height: 18px; border-radius: 999px; background: var(--surface); border: 3px solid var(--accent); }
+.pk-range:active::-webkit-slider-thumb { transform: scale(1.15); }
+.pk-range:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; border-radius: 999px; }
+.pk-fade-in { animation: pk-arrive 320ms cubic-bezier(0.16, 1, 0.3, 1) both; }
+@keyframes pk-pop { from { transform: scale(0.6); opacity: 0; } to { transform: none; opacity: 1; } }
+.pk-pop { animation: pk-pop 260ms cubic-bezier(0.34, 1.56, 0.64, 1) both; }
+
 @media (prefers-reduced-motion: reduce) {
+  .pk-fade-in, .pk-pop { animation: none; }
   .pk-reveal, .pk-reveal [data-stagger], .pk-seq > li, .pk-seq > li .pk-dot { opacity: 1 !important; transform: none !important; transition: none !important; }
   .pk-float { animation: none; }
   .pk-tilt > * { transform: none !important; }

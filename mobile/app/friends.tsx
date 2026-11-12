@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Alert, Platform, Pressable, Text, View } from 'react-native';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { Card, EmptyCard, formatMoney, friendlyDate, Loading, Screen, SectionHeader } from '@/components/ui';
 import { Button, Chip, ChipRow, Field, FormError, toMinor } from '@/components/form';
@@ -44,7 +44,8 @@ export default function Friends() {
   const [d, setD] = useState<Data | null>(PREVIEW ? PREVIEW_DATA : null);
   const [error, setError] = useState<string | null>(null);
   const [open, setOpen] = useState<string | null>(null);
-  const [adding, setAdding] = useState(false);
+  const params = useLocalSearchParams<{ add?: string }>();
+  const [adding, setAdding] = useState(params.add === '1');
   const [refreshing, setRefreshing] = useState(false);
 
   const load = useCallback(async () => {

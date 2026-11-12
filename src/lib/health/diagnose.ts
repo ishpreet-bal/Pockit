@@ -37,6 +37,8 @@ export interface Diagnosis {
   dailyJobsConfigured: boolean;
   /** Who keeps one person's records from another's: the database (and under which role), or only the app's own filters. */
   rowLevelSecurity: string;
+  /** When it isn't the database: which condition is missing. */
+  rowLevelSecurityDetail?: Record<string, unknown>;
   /** Optional features and whether this deployment has what each needs. Never any key itself. */
   features: Record<string, boolean | string>;
   /** In plain words, what is switched off and the key that turns it on. */
@@ -50,7 +52,9 @@ export async function diagnose(): Promise<Diagnosis> {
   let adminSecretConfigured = false;
   let envOk = false;
   const plaidKeys = Boolean(process.env.PLAID_CLIENT_ID?.trim() && process.env.PLAID_SECRET?.trim());
-  const bankConnection: Diagnosis['bankConnection'] = !plaidKeys ? 'off' : process.env.PLAID_ENV?.trim() === 'production' ? 'production' : 'sandbox';
+  // Read the same forgiving way as src/lib/bank/plaid.ts: "Production" counts, anything unknown is sandbox.
+  const plaidEnvRaw = process.env.PLAID_ENV?.trim().toLowerCase() ?? '';
+  const bankConnection: Diagnosis['bankConnection'] = !plaidKeys ? 'off' : plaidEnvRaw === 'production' ? 'production' : 'sandbox';
   const dailyJobsConfigured = Boolean(process.env.CRON_SECRET?.trim());
   const has = (k: string) => Boolean(process.env[k]?.trim());
   const features: Diagnosis['features'] = {
@@ -68,6 +72,7 @@ export async function diagnose(): Promise<Diagnosis> {
     !has('GOOGLE_MAPS_API_KEY') && 'Reliable trip search and routes: add GOOGLE_MAPS_API_KEY (Places API (New) and Routes API).',
     !features.livePrices && 'Live stock prices: add TWELVEDATA_API_KEY.',
     !dailyJobsConfigured && 'Daily bank sync and guest cleanup: add CRON_SECRET.',
+    plaidKeys && plaidEnvRaw && plaidEnvRaw !== 'production' && plaidEnvRaw !== 'sandbox' && `PLAID_ENV is "${process.env.PLAID_ENV?.trim()}", which Plaid doesn't have: set it to production (Trial and paid plans) or sandbox. Using sandbox until then.`,
     bankConnection !== 'off' && !features.bankTokenKey && 'Bank logins encrypted with their own key: add BANK_TOKEN_KEY before real banks are connected.',
   ].filter((x): x is string => Boolean(x));
 
@@ -150,11 +155,13 @@ export async function diagnose(): Promise<Diagnosis> {
   }
 
   let rowLevelSecurity = 'unknown';
+  let rowLevelSecurityDetail: Record<string, unknown> | undefined;
   if (database === 'ok') {
     try {
-      const { rlsEnforcedBy } = await import('@/lib/db/client');
+      const { rlsEnforcedBy, rlsDiagnosis } = await import('@/lib/db/client');
       const role = await rlsEnforcedBy();
       rowLevelSecurity = role ? `enforced by the database (${role})` : 'app filters only';
+      if (!role) rowLevelSecurityDetail = await rlsDiagnosis();
     } catch { /* reported as unknown */ }
   }
 
@@ -174,6 +181,7 @@ export async function diagnose(): Promise<Diagnosis> {
     bankConnection,
     dailyJobsConfigured,
     rowLevelSecurity,
+    ...(rowLevelSecurityDetail ? { rowLevelSecurityDetail } : {}),
     features,
     missing,
   };

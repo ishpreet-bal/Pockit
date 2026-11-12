@@ -1,4 +1,5 @@
 import { useCallback, useState } from 'react';
+import { HomeButton, InvestingGate } from '@/components/InvestingGate';
 import { Text, View } from 'react-native';
 import { useFocusEffect } from 'expo-router';
 import { Button, Chip, ChipRow, Field, FormError } from '@/components/form';
@@ -13,7 +14,11 @@ const CURRENCIES = ['CAD', 'USD', 'EUR', 'GBP', 'AUD', 'NZD', 'CHF', 'MXN', 'INR
 const empty = (currency: string): Holding => ({ name: '', symbol: '', quantity: '0', currency, currentValue: '', costBasis: '' });
 
 /** Manual position records. No order execution and no cash movements. */
-export default function Holdings() {
+export default function HoldingsGated() {
+  return <InvestingGate><Holdings /></InvestingGate>;
+}
+
+function Holdings() {
   const c = useColors();
   const { data, refresh } = useSummary();
   const [rows, setRows] = useState<Holding[] | null>(PREVIEW ? [] : null);
@@ -41,7 +46,7 @@ export default function Holdings() {
     finally { setBusy(false); }
   }
 
-  return <Screen section="invest" title="Your holdings" back>
+  return <Screen section="invest" title="Your holdings" back right={<HomeButton />}>
     {PREVIEW ? <PreviewBadge /> : null}
     <Text style={[type.subhead, { color: c.textMuted, lineHeight: 22 }]}>Record what you own to track its value and cost. This does not buy investments, post trades or change account balances.</Text>
     {draft ? <View style={{ marginTop: space.xl, gap: space.lg }}>

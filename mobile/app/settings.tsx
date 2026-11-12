@@ -86,6 +86,13 @@ export default function Settings() {
       <SectionHeader title="Appearance" />
       <AppearancePicker />
       <ColourTryout />
+      <SectionHeader title="Features" />
+      <Card>
+        {/* Investing is being finished: only admins can open it; everyone else sees it's on the way. */}
+        <Row icon="chart.line.uptrend.xyaxis" title="Investing"
+          detail={me?.admin ? 'Learn, follow and track · only you can see this' : 'Learn investing and follow your stocks'}
+          value={me?.admin ? '›' : 'Coming soon'} valueColor={c.textSubtle} last onPress={() => router.push('/investing')} />
+      </Card>
       <SectionHeader title="Security" />
       <Card>
         <Toggle title={`Lock with ${bio.label}`} detail={bio.ok ? `Ask for ${bio.label} when Pockit opens, and after a minute away.` : `${bio.label} isn’t set up on this phone.`}

@@ -85,7 +85,9 @@ function runway(d: Summary): Stop[] {
 
 function Body({ d }: { d: Summary }) {
   const c = useColors();
-  const guest = Boolean(useSession().me?.guest);
+  const me = useSession().me;
+  const guest = Boolean(me?.guest);
+  const admin = Boolean(me?.admin);
   const a = useAccent();
   const h = d.home;
   const days = h.nextIncome ? Math.max(1, daysBetween(d.today, h.nextIncome.date)) : null;
@@ -162,9 +164,9 @@ function Body({ d }: { d: Summary }) {
             value={formatMoney(d.owed.minor, { cents: false })} valueColor={a.accent} onPress={() => router.push('/friends')} />
         ) : null}
         <Row icon="" title={goal ? goal.name : 'Goals'} detail={goal ? (goal.targetMinor ? `${Math.round((goal.currentMinor / goal.targetMinor) * 100)}% saved` : 'Add an amount') : 'Set one and watch it fill'}
-          value={goal ? formatMoney(goal.currentMinor, { cents: false }) : '›'} valueColor={goal ? c.text : c.textSubtle} onPress={() => router.push('/goals')} />
-        <Row icon="" title="Invested" detail={d.invest.gainPct !== null && d.invest.holdings.length ? `${d.invest.gainMinor >= 0 ? '+' : '−'}${Math.abs(d.invest.gainPct)}% overall` : 'Follow stocks and funds'}
-          value={d.invest.holdings.length ? formatMoney(d.invest.totalValueMinor, { cents: false }) : '›'} valueColor={d.invest.holdings.length ? c.text : c.textSubtle} last onPress={() => router.push('/invest')} />
+          value={goal ? formatMoney(goal.currentMinor, { cents: false }) : '›'} valueColor={goal ? c.text : c.textSubtle} last={!admin} onPress={() => router.push('/goals')} />
+        {admin ? <Row icon="" title="Invested" detail={d.invest.gainPct !== null && d.invest.holdings.length ? `${d.invest.gainMinor >= 0 ? '+' : '−'}${Math.abs(d.invest.gainPct)}% overall` : 'Follow stocks and funds'}
+          value={d.invest.holdings.length ? formatMoney(d.invest.totalValueMinor, { cents: false }) : '›'} valueColor={d.invest.holdings.length ? c.text : c.textSubtle} last onPress={() => router.push('/investing')} /> : null}
       </Card>
     </>
   );
