@@ -10,6 +10,7 @@ import { Icon } from '@/components/Icon';
 import { TourTarget, useTour } from '@/lib/tour';
 import { GuestBanner, SampleDataBanner } from '@/components/GuestBanner';
 import { useSession, PREVIEW } from '@/lib/session';
+import { pendingBank, resumeClaimed } from '@/lib/bank';
 import { useSummary, type CardDue, type Summary } from '@/lib/summary';
 import { font, space, type, useColors, useIsDark } from '@/theme/tokens';
 
@@ -35,6 +36,14 @@ export default function Home() {
       return () => clearTimeout(t);
     }
   }, [me, demo, data]);
+  // A bank connection was started and Pockit reloaded while they were at the bank
+  // (phones do this): go back to Accounts, which finishes it.
+  useEffect(() => {
+    if (!me || me.guest || !pendingBank()) return;
+    // If Accounts is already open (it was the page that reloaded), it takes it from here.
+    const t = setTimeout(() => { if (!resumeClaimed()) router.push('/accounts'); }, 500);
+    return () => clearTimeout(t);
+  }, [me]);
   const first = me?.name?.split(' ')[0];
   return (
     <Screen section="home" title={data ? todayLine(data.today) : 'Pockit'} eyebrow={data?.space?.shared ? `${data.space.name} · shared` : first ? `Hi ${first}` : undefined} right={<ProfileButton />} onRefresh={refresh} refreshing={refreshing}>

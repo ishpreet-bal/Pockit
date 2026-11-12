@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { connectBank, disconnectBank, listConnections, syncBanks, type Connection } from '@/lib/bank';
+import { claimPendingBank, connectBank, disconnectBank, listConnections, syncBanks, waitForBank, type Connection } from '@/lib/bank';
 import { Alert, Platform, Text, View } from 'react-native';
 import { Button, Field, FormError, toMinor } from '@/components/form';
 import { Card, EmptyCard, Loading, Row, Screen, SectionHeader, formatMoney } from '@/components/ui';
@@ -40,6 +40,18 @@ export default function Accounts() {
     listConnections().then(setBanks).catch(() => setBanks({ available: false, connections: [] }));
   }, []);
   useEffect(load, [load]);
+  // Back from the bank's page after the phone reloaded Pockit: finish what was started.
+  useEffect(() => {
+    const p = PREVIEW ? null : claimPendingBank();
+    if (!p) return;
+    void (async () => {
+      try {
+        const bank = await waitForBank(p, setBankBusy);
+        setBankBusy(null);
+        if (bank) { setNote(`${bank} is connected. Your transactions are coming in.`); await refresh(); load(); }
+      } catch (e) { setBankBusy(null); setError(e instanceof Error ? e.message : 'Couldn’t connect your bank.'); }
+    })();
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   async function connect() {
     if (PREVIEW) { setNote('In your own account this opens your bank’s secure sign-in.'); return; }
